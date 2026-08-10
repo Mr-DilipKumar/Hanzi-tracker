@@ -2512,7 +2512,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const status = getStatus(item.c);
     const selected = selectedBrowseChars.has(item.c);
     let mark = "";
-    if (status === "known") mark = '<span class="seal-mark" aria-hidden="true">✓</span>';
+    if (status === "known") mark = '';
     else if (status === "learning") mark = '<span class="ink-dot" aria-hidden="true"></span>';
     return '<button class="tile selectable status-' + status + (selected ? ' selected' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' +
       '<span class="tile-hanzi">' + item.c + '</span>' +
