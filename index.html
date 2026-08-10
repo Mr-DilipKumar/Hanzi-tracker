@@ -336,6 +336,16 @@
   .stat-num{display:block;font-family:var(--font-ui);font-size:1.8rem;font-weight:800;color:var(--gold-bright);}
   .stat-label{font-size:.68rem;color:var(--text-soft-on-desk);text-transform:uppercase;letter-spacing:.05em;font-weight:700;}
 
+  .sentence-progress{margin-bottom:24px;}
+  .sentence-progress-bar{height:18px;background:var(--bg-mid);border:1px solid var(--line-on-desk);border-radius:999px;overflow:hidden;display:flex;}
+  .sentence-progress-segment{height:100%;transition:width .25s ease;}
+  .sentence-progress-new{background:rgba(147, 176, 255, 0.95);}
+  .sentence-progress-learning{background:var(--jade);}
+  .sentence-progress-known{background:linear-gradient(90deg, var(--gold), var(--gold-bright));}
+  .sentence-progress-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:12px;}
+  .sentence-progress-meta span{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;background:var(--bg-mid);border:1px solid var(--line-on-desk);border-radius:12px;font-size:.8rem;color:#fff;font-weight:700;line-height:1;white-space:nowrap;text-align:center;text-shadow:0 0 2px rgba(0,0,0,.85);}
+  .sentence-progress-meta strong{color:#fff;font-weight:900;line-height:1;text-shadow:0 0 2px rgba(0,0,0,.85);}
+
   .section-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-soft-on-desk);margin:0 0 12px;font-weight:700;}
 
   .level-bars{display:flex;flex-direction:column;gap:10px;margin-bottom:30px;}
@@ -369,7 +379,8 @@
 
   .radicals-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
   #radical-search{flex:1;min-width:200px;background:var(--bg-mid);border:1px solid var(--line-on-desk);
-    color:var(--cream-text);font-family:var(--font-ui);font-size:.85rem;padding:9px 14px;border-radius:100px;outline:none;}
+    color:#ffffff;font-family:var(--font-ui);font-size:.85rem;padding:9px 14px;border-radius:100px;outline:none;}
+  #radical-search::placeholder{color:rgba(255,255,255,.7);}
   #radical-search:focus{border-color:var(--gold-bright);box-shadow:0 0 0 3px var(--gold-glow);}
   .radical-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px;}
 
@@ -441,6 +452,10 @@
   .radical-detail-section h3{font-size:.82rem !important;margin:0 0 6px !important;color:var(--ink);}
   .radical-detail-section p{font-size:.76rem !important;line-height:1.5 !important;color:var(--ink-soft);margin:0;}
   .radical-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
+  .radical-detail-status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 30px 0;padding:0 2px;}
+  .radical-detail-status-label{font-size:.82rem;color:var(--ink-soft);font-weight:700;}
+  .radical-detail-status-label strong{color:var(--ink);font-weight:900;}
+  .radical-detail-status-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
   .radical-section-heading p{margin-top:2px;max-width:620px;}
 
   .radical-web-section{margin:0 30px;padding:18px 0 !important;}
@@ -457,9 +472,15 @@
   .source-action{font-size:.62rem;color:var(--gold-dark);font-weight:900;margin-top:3px;}
 
   #detail-radical-examples{display:flex;flex-wrap:wrap;gap:7px;}
-  .radical-example{display:inline-flex;align-items:center;justify-content:center;min-width:42px;
+  .radical-example{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:42px;
     min-height:42px;background:var(--paper-dim);border:1px solid var(--line-on-paper);
     border-radius:9px;padding:5px 10px;font-family:var(--font-hanzi);font-size:1.2rem;color:var(--ink);}
+  .radical-example.status-new{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);}
+  .radical-example.status-learning{background:linear-gradient(135deg, rgba(79,187,148,.12), var(--paper-dim));border-color:rgba(79,187,148,.24);}
+  .radical-example.status-known{background:linear-gradient(135deg, rgba(255,216,115,.16), var(--paper-dim));border-color:rgba(255,216,115,.28);}
+  .radical-example .radical-character-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:.6rem;font-weight:900;background:rgba(255,255,255,.92);color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.2);}
+  .radical-example.status-learning .radical-character-badge{background:linear-gradient(135deg,#d5f1e6,#a8e0c8);color:#0D2A20;}
+  .radical-example.status-known .radical-character-badge{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:var(--ink);}
 
   .radical-detail-section:last-child{border-bottom:0;}
   #radical-detail > .radical-detail-section{margin-left:30px;margin-right:30px;}
@@ -506,18 +527,72 @@
   .radical-detail-close{position:absolute;top:12px;right:14px;background:none;border:0;
     color:var(--ink-soft);font-size:1.3rem;cursor:pointer;z-index:2;padding:6px;}
 
-  .radical-card{background:var(--paper);color:var(--ink);border:0;border-radius:16px;padding:16px 9px;
-    min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-    box-shadow:0 4px 10px var(--paper-shadow);transition:transform .15s ease,box-shadow .15s ease;cursor:pointer;pointer-events:auto;}
-  .radical-card:hover{transform:translateY(-3px);box-shadow:0 10px 20px var(--paper-shadow);}
-  .radical-char{font-family:var(--font-hanzi);font-size:2.7rem;line-height:1;}
-  .radical-number{font-size:.72rem;color:var(--ink-soft);font-weight:800;}
-  .radical-name{font-size:.78rem;color:var(--ink);text-align:center;line-height:1.25;font-weight:800;}
-  .radical-pinyin{font-size:.7rem;color:var(--gold-dark);font-weight:700;}
-  .radical-strokes{font-size:.65rem;color:var(--ink-soft);font-weight:600;}
-  #detail-radical-examples{display:flex;flex-wrap:wrap;gap:6px;}
-  .radical-example{background:var(--paper-dim);border-radius:8px;padding:5px 9px;font-family:var(--font-hanzi);font-size:.9rem;}
-
+  .radical-card{
+    position:relative;
+    background:linear-gradient(160deg, var(--paper), rgba(255,247,229,.96));
+    color:var(--ink);
+    border:1px solid rgba(217,180,115,.28);
+    border-radius:18px;
+    padding:18px 12px;
+    min-height:170px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    box-shadow:0 8px 22px rgba(0,0,0,.12);
+    transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease;
+    cursor:pointer;
+    pointer-events:auto;
+  }
+  .radical-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 14px 28px rgba(0,0,0,.18);
+  }
+  .radical-card.status-new{
+    background:linear-gradient(180deg, var(--paper), rgba(255,255,255,.96));
+    border-color:rgba(255,255,255,.48);
+  }
+  .radical-card.status-learning{
+    background:linear-gradient(180deg, var(--paper), rgba(79,187,148,.09));
+    border-color:rgba(79,187,148,.28);
+  }
+  .radical-card.status-known{
+    background:linear-gradient(180deg, var(--paper), rgba(255,216,115,.16));
+    border-color:rgba(255,216,115,.32);
+  }
+  .radical-card-badge{
+    position:absolute;
+    top:12px;
+    right:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:26px;
+    height:26px;
+    border-radius:999px;
+    font-size:.75rem;
+    font-weight:900;
+    background:var(--paper);
+    color:var(--ink);
+    border:1px solid rgba(0,0,0,.08);
+    box-shadow:0 0 0 1px rgba(255,255,255,.3);
+  }
+  .radical-card.status-learning .radical-card-badge{
+    background:linear-gradient(135deg,#d5f1e6,#a8e0c8);
+    color:#0D2A20;
+    border-color:rgba(79,187,148,.3);
+  }
+  .radical-card.status-known .radical-card-badge{
+    background:linear-gradient(135deg,var(--gold-bright),var(--gold));
+    color:var(--ink);
+    border-color:rgba(255,216,115,.35);
+  }
+  .radical-char{font-family:var(--font-hanzi);font-size:3rem;line-height:1;}
+  .radical-number{font-size:.8rem;color:var(--ink-soft);font-weight:700;}
+  .radical-name{font-size:.82rem;color:var(--ink);text-align:center;line-height:1.3;font-weight:800;}
+  .radical-pinyin{font-size:.78rem;color:var(--gold-dark);font-weight:700;}
+  .radical-strokes{font-size:.68rem;color:var(--ink-soft);font-weight:600;}
   .radical-character-summary{font-size:.7rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.4;}
   .radical-character-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 8px;}
   .radical-character-filter{display:flex;align-items:center;gap:7px;font-size:.7rem;font-weight:800;color:var(--ink);cursor:pointer;}
@@ -527,9 +602,15 @@
   .radical-character-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px;
     max-height:420px;min-height:80px;overflow-y:auto;overflow-x:hidden;padding:4px 4px 8px 2px;
     border:1px solid var(--line-on-paper);border-radius:10px;background:var(--paper-dim);}
-  .radical-character{background:var(--paper-dim);border:0;border-radius:7px;min-height:38px;color:var(--ink);
-    font-family:var(--font-hanzi);font-size:1.25rem;cursor:pointer;}
+  .radical-character{position:relative;display:flex;align-items:center;justify-content:center;background:var(--paper-dim);border:0;border-radius:7px;min-height:38px;color:var(--ink);
+    font-family:var(--font-hanzi);font-size:1.25rem;cursor:pointer;padding:0 6px;transition:transform .14s ease,background .14s ease,border-color .14s ease;}
   .radical-character:hover{outline:2px solid var(--gold);transform:translateY(-1px);}
+  .radical-character.status-new{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);}
+  .radical-character.status-learning{background:linear-gradient(135deg, rgba(79,187,148,.12), var(--paper-dim));border:1px solid rgba(79,187,148,.24);}
+  .radical-character.status-known{background:linear-gradient(135deg, rgba(255,216,115,.16), var(--paper-dim));border:1px solid rgba(255,216,115,.28);}
+  .radical-character-badge{position:absolute;top:5px;right:5px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:.68rem;font-weight:900;background:rgba(255,255,255,.92);color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.2);}
+  .radical-character.status-learning .radical-character-badge{background:linear-gradient(135deg,#d5f1e6,#a8e0c8);color:#0D2A20;}
+  .radical-character.status-known .radical-character-badge{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:var(--ink);}
   .radical-character-tracker{font-size:.72rem;color:var(--ink-soft);margin-top:10px;line-height:1.45;}
   .radical-data-status{font-size:.68rem;color:var(--ink-soft);margin-top:10px;}
   .radical-data-status.loading{color:var(--gold-dark);}
@@ -1254,7 +1335,8 @@
   .sentence-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
   .sentence-actions .btn-primary,.sentence-actions .btn-secondary{font-size:.72rem;}
   .sentence-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-  #sentence-search{flex:1;min-width:240px;background:var(--bg-mid);border:1px solid var(--line-on-desk);color:var(--cream-text);font-family:var(--font-ui);font-size:.85rem;padding:10px 14px;border-radius:10px;outline:none;}
+  #sentence-search{flex:1;min-width:240px;background:var(--bg-mid);border:1px solid var(--line-on-desk);color:var(--cream-text) !important;caret-color:var(--cream-text);font-family:var(--font-ui);font-size:.85rem;padding:10px 14px;border-radius:10px;outline:none;}
+  #sentence-search::placeholder{color:rgba(255,243,214,0.75);}
   #sentence-search:focus{border-color:var(--gold-bright);box-shadow:0 0 0 3px var(--gold-glow);}
   /* Sentence filters intentionally share the same dropdown language as Browse. */
   .sentence-filter-row{display:grid;grid-template-columns:repeat(4,minmax(128px,1fr));gap:28px;align-items:end;width:100%;padding:2px 0 8px;margin-bottom:6px;}
@@ -1279,6 +1361,20 @@
   .sentence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
   .sentence-card{background:var(--paper);color:var(--ink);border-radius:16px;padding:18px 18px 14px;box-shadow:0 6px 18px var(--paper-shadow);border:1px solid transparent;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;min-height:175px;display:flex;flex-direction:column;}
   .sentence-card:hover{transform:translateY(-2px);border-color:var(--gold);box-shadow:0 10px 24px var(--paper-shadow);}
+  .sentence-card.status-new{border-color:rgba(255,255,255,.15);}
+  .sentence-card.status-learning{border-color:var(--jade);background:linear-gradient(135deg, var(--paper), rgba(79,187,148,.08));}
+  .sentence-card.status-known{border-color:var(--gold-bright);background:linear-gradient(135deg, var(--paper), rgba(255,216,115,.12));}
+  .sentence-card .sentence-badge-status{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-weight:700;color:var(--ink);}
+  .sentence-card.status-new .sentence-badge-status{background:rgba(255,255,255,.07);}
+  .sentence-card.status-learning .sentence-badge-status{background:linear-gradient(135deg,#4FBB94,var(--jade));color:#0D2A20;}
+  .sentence-card.status-known .sentence-badge-status{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:var(--ink);}
+  .sentence-status-icon{display:inline-flex;align-items:center;justify-content:center;font-size:.95rem;}
+  .sentence-card.status-learning .sentence-status-icon{animation:status-pulse 1.1s ease-out both;}
+  .sentence-card.status-known .sentence-status-icon{animation:status-shine 1.1s ease-out both;}
+  .sentence-card.status-new .sentence-status-icon{animation:status-bounce 1.1s ease-out both;}
+  @keyframes status-pulse{0%{transform:scale(1);}50%{transform:scale(1.15);}100%{transform:scale(1);}}
+  @keyframes status-shine{0%{transform:scale(1);}50%{transform:scale(1.2);}100%{transform:scale(1);}}
+  @keyframes status-bounce{0%{transform:translateY(0);}30%{transform:translateY(-3px);}100%{transform:translateY(0);}}
   .sentence-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;}
   .sentence-badges{display:flex;gap:5px;flex-wrap:wrap;}
   .sentence-badge{font-size:.56rem;font-weight:900;padding:4px 7px;border-radius:999px;background:var(--paper-dim);border:1px solid var(--line-on-paper);color:var(--ink-soft);}
@@ -1310,6 +1406,10 @@
   .sentence-detail-en{color:var(--ink-soft);font-size:.88rem;margin-top:7px;line-height:1.55;}
   .sentence-detail-section{border-top:1px solid var(--line-on-paper);margin-top:16px;padding-top:13px;}
   .sentence-detail-section h4{margin:0 0 8px;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;}
+  .sentence-detail-status-row{display:flex;align-items:center;gap:8px;margin-top:16px;color:var(--ink-soft);font-size:.86rem;}
+  .sentence-detail-status-row strong{font-size:.95rem;color:var(--ink);font-weight:800;}
+  .sentence-status-buttons{display:flex;gap:8px;margin-top:10px;}
+  .sentence-status-buttons .status-btn{flex:1;}
   .sentence-word-list{display:flex;flex-wrap:wrap;gap:6px;}
   .sentence-word-chip{border:1px solid var(--line-on-paper);background:var(--paper-dim);border-radius:8px;padding:6px 8px;font-size:.7rem;cursor:pointer;}
   .sentence-word-chip:hover{border-color:var(--gold);}
@@ -1670,6 +1770,15 @@
           </div>
         </div>
 
+        <div class="radical-detail-status-row">
+          <div class="radical-detail-status-label">Status: <strong id="detail-radical-current-status">New</strong></div>
+          <div class="radical-detail-status-buttons">
+            <button type="button" class="status-btn" id="detail-radical-status-btn-new">New</button>
+            <button type="button" class="status-btn" id="detail-radical-status-btn-learning">Learning</button>
+            <button type="button" class="status-btn" id="detail-radical-status-btn-known">Known</button>
+          </div>
+        </div>
+
         <div class="radical-detail-grid">
           <div class="radical-detail-stat"><span>Strokes</span><strong id="detail-radical-strokes">1</strong></div>
           <div class="radical-detail-stat"><span>Radical code</span><strong id="detail-radical-unicode">U+2F00</strong></div>
@@ -1803,6 +1912,21 @@
           <div class="stat-card"><span class="stat-num" id="stat-streak">0</span><span class="stat-label">Day streak</span></div>
         </div>
 
+        <div class="sentence-progress">
+          <p class="section-label">Sentence progress</p>
+          <div class="sentence-progress-bar">
+            <div class="sentence-progress-segment sentence-progress-new" id="sentence-progress-fill-new"></div>
+            <div class="sentence-progress-segment sentence-progress-learning" id="sentence-progress-fill-learning"></div>
+            <div class="sentence-progress-segment sentence-progress-known" id="sentence-progress-fill-known"></div>
+          </div>
+          <div class="sentence-progress-meta">
+            <span><strong id="sentence-progress-new">0</strong> new</span>
+            <span><strong id="sentence-progress-learning">0</strong> learning</span>
+            <span><strong id="sentence-progress-known">0</strong> mastered</span>
+            <span><strong id="sentence-progress-due">0</strong> due</span>
+          </div>
+        </div>
+
         <p class="section-label">Progress by level</p>
         <div class="level-bars" id="level-bars"></div>
 
@@ -1876,9 +2000,21 @@
       <h4>Characters in this sentence</h4>
       <div id="sentence-word-list" class="sentence-word-list"></div>
     </div>
+    <div class="sentence-detail-status-row">
+      <span>Status</span>
+      <strong id="sentence-detail-status">New</strong>
+    </div>
     <div class="sentence-detail-section">
       <h4>Practice</h4>
       <button class="btn-primary" id="sentence-detail-review">Review this sentence</button>
+    </div>
+    <div class="sentence-detail-section">
+      <h4>Mark sentence status</h4>
+      <div class="drawer-status-buttons sentence-status-buttons">
+        <button class="status-btn" id="sentence-status-btn-new">New</button>
+        <button class="status-btn" id="sentence-status-btn-learning">Learning</button>
+        <button class="status-btn" id="sentence-status-btn-known">Known</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2201,6 +2337,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
     return writeSentenceEntry(id, {status:next.status, interval:next.interval, incrementReviews:true});
   }
 
+  function setSentenceStatus(id, status){
+    const prev = getSentenceEntry(id) || { interval:0 };
+    let interval = prev.interval || 0;
+    if (status === "known") interval = Math.max(interval, 30);
+    if (status === "new") interval = 0;
+    return writeSentenceEntry(id, { status, interval, incrementReviews:false });
+  }
+
   function setStatusManual(char, status){
     const prev = state.progress[char] || { interval:0 };
     let interval = prev.interval || 0;
@@ -2264,6 +2408,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     updateBrowseSidebars();
     if (el("tab-progress").classList.contains("active")) renderProgress();
     if (el("tab-sentences").classList.contains("active")) renderSentences();
+    if (el("tab-radicals").classList.contains("active")) renderRadicals();
   }
 
   /* ---------- BROWSE ---------- */
@@ -2349,7 +2494,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
     chars.forEach(char=>setStatusManual(char, status));
     selectedBrowseChars.clear();
     syncUI();
-    if (newlyKnown){ triggerStampFX(el("app")); if (chars.length <= 24) spawnConfetti(el("app")); }
+    if (newlyKnown){
+      const tileEls = chars.map(c=>document.querySelector('.tile[data-char="' + CSS.escape(c) + '"]')).filter(Boolean);
+      if (tileEls.length){
+        tileEls.forEach(el=>triggerStampFX(el));
+        if (tileEls.length <= 24) tileEls.forEach(el=>spawnConfetti(el));
+      }
+    }
     showToast(chars.length + " card" + (chars.length === 1 ? "" : "s") + " marked " + (status === "learning" ? "Learning" : "Already known") + ".");
   }
 
@@ -2387,6 +2538,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   /* ---------- DRAWER ---------- */
   let currentDetailChar = null;
+  let currentRadicalChar = null;
 
   /* Sentence-first details: synonym/antonym enrichment intentionally removed. */
 
@@ -2501,7 +2653,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(e.status==="known") return "Mastered";
     return e.due && e.due<=now ? "Due" : "Learning";
   }
-  function sentenceStatusClass(item){ return sentenceStatusLabel(item).toLowerCase(); }
+  function sentenceStatusClass(item){
+    const status = getSentenceStatus(item.i);
+    if (status === "known") return "known";
+    if (status === "learning") return "learning";
+    return "new";
+  }
 
   function getFilteredSentences(){
     const q=sentenceFilters.query.trim().toLowerCase();
@@ -2528,22 +2685,25 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   function sentenceCardHTML(item){
-    const status=sentenceStatusLabel(item), due=getSentenceEntry(item.i)?.due;
-    return '<article class="sentence-card" data-sentence-id="'+escHtml(item.i)+'">'+
+    const status = sentenceStatusLabel(item);
+    const statusClass = sentenceStatusClass(item);
+    const statusIcon = statusClass === "known" ? "✓" : statusClass === "learning" ? "📖" : "🆕";
+    const due = getSentenceEntry(item.i)?.due;
+    return '<article class="sentence-card status-'+escHtml(statusClass)+'" data-sentence-id="'+escHtml(item.i)+'">'+
       '<div class="sentence-card-top"><div class="sentence-badges">'+
-        '<span class="sentence-badge">'+escHtml(sentenceHskLabel(item))+'</span>'+
-        '<span class="sentence-badge">'+escHtml(sentenceDifficultyLabel(item))+'</span>'+
-        '<span class="sentence-badge '+(status==="Due"?'due':'')+'">'+escHtml(status)+'</span>'+
-      '</div><button type="button" class="sentence-audio" data-speak-sentence="'+escHtml(item.i)+'" title="Listen">🔊</button></div>'+
-      '<div class="sentence-zh">'+sentenceCharsHTML(item.z)+'</div>'+
-      '<div class="sentence-hidden-detail" data-pinyin-panel="'+escHtml(item.i)+'"><div class="sentence-pinyin">'+escHtml(sentencePinyin(item))+'</div></div>'+
-      '<div class="sentence-hidden-detail" data-english-panel="'+escHtml(item.i)+'"><div class="sentence-en">'+escHtml(item.t)+'</div></div>'+
+        '<span class="sentence-badge">'+escHtml(sentenceHskLabel(item))+'</span>'+ 
+        '<span class="sentence-badge">'+escHtml(sentenceDifficultyLabel(item))+'</span>'+ 
+        '<span class="sentence-badge sentence-badge-status '+(status==="Due"?'due':'')+'"><span class="sentence-status-icon">'+escHtml(statusIcon)+'</span> '+escHtml(status)+'</span>'+ 
+      '</div><button type="button" class="sentence-audio" data-speak-sentence="'+escHtml(item.i)+'" title="Listen">🔊</button></div>'+ 
+      '<div class="sentence-zh">'+sentenceCharsHTML(item.z)+'</div>'+ 
+      '<div class="sentence-hidden-detail" data-pinyin-panel="'+escHtml(item.i)+'"><div class="sentence-pinyin">'+escHtml(sentencePinyin(item))+'</div></div>'+ 
+      '<div class="sentence-hidden-detail" data-english-panel="'+escHtml(item.i)+'"><div class="sentence-en">'+escHtml(item.t)+'</div></div>'+ 
       '<div class="sentence-reveal-row">'+
-        '<button type="button" class="sentence-reveal-btn" data-reveal-pinyin="'+escHtml(item.i)+'">Show pinyin</button>'+
-        '<button type="button" class="sentence-reveal-btn" data-reveal-english="'+escHtml(item.i)+'">Show English</button>'+
-      '</div>'+
-      '<div class="sentence-meta"><span>'+escHtml(due && status==="Learning" ? "Next review: "+new Date(due).toLocaleDateString() : "Recall first, then reveal")+'</span>'+
-        '<div class="sentence-meta-actions"><button type="button" class="sentence-detail-btn" data-detail-sentence="'+escHtml(item.i)+'">Details</button><button type="button" class="sentence-review-btn" data-review-sentence="'+escHtml(item.i)+'">Study</button></div>'+
+        '<button type="button" class="sentence-reveal-btn" data-reveal-pinyin="'+escHtml(item.i)+'">Show pinyin</button>'+ 
+        '<button type="button" class="sentence-reveal-btn" data-reveal-english="'+escHtml(item.i)+'">Show English</button>'+ 
+      '</div>'+ 
+      '<div class="sentence-meta"><span>'+escHtml(due && status==="Learning" ? "Next review: "+new Date(due).toLocaleDateString() : "Recall first, then reveal")+'</span>'+ 
+        '<div class="sentence-meta-actions"><button type="button" class="sentence-detail-btn" data-detail-sentence="'+escHtml(item.i)+'">Details</button><button type="button" class="sentence-review-btn" data-review-sentence="'+escHtml(item.i)+'">Study</button></div>'+ 
       '</div></article>';
   }
 
@@ -2583,8 +2743,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("sentence-detail-en").textContent=item.t;
     el("sentence-word-list").innerHTML=Array.from(new Set(Array.from(item.z).filter(ch=>HANZI_BY_CHAR[ch]))).map(ch=>'<button type="button" class="sentence-word-chip" data-sentence-char="'+escHtml(ch)+'">'+escHtml(ch)+' '+escHtml(HANZI_BY_CHAR[ch].p||"")+'</button>').join("");
     el("sentence-detail-review").dataset.reviewSentence=id;
+    updateSentenceDetailStatusUI(id);
     el("sentence-detail-modal").classList.add("open");
     el("sentence-detail-modal").setAttribute("aria-hidden","false");
+  }
+  function updateSentenceDetailStatusUI(id){
+    const status = getSentenceStatus(id);
+    const label = status === "known" ? "Mastered" : status === "learning" ? "Learning" : "New";
+    el("sentence-detail-status").textContent = label;
+    ["new","learning","known"].forEach(s=>{
+      const btn = el("sentence-status-btn-" + s);
+      if (btn) btn.classList.toggle("active", status === s);
+    });
   }
   function closeSentenceDetails(){ el("sentence-detail-modal").classList.remove("open"); el("sentence-detail-modal").setAttribute("aria-hidden","true"); }
 
@@ -2813,6 +2983,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("stat-new").textContent = neu.toLocaleString();
     el("stat-streak").textContent = state.streak.count || 0;
 
+    renderSentenceProgress();
+
     el("level-bars").innerHTML = LEVEL_GROUPS.map(g=>{
       const items = HANZI_DATA.filter(item=> levelMatches(item, g.key));
       let k = 0, l = 0;
@@ -2836,6 +3008,33 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("seal-album-grid").innerHTML = knownEntries.length
       ? knownEntries.map(([c])=> '<span class="seal-chip" data-char="' + escHtml(c) + '" title="' + escHtml(c) + '">' + escHtml(c) + '</span>').join("")
       : '<p class="empty-note">Stamp your first character to start your collection.</p>';
+  }
+
+  function renderSentenceProgress(){
+    const total = SENTENCE_DATA.length;
+    const known = SENTENCE_DATA.filter(item=> getSentenceStatus(item.i) === "known").length;
+    const fresh = SENTENCE_DATA.filter(item=> getSentenceStatus(item.i) === "new").length;
+    const learning = total - known - fresh;
+    const due = getSentenceDueCount();
+    const pctNew = total ? (fresh / total * 100) : 0;
+    const pctLearning = total ? (learning / total * 100) : 0;
+    const pctKnown = total ? (known / total * 100) : 0;
+
+    const fillNew = el("sentence-progress-fill-new");
+    const fillLearning = el("sentence-progress-fill-learning");
+    const fillKnown = el("sentence-progress-fill-known");
+    if (fillNew) fillNew.style.width = pctNew + "%";
+    if (fillLearning) fillLearning.style.width = pctLearning + "%";
+    if (fillKnown) fillKnown.style.width = pctKnown + "%";
+
+    const labelNew = el("sentence-progress-new");
+    const labelLearning = el("sentence-progress-learning");
+    const labelKnown = el("sentence-progress-known");
+    const labelDue = el("sentence-progress-due");
+    if (labelNew) labelNew.textContent = fresh.toLocaleString();
+    if (labelLearning) labelLearning.textContent = learning.toLocaleString();
+    if (labelKnown) labelKnown.textContent = known.toLocaleString();
+    if (labelDue) labelDue.textContent = due.toLocaleString();
   }
 
   /* ---------- wiring ---------- */
@@ -3030,6 +3229,19 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("sentence-detail-close").addEventListener("click",closeSentenceDetails);
     el("sentence-detail-modal").addEventListener("click",e=>{if(e.target===el("sentence-detail-modal"))closeSentenceDetails();const ch=e.target.closest("[data-sentence-char]");if(ch){closeSentenceDetails();openDetail(ch.dataset.sentenceChar);}});
     el("sentence-detail-review").addEventListener("click",()=>{const id=el("sentence-detail-review").dataset.reviewSentence;closeSentenceDetails();openSentenceReview(id);});
+    ["new","learning","known"].forEach(status=>{
+      const btn = el("sentence-status-btn-" + status);
+      if (!btn) return;
+      btn.addEventListener("click",()=>{
+        const id = el("sentence-detail-review").dataset.reviewSentence;
+        if (!id) return;
+        const wasKnown = getSentenceStatus(id) === "known";
+        setSentenceStatus(id, status);
+        if (status === "known" && !wasKnown){ triggerStampFX(btn); spawnConfetti(btn); }
+        updateSentenceDetailStatusUI(id);
+        syncUI();
+      });
+    });
   }
 
   function startSentencePool(poolType){
@@ -3185,9 +3397,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   /* ---------- CONTEXT MENU ---------- */
   let contextMenuChar = null;
-
-  function openContextMenu(x, y, char){
-    contextMenuChar = char;
+  let contextMenuTarget = null;
+  let contextMenuType = "char";
+  
+  function openContextMenu(x, y, type, id, target){
+    contextMenuType = type;
+    contextMenuChar = id;
+    contextMenuTarget = target || null;
     const menu = el("context-menu");
     menu.classList.remove("hidden");
     menu.style.left = "-999px";
@@ -3204,6 +3420,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
   function closeContextMenu(){
     el("context-menu").classList.add("hidden");
     contextMenuChar = null;
+    contextMenuTarget = null;
+    contextMenuType = "char";
   }
 
   function wireContextMenu(){
@@ -3211,30 +3429,52 @@ document.addEventListener("DOMContentLoaded", ()=>{
       const tile = e.target.closest(".tile");
       if (!tile) return;
       e.preventDefault();
-      openContextMenu(e.clientX, e.clientY, tile.dataset.char);
+      openContextMenu(e.clientX, e.clientY, "char", tile.dataset.char, tile);
     });
     el("seal-album-grid").addEventListener("contextmenu", (e)=>{
       const chip = e.target.closest(".seal-chip");
       if (!chip) return;
       e.preventDefault();
-      openContextMenu(e.clientX, e.clientY, chip.dataset.char);
+      openContextMenu(e.clientX, e.clientY, "char", chip.dataset.char, chip);
+    });
+    el("sentence-grid").addEventListener("contextmenu", (e)=>{
+      const card = e.target.closest(".sentence-card");
+      if (!card) return;
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, "sentence", card.dataset.sentenceId, card);
+    });
+    el("radical-grid").addEventListener("contextmenu", (e)=>{
+      const card = e.target.closest(".radical-card");
+      if (!card) return;
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, "char", card.dataset.char || card.getAttribute("data-char"), card);
     });
     el("context-menu").addEventListener("click", (e)=>{
       const btn = e.target.closest(".context-menu-item");
       if (!btn || !contextMenuChar) return;
       const action = btn.dataset.action;
-      const char = contextMenuChar;
+      const id = contextMenuChar;
       if (action === "details"){
         closeContextMenu();
-        openDetail(char);
+        if (contextMenuType === "sentence") openSentenceDetails(id);
+        else openDetail(id);
         return;
       }
-      const wasKnown = getStatus(char) === "known";
-      setStatusManual(char, action);
-      if (action === "known" && !wasKnown){
-        const tileEl = document.querySelector('.tile[data-char="' + CSS.escape(char) + '"]');
-        triggerStampFX(tileEl || el("app"));
-        spawnConfetti(tileEl || el("app"));
+      if (contextMenuType === "sentence"){
+        const wasKnown = getSentenceStatus(id) === "known";
+        setSentenceStatus(id, action);
+        if (action === "known" && !wasKnown){
+          triggerStampFX(contextMenuTarget || el("app"));
+          spawnConfetti(contextMenuTarget || el("app"));
+        }
+      } else {
+        const wasKnown = getStatus(id) === "known";
+        setStatusManual(id, action);
+        if (action === "known" && !wasKnown){
+          const tileEl = document.querySelector('.tile[data-char="' + CSS.escape(id) + '"]');
+          triggerStampFX(tileEl || contextMenuTarget || el("app"));
+          spawnConfetti(tileEl || contextMenuTarget || el("app"));
+        }
       }
       closeContextMenu();
       syncUI();
@@ -3244,7 +3484,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       if (!el("context-menu").classList.contains("hidden") && !e.target.closest("#context-menu")) closeContextMenu();
     });
     document.addEventListener("contextmenu", (e)=>{
-      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip")) closeContextMenu();
+      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip") && !e.target.closest(".sentence-card")) closeContextMenu();
     });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape") closeContextMenu(); });
     window.addEventListener("scroll", closeContextMenu, true);
@@ -3492,14 +3732,20 @@ document.addEventListener("DOMContentLoaded", ()=>{
     );
 
     el("radical-count").textContent = filtered.length + " of 214 radicals";
-    el("radical-grid").innerHTML = filtered.map(r=>`
-      <button type="button" class="radical-card" data-radical="${r.number}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
+    el("radical-grid").innerHTML = filtered.map(r=>{
+      const char = r.base && r.base !== "—" ? r.base : r.char;
+      const status = getStatus(char);
+      const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
+      return `
+      <button type="button" class="radical-card status-${status}" data-radical="${r.number}" data-char="${escHtml(char)}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
+        <span class="radical-card-badge" aria-hidden="true">${icon}</span>
         <span class="radical-char">${r.char}</span>
         <span class="radical-number">#${r.number} · ${r.strokes} stroke${r.strokes===1?"":"s"}</span>
         <span class="radical-name">${escHtml(r.meaning)}</span>
         <span class="radical-pinyin">${escHtml(r.pinyin)}</span>
       </button>
-    `).join("");
+    `;
+    }).join("");
   }
 
 
@@ -3714,12 +3960,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
         ? "Showing the " + visible.length.toLocaleString() + " most-used characters for Radical " + number + "."
         : "Showing all " + chars.length.toLocaleString() + " characters assigned to Radical " + number + ".";
 
-      list.innerHTML = visible.map((c,i) =>
-        '<button type="button" class="radical-character" data-char="' +
-        escHtml(c) + '" title="' +
-        escHtml((trackerMap.get(c)?.m || "") + (trackerMap.has(c) ? " · frequency rank " + trackerMap.get(c).f : "")) +
-        '">' + escHtml(c) + '</button>'
-      ).join("");
+      list.innerHTML = visible.map((c,i) => {
+        const status = getStatus(c);
+        const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
+        return '<button type="button" class="radical-character status-' + status + '" data-char="' +
+          escHtml(c) + '" title="' +
+          escHtml((trackerMap.get(c)?.m || "") + (trackerMap.has(c) ? " · frequency rank " + trackerMap.get(c).f : "")) +
+          '">' + escHtml(c) + '<span class="radical-character-badge" aria-hidden="true">' + icon + '</span></button>';
+      }).join("");
 
       tracker.textContent =
         rankedInTracker.length.toLocaleString() + " characters from this radical are in your Hanzi Tracker dataset. " +
@@ -3756,6 +4004,17 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("detail-radical-base").textContent = r.base;
     el("detail-radical-base-unicode").textContent = baseCode;
 
+    const trackedChar = r.base && r.base !== "—" ? r.base : r.char;
+    currentRadicalChar = trackedChar;
+    const radicalStatus = getStatus(trackedChar);
+    const statusLabel = radicalStatus === "known" ? "Mastered" : radicalStatus === "learning" ? "Learning" : "New";
+    const statusNode = el("detail-radical-current-status");
+    if (statusNode) statusNode.textContent = statusLabel;
+    ["new","learning","known"].forEach(s => {
+      const btn = el("detail-radical-status-btn-" + s);
+      if (btn) btn.classList.toggle("active", s === radicalStatus);
+    });
+
     const yb = el("radical-source-yellowbridge");
     const mdbg = el("radical-source-mdbg");
     const unicode = el("radical-source-unicode");
@@ -3768,9 +4027,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
       r.variants === "—" ? "No common variant/component form is listed." : r.variants;
     el("detail-radical-position").textContent =
       r.position.charAt(0).toUpperCase() + r.position.slice(1) + ".";
-    el("detail-radical-examples").innerHTML = r.examples.map(c =>
-      '<span class="radical-example">' + escHtml(c) + '</span>'
-    ).join("");
+    el("detail-radical-examples").innerHTML = r.examples.map(c => {
+      const status = getStatus(c);
+      const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
+      return '<span class="radical-example status-' + status + '">' + escHtml(c) + '<span class="radical-character-badge" aria-hidden="true">' + icon + '</span></span>';
+    }).join("");
     el("detail-radical-note").textContent =
       "Unicode’s radical-stroke indexes use the 214 Kangxi radicals and count the remaining strokes after the radical. Unicode notes that some ideographs can be classified under more than one radical or have differing stroke counts, so a character can appear in more than one index position.";
 
@@ -3786,6 +4047,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if (panel) panel.classList.remove("open");
     if (backdrop) backdrop.classList.remove("open");
     document.body.classList.remove("radical-modal-open");
+    currentRadicalChar = null;
   }
 
 
@@ -3808,6 +4070,23 @@ document.addEventListener("DOMContentLoaded", ()=>{
         openRadicalDetail(parseInt(card.getAttribute("data-radical"), 10));
       }, false);
     }
+
+    ["new","learning","known"].forEach(s => {
+      const btn = el("detail-radical-status-btn-" + s);
+      if (!btn) return;
+      btn.addEventListener("click", function(){
+        if (!currentRadicalChar) return;
+        const wasKnown = getStatus(currentRadicalChar) === "known";
+        setStatusManual(currentRadicalChar, s);
+        if (s === "known" && !wasKnown){
+          triggerStampFX(el("detail-radical-char"));
+          spawnConfetti(el("radical-detail"));
+        }
+        const n = Number(el("detail-radical-number").textContent.replace("#",""));
+        if (n) openRadicalDetail(n);
+        syncUI();
+      });
+    });
 
     const mostUsedOnly = el("radical-most-used-only");
     const limitEl = el("radical-character-limit");

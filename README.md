@@ -1,3 +1,5 @@
+It's first build was completed on 9th auguest 2026
+
 # Hanzi Tracker — GitHub Pages
 
 ## Publish on GitHub Pages
