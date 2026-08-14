@@ -6452,7 +6452,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   async function signInWithGithub() {
     if (!supabaseClient) { showToast("Supabase not configured"); return; }
-    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "github" });
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "github", options: { redirectTo: window.location.origin + window.location.pathname } });
     if (error) showToast("Sign-in failed: " + error.message);
   }
 
