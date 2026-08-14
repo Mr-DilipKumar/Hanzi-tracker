@@ -19,6 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
 <style>
@@ -6396,49 +6397,40 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 
   /* =========================================================
-   *  FIREBASE AUTH & CLOUD SYNC (placeholder — requires config)
+   *  SUPABASE AUTH & CLOUD SYNC
    * ========================================================= */
 
-  let firebaseApp = null;
-  let firebaseAuth = null;
-  let firebaseDb = null;
+  const SUPABASE_URL = "YOUR_PROJECT_URL";
+  const SUPABASE_PUBLISHABLE_KEY = "YOUR_PUBLISHABLE_KEY";
+  
+  let supabaseClient = null;
   let currentUser = null;
   let syncDebounceTimer = null;
 
-  // *** PASTE YOUR FIREBASE CONFIG HERE ***
-  const FIREBASE_CONFIG = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
-  };
-
-  async function initFirebase() {
-    // Skip if no config provided
-    if (!FIREBASE_CONFIG.apiKey) {
-      console.log("[Sync] No Firebase config — running in local-only mode");
+  function initSupabase() {
+    if (SUPABASE_URL === "YOUR_PROJECT_URL") {
+      console.log("[Sync] Supabase not configured — running in local-only mode");
       return;
     }
-
-    try {
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js");
-      const { getAuth, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js");
-      const { getFirestore } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
-
-      firebaseApp = initializeApp(FIREBASE_CONFIG);
-      firebaseAuth = getAuth(firebaseApp);
-      firebaseDb = getFirestore(firebaseApp);
-
-      onAuthStateChanged(firebaseAuth, user => {
-        currentUser = user;
-        updateAuthUI(user);
-        if (user) loadFromCloud();
-      });
-    } catch(e) {
-      console.warn("[Sync] Firebase init failed:", e);
-    }
+    
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      currentUser = session?.user || null;
+      updateAuthUI(currentUser);
+      if (currentUser && event === 'SIGNED_IN') {
+        loadFromCloud();
+      }
+    });
+    
+    // Initial check
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      currentUser = session?.user || null;
+      updateAuthUI(currentUser);
+      if (currentUser) {
+        loadFromCloud();
+      }
+    });
   }
 
   function updateAuthUI(user) {
@@ -6450,8 +6442,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if (user) {
       if (signInBtn) signInBtn.classList.add("hidden");
       if (userSection) userSection.classList.remove("hidden");
-      if (avatar) avatar.src = user.photoURL || "icons/icon-192.png";
-      if (nameEl) nameEl.textContent = user.displayName || user.email?.split("@")[0] || "User";
+      if (avatar) avatar.src = "icons/icon-192.png";
+      if (nameEl) nameEl.textContent = user.email?.split("@")[0] || "User";
     } else {
       if (signInBtn) signInBtn.classList.remove("hidden");
       if (userSection) userSection.classList.add("hidden");
@@ -6459,53 +6451,49 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   async function signInWithGoogle() {
-    if (!firebaseAuth) { showToast("Firebase not configured"); return; }
-    try {
-      const { signInWithPopup, GoogleAuthProvider } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js");
-      await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
-      closeAuthModal();
-    } catch(e) {
-      showToast("Sign-in failed: " + e.message);
-    }
+    if (!supabaseClient) { showToast("Supabase not configured"); return; }
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "google" });
+    if (error) showToast("Sign-in failed: " + error.message);
   }
 
   async function signInWithEmail() {
-    if (!firebaseAuth) { showToast("Firebase not configured"); return; }
+    if (!supabaseClient) { showToast("Supabase not configured"); return; }
     const email = el("auth-email")?.value;
     const password = el("auth-password")?.value;
     if (!email || !password) { showToast("Enter email and password"); return; }
-    try {
-      const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js");
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+    
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      showToast("Sign-in failed: " + error.message);
+    } else {
       closeAuthModal();
-    } catch(e) {
-      showToast("Sign-in failed: " + e.message);
+      showToast("Signed in!");
     }
   }
 
   async function signUpWithEmail() {
-    if (!firebaseAuth) { showToast("Firebase not configured"); return; }
+    if (!supabaseClient) { showToast("Supabase not configured"); return; }
     const email = el("auth-email")?.value;
     const password = el("auth-password")?.value;
     if (!email || !password) { showToast("Enter email and password"); return; }
-    try {
-      const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js");
-      await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    
+    const { error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) {
+      showToast("Sign-up failed: " + error.message);
+    } else {
       closeAuthModal();
-      showToast("Account created!");
-    } catch(e) {
-      showToast("Sign-up failed: " + e.message);
+      showToast("Account created! Check your email to confirm if required.");
     }
   }
 
   async function signOutUser() {
-    if (!firebaseAuth) return;
-    try {
-      const { signOut } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js");
-      await signOut(firebaseAuth);
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.auth.signOut();
+    if (!error) {
       currentUser = null;
+      updateAuthUI(null);
       showToast("Signed out");
-    } catch(e) {}
+    }
   }
 
   function openAuthModal() {
@@ -6526,38 +6514,39 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   async function syncToCloud() {
-    if (!currentUser || !firebaseDb) return;
+    if (!currentUser || !supabaseClient) return;
     const indicator = el("sync-indicator");
     if (indicator) indicator.classList.add("syncing");
 
     try {
-      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
-
-      // Collect all character statuses
-      const charData = {};
+      // Collect all character statuses to upsert
+      const progressData = [];
       HANZI_DATA.forEach(h => {
         const status = getStatus(h.c);
-        if (status !== "new") charData[h.c] = { status };
+        if (status !== "new") {
+          // For simplicity, we just save the status here
+          progressData.push({
+            user_id: currentUser.id,
+            character: h.c,
+            status: status,
+            attempts: 0,
+            correct: 0,
+            last_practiced: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
       });
-
-      // Collect sentence statuses
-      const sentenceData = {};
-      SENTENCE_DATA.forEach(s => {
-        const key = "hanzi-tracker-sentence-" + s.i;
-        try {
-          const d = JSON.parse(localStorage.getItem(key) || "null");
-          if (d) sentenceData[s.i] = d;
-        } catch(e) {}
-      });
-
-      await setDoc(doc(firebaseDb, "users", currentUser.uid), {
-        email: currentUser.email,
-        lastSync: new Date().toISOString(),
-        characters: charData,
-        sentences: sentenceData,
-        xp: getXPState(),
-      }, { merge: true });
-
+      
+      // Batch upsert to Supabase
+      if (progressData.length > 0) {
+        const { error } = await supabaseClient
+          .from("hanzi_progress")
+          .upsert(progressData, { onConflict: "user_id,character" });
+          
+        if (error) {
+           console.error("Supabase upsert error:", error);
+        }
+      }
     } catch(e) {
       console.warn("[Sync] Cloud save failed:", e);
     } finally {
@@ -6571,30 +6560,22 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   async function loadFromCloud() {
-    if (!currentUser || !firebaseDb) return;
+    if (!currentUser || !supabaseClient) return;
     try {
-      const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
-      const snap = await getDoc(doc(firebaseDb, "users", currentUser.uid));
-      if (!snap.exists()) return;
-
-      const data = snap.data();
-      // Merge characters — cloud wins for any character that exists
-      if (data.characters) {
-        for (const [char, info] of Object.entries(data.characters)) {
-          const current = getStatus(char);
-          if (info.status && info.status !== current) {
-            setStatusRaw(char, info.status);
-          }
-        }
-      }
-
-      // Merge XP — highest wins
-      if (data.xp) {
-        const local = getXPState();
-        if (data.xp.totalXP > local.totalXP) {
-          saveXPState({ ...local, ...data.xp });
-        }
-      }
+      const { data, error } = await supabaseClient
+        .from("hanzi_progress")
+        .select("*")
+        .eq("user_id", currentUser.id);
+        
+      if (error) throw error;
+      if (!data || data.length === 0) return;
+      
+      data.forEach(row => {
+         const current = getStatus(row.character);
+         if (row.status && row.status !== current) {
+           setStatusRaw(row.character, row.status);
+         }
+      });
 
       showToast("☁️ Data synced from cloud");
       renderBrowse();
@@ -6671,7 +6652,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     updateXPDisplay();
     renderAchievementGrid();
     wireAuth();
-    initFirebase();
+    initSupabase();
 
     // Register service worker for PWA
     if ("serviceWorker" in navigator) {
