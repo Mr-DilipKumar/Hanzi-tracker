@@ -162,7 +162,7 @@
 .word-card-inner{position:relative;width:100%;height:100%;min-height:190px;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.34,1.15,.4,1);cursor:pointer;}
 .word-card.flipped .word-card-inner{transform:rotateY(180deg);}
 .word-card-face{position:absolute;inset:0;backface-visibility:hidden;border:3px solid var(--line-on-paper);border-radius:16px;background:var(--paper);color:var(--ink);padding:16px 14px 13px;box-shadow:0 6px 18px var(--paper-shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;}
-.word-card-face.back{transform:rotateY(180deg);justify-content:flex-start;overflow-y:auto;}
+.word-card-face.back{transform:rotateY(180deg);justify-content:center;overflow-y:auto;}
 .word-card-inner{height:190px;}
 .word-card-face{will-change:transform;}
 .word-card:focus-visible{outline:3px solid var(--gold-bright);outline-offset:3px;}
@@ -229,6 +229,8 @@
   .word-character-meanings{display:none !important;}
   .word-example{width:100%;margin-top:9px;padding:12px 14px;border:2px solid var(--line-on-paper);border-radius:10px;background:var(--paper-dim);text-align:left;}
   .word-example-zh{font-family:var(--font-hanzi);font-size:1.3rem;font-weight:700;line-height:1.45;color:var(--ink);}
+  .word-example-py{font-family:var(--font-ui);font-size:1.1rem;font-weight:700;line-height:1.4;color:var(--gold-dark);margin-top:4px;font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0,"kern" 1;}
+  .word-example-py[hidden]{display:none !important;}
   .word-example-en{font-family:var(--font-ui);font-size:1.05rem;font-weight:650;line-height:1.4;color:var(--ink-soft);margin-top:4px;}
   .word-example-empty{font-size:1.05rem;color:var(--ink-soft);font-style:italic;line-height:1.4;}
   .word-example-label,.word-meaning-label{font-size:.85rem;text-transform:uppercase;letter-spacing:.07em;color:var(--gold-dark);font-weight:900;margin-bottom:6px;}
@@ -4787,7 +4789,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             '<div class="word-card-back-meaning" data-word-meaning="'+escHtml(word.word)+'">'+escHtml(meaningText)+'</div>'+
             '<div class="word-example" '+(wordsShowEnglish?'':'hidden')+'>'+
               '<div class="word-example-label">Simple example</div>'+
-              (example ? '<div class="word-example-zh">'+escHtml(example.zh)+'</div><div class="word-example-en">'+escHtml(example.en)+'</div>' : '<div class="word-example-empty">No example sentence in the current corpus.</div>')+
+              (example ? '<div class="word-example-zh">'+escHtml(example.zh)+'</div>'+(window.pinyinPro&&typeof window.pinyinPro.pinyin==="function"?'<div class="word-example-py" '+(wordsShowPinyin?'':'hidden')+'>'+escHtml(window.pinyinPro.pinyin(example.zh,{toneType:"symbol",type:"string",v:true}))+'</div>':'')+'<div class="word-example-en">'+escHtml(example.en)+'</div>' : '<div class="word-example-empty">No example sentence in the current corpus.</div>')+
             '</div>'+
             '<div class="word-parts">'+parts+'</div>'+
           '</div>'+

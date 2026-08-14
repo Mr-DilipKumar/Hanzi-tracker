@@ -8,8 +8,7 @@ const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-192.png'
 ];
 
 // CDN assets that we'll cache opportunistically
