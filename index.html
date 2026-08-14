@@ -3510,6 +3510,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       }catch(e){
         showToast("Couldn't save progress just now.", true);
       }
+      if (typeof debouncedSync === "function") debouncedSync();
     }, 100);
   }
 
@@ -6578,6 +6579,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       });
 
       showToast("☁️ Data synced from cloud");
+      saveState();
       renderBrowse();
       renderProgress();
       updateHeaderProgress();
@@ -6589,12 +6591,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   // Helper: set status without triggering full re-render (for bulk import)
   function setStatusRaw(char, status) {
-    const key = "hanzi-tracker-status";
-    try {
-      const all = JSON.parse(localStorage.getItem(key) || "{}");
-      all[char] = status;
-      localStorage.setItem(key, JSON.stringify(all));
-    } catch(e) {}
+    if (!state.progress[char]) {
+      state.progress[char] = { status: status, interval: 0, reviews: 0, due: Date.now(), stampedAt: null };
+    } else {
+      state.progress[char].status = status;
+    }
   }
 
   function wireAuth() {
