@@ -3321,8 +3321,8 @@
     <button class="auth-modal-close" id="auth-modal-close">✕</button>
     <h2>☁️ Sign in to sync</h2>
     <p>Your progress will be backed up and available on any device. Study on desktop, review on your phone.</p>
-    <button class="auth-google-btn" id="auth-google-btn">
-      Sign in with Google
+    <button class="auth-google-btn" id="auth-github-btn">
+      Sign in with GitHub
     </button>
     <div class="auth-divider">or use email</div>
     <input type="email" id="auth-email" placeholder="Email address">
@@ -6400,8 +6400,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
    *  SUPABASE AUTH & CLOUD SYNC
    * ========================================================= */
 
-  const SUPABASE_URL = "YOUR_PROJECT_URL";
-  const SUPABASE_PUBLISHABLE_KEY = "YOUR_PUBLISHABLE_KEY";
+  const SUPABASE_URL = "https://gyafdvspybhyspasbifo.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wgx0UQzbw3X7POQeeUT6MQ_YBF-fvHX";
   
   let supabaseClient = null;
   let currentUser = null;
@@ -6450,9 +6450,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGithub() {
     if (!supabaseClient) { showToast("Supabase not configured"); return; }
-    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "google" });
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "github" });
     if (error) showToast("Sign-in failed: " + error.message);
   }
 
@@ -6601,7 +6601,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("auth-sign-in-btn")?.addEventListener("click", openAuthModal);
     el("auth-modal-close")?.addEventListener("click", closeAuthModal);
     el("auth-close-link")?.addEventListener("click", e => { e.preventDefault(); closeAuthModal(); });
-    el("auth-google-btn")?.addEventListener("click", signInWithGoogle);
+    el("auth-github-btn")?.addEventListener("click", signInWithGithub);
     el("auth-email-btn")?.addEventListener("click", () => isSignUpMode ? signUpWithEmail() : signInWithEmail());
     el("auth-signup-toggle")?.addEventListener("click", e => { e.preventDefault(); toggleSignUpMode(); });
 
