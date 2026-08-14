@@ -3,7 +3,7 @@
  * Cache-first for the main app (large single file), network-first for CDN assets.
  */
 
-const CACHE_VERSION = 'hanzi-tracker-v2';
+const CACHE_VERSION = 'hanzi-tracker-v3';
 const APP_SHELL = [
   './',
   './index.html',
