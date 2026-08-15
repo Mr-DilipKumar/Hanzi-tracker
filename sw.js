@@ -3,7 +3,7 @@
  * Cache-first for the main app (large single file), network-first for CDN assets.
  */
 
-const CACHE_VERSION = 'hanzi-tracker-v3';
+const CACHE_VERSION = 'hanzi-tracker-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -50,9 +50,9 @@ self.addEventListener('fetch', event => {
       url.hostname.includes('googleapis.com/identitytoolkit') ||
       url.hostname.includes('firestore.googleapis.com')) return;
 
-  // App shell files: cache-first (they're large, update via version bump)
+  // App shell files: network-first (always get fresh content if online)
   if (url.origin === location.origin) {
-    event.respondWith(cacheFirst(event.request));
+    event.respondWith(networkFirst(event.request));
     return;
   }
 

@@ -136,14 +136,7 @@
   .word-card{
     border-width:3px !important;
   }
-  .tile.status-learning,
-  .tile.status-known,
-  .sentence-card.status-learning,
-  .sentence-card.status-known,
-  .radical-card.status-learning,
-  .radical-card.status-known{
-    border-width:4px !important;
-  }
+
 
   /* ---------- WORDS TAB ---------- */
   .words-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
@@ -283,7 +276,7 @@
   }
   .chip:hover{border-color:var(--gold);color:var(--cream-text);transform:translateY(-1px);}
   .chip.active{background:linear-gradient(135deg, var(--gold-bright), var(--gold));border-color:var(--gold-bright);color:var(--ink);}
-  .chip.active.status-learning-chip{background:linear-gradient(135deg, #4FBB94, var(--jade));border-color:var(--jade);color:#0D2A20;}
+  .chip.active.status-learning-chip{background:linear-gradient(135deg, var(--gold-bright), var(--gold));border-color:var(--gold-bright);color:var(--ink);}
 
   #search-input{
     flex:1;min-width:200px;background:var(--bg-mid);border:1px solid var(--line-on-desk);
@@ -311,9 +304,9 @@
     box-shadow:0 4px 12px var(--paper-shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 8px 14px;overflow:hidden;}
   .tile-face.front{background:var(--paper);border:3px solid transparent;}
   .tile-face.back{background:var(--paper);border:3px solid var(--line-on-paper);transform:rotateY(180deg);padding:14px;}
-  .tile.status-new .tile-face.front{background:#FFFFFF;border-color:transparent;}
-  .tile.status-learning .tile-face.front{background:#FFF0B8;border:4px solid #F5B942;}
-  .tile.status-known .tile-face.front{background:#D6F2DE;border:4px solid #2F8F6E;}
+  .tile.status-new .tile-face.front{background:var(--paper);border-color:var(--line-on-paper);}
+  .tile.status-learning .tile-face.front{background:#FFF0B8;border-color:var(--gold);}
+  .tile.status-known .tile-face.front{background:#D6F2DE;border-color:var(--jade);}
   .tile-hanzi{font-family:var(--font-hanzi);font-size:3.74rem;color:var(--ink);line-height:1;font-weight:500;}
   .tile-pinyin{font-family:var(--font-ui);font-size:1.2rem;color:var(--ink-soft);letter-spacing:.02em;font-weight:700;}
   .tile-english{font-family:var(--font-ui);font-size:.97rem;color:var(--ink-soft);font-weight:700;line-height:1.35;text-align:center;max-width:95%;}
@@ -410,8 +403,8 @@
   }
   .status-btn:hover{border-color:var(--ink-soft);transform:translateY(-1px);}
   #status-btn-new.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
-  #status-btn-learning.active{background:var(--jade);color:#fff;border-color:var(--jade);}
-  #status-btn-known.active{background:linear-gradient(135deg, var(--gold-bright), var(--gold));color:var(--ink);border-color:var(--gold);}
+  #status-btn-learning.active{background:linear-gradient(135deg, var(--gold-bright), var(--gold));color:var(--ink);border-color:var(--gold);}
+  #status-btn-known.active{background:var(--jade);color:#fff;border-color:var(--jade);}
 
   .stamp-fx{animation:stamp-press .55s cubic-bezier(.36,1.4,.4,1);}
   @keyframes stamp-press{
@@ -745,7 +738,7 @@
   .radical-example{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:42px;
     min-height:42px;background:var(--paper-dim);border:1px solid var(--line-on-paper);
     border-radius:9px;padding:5px 10px;font-family:var(--font-hanzi);font-size:1.4rem;color:var(--ink);}
-  .radical-example.status-new{background:#FFFFFF;border:1px solid rgba(217,180,115,.28);}
+  .radical-example.status-new{background:var(--paper);border:4px solid var(--line-on-paper);}
   .radical-example.status-learning{background:#FFF0B8;border:4px solid var(--gold);}
   .radical-example.status-known{background:#D6F2DE;border:4px solid var(--jade);}
   .radical-example .radical-character-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:.85rem;font-weight:900;background:rgba(255,255,255,.92);color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.2);}
@@ -820,11 +813,12 @@
     box-shadow:0 14px 28px rgba(0,0,0,.18);
   }
   .radical-card.status-new{
-    background:#FFFFFF;
-    border-color:rgba(217,180,115,.28);
+    background:var(--paper);
+    border-color:var(--line-on-paper);
   }
   .radical-card.status-learning{background:#FFF0B8;border:4px solid var(--gold);}
   .radical-card.status-known{background:#D6F2DE;border:4px solid var(--jade);}
+  .radical-card-badge:empty, .radical-character-badge:empty { display: none !important; }
   .radical-card-badge{
     position:absolute;
     top:12px;
@@ -870,7 +864,7 @@
   .radical-character{position:relative;display:flex;align-items:center;justify-content:center;background:var(--paper-dim);border:0;border-radius:7px;min-height:38px;color:var(--ink);
     font-family:var(--font-hanzi);font-size:1.45rem;cursor:pointer;padding:0 6px;transition:transform .14s ease,background .14s ease,border-color .14s ease;}
   .radical-character:hover{outline:2px solid var(--gold);transform:translateY(-1px);}
-  .radical-character.status-new{background:#FFFFFF;border:1px solid rgba(217,180,115,.28);}
+  .radical-character.status-new{background:var(--paper);border:4px solid var(--line-on-paper);}
   .radical-character.status-learning{background:#FFF0B8;border:4px solid var(--gold);}
   .radical-character.status-known{background:#D6F2DE;border:4px solid var(--jade);}
   .radical-character-badge{position:absolute;top:5px;right:5px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:.93rem;font-weight:900;background:rgba(255,255,255,.92);color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.2);}
@@ -1036,11 +1030,11 @@
   }
   .card-layout-btn:hover{color:var(--cream-text);}
   .card-layout-btn.active{background:var(--gold);color:var(--ink);}
-  .tile-grid.card-cols-4{grid-template-columns:repeat(4,minmax(0,1fr)) !important;}
-  .tile-grid.card-cols-5{grid-template-columns:repeat(5,minmax(0,1fr)) !important;}
-  .tile-grid.card-cols-6{grid-template-columns:repeat(6,minmax(0,1fr)) !important;}
-  .tile-grid.card-cols-8{grid-template-columns:repeat(8,minmax(0,1fr)) !important;}
-  .tile-grid.card-cols-10{grid-template-columns:repeat(10,minmax(0,1fr)) !important;}
+  .tile-grid.card-cols-4, .radical-grid.card-cols-4{grid-template-columns:repeat(4,minmax(0,1fr)) !important;}
+  .tile-grid.card-cols-5, .radical-grid.card-cols-5{grid-template-columns:repeat(5,minmax(0,1fr)) !important;}
+  .tile-grid.card-cols-6, .radical-grid.card-cols-6{grid-template-columns:repeat(6,minmax(0,1fr)) !important;}
+  .tile-grid.card-cols-8, .radical-grid.card-cols-8{grid-template-columns:repeat(8,minmax(0,1fr)) !important;}
+  .tile-grid.card-cols-10, .radical-grid.card-cols-10{grid-template-columns:repeat(10,minmax(0,1fr)) !important;}
 
   .tile-grid.card-size-large .tile{
     min-height:210px !important;aspect-ratio:auto !important;padding:24px 12px 20px !important;
@@ -1060,12 +1054,25 @@
   .tile-grid.card-size-small .tile-hanzi{font-size:3.52rem !important;}
   .tile-grid.card-size-small .tile-pinyin{font-size:1.05rem !important;}
 
+  .radical-grid.card-size-large .radical-card{min-height:160px !important;}
+  .radical-grid.card-size-large .radical-char{font-size:4.5rem !important;}
+  .radical-grid.card-size-large .radical-name{font-size:1.1rem !important;}
+
+  .radical-grid.card-size-medium .radical-card{min-height:130px !important;}
+  .radical-grid.card-size-medium .radical-char{font-size:3.5rem !important;}
+  .radical-grid.card-size-medium .radical-name{font-size:.9rem !important;}
+
+  .radical-grid.card-size-small .radical-card{min-height:90px !important;padding:8px 6px !important;}
+  .radical-grid.card-size-small .radical-char{font-size:2.5rem !important;}
+  .radical-grid.card-size-small .radical-name{font-size:.75rem !important;}
+
   @media(max-width:700px){
     .card-layout-bar{align-items:flex-start;flex-direction:column;}
     .card-layout-modes{width:100%;}
     .card-layout-btn{flex:1;}
-    .tile-grid.card-cols-3{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
-    .tile-grid.card-cols-4,.tile-grid.card-cols-5,.tile-grid.card-cols-6,.tile-grid.card-cols-8,.tile-grid.card-cols-10{
+    .tile-grid.card-cols-3, .radical-grid.card-cols-3{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+    .tile-grid.card-cols-4,.tile-grid.card-cols-5,.tile-grid.card-cols-6,.tile-grid.card-cols-8,.tile-grid.card-cols-10,
+    .radical-grid.card-cols-4,.radical-grid.card-cols-5,.radical-grid.card-cols-6,.radical-grid.card-cols-8,.radical-grid.card-cols-10{
       grid-template-columns:repeat(2,minmax(0,1fr)) !important;
     }
   }
@@ -1253,8 +1260,9 @@
     box-shadow:0 14px 28px rgba(0,0,0,.18);
   }
   .tile.status-new{
-    background:#FFFFFF;
-    border:1px solid rgba(217,180,115,.28);
+    background:var(--paper);
+    border-color:var(--line-on-paper);
+    border-style:solid;
   }
   .tile.status-learning{
     background:#FFF0B8;
@@ -1708,7 +1716,7 @@
   .sentence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
   .sentence-card{background:var(--paper);color:var(--ink);border-radius:16px;padding:18px 18px 14px;box-shadow:0 6px 18px var(--paper-shadow);border:2px solid transparent;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;min-height:175px;display:flex;flex-direction:column;}
   .sentence-card:hover{transform:translateY(-2px);border-color:var(--gold);box-shadow:0 10px 24px var(--paper-shadow);}
-  .sentence-card.status-new{background:#FFFFFF;border-color:transparent;}
+  .sentence-card.status-new{background:var(--paper);border-color:var(--line-on-paper);}
   .sentence-card.status-learning{border:4px solid var(--gold);background:#FFF0B8;}
   .sentence-card.status-known{border:4px solid var(--jade);background:#D6F2DE;}
   .sentence-card.status-learning:hover{border-color:var(--gold);}
@@ -2961,6 +2969,21 @@
           <span class="results-meta" id="radical-count">214 radicals</span>
         </div>
         <p class="filter-hint">Kangxi radicals · 214 reference radicals</p>
+        <div class="card-layout-bar" aria-label="Card layout options">
+          <span class="card-layout-label">Card layout</span>
+          <div class="card-layout-modes" role="group" aria-label="Choose card columns">
+            <button type="button" class="card-layout-btn" data-card-cols="4">4 columns</button>
+            <button type="button" class="card-layout-btn" data-card-cols="5">5 columns</button>
+            <button type="button" class="card-layout-btn" data-card-cols="6">6 columns</button>
+            <button type="button" class="card-layout-btn active" data-card-cols="8">8 columns</button>
+            <button type="button" class="card-layout-btn" data-card-cols="10">10 columns</button>
+          </div>
+          <div class="card-layout-modes" role="group" aria-label="Choose card density">
+            <button type="button" class="card-layout-btn" data-card-size="large">Large</button>
+            <button type="button" class="card-layout-btn active" data-card-size="medium">Medium</button>
+            <button type="button" class="card-layout-btn" data-card-size="small">Compact</button>
+          </div>
+        </div>
         <div class="tab-display-controls" aria-label="Radical card display options">
           <button type="button" class="tab-display-btn" id="radical-show-pinyin">Show Pinyin</button>
           <button type="button" class="tab-display-btn" id="radical-show-english">Show English</button>
@@ -3358,15 +3381,17 @@ function getCardLayout(){
 }
 
 function applyCardLayout(){
-  const grid = document.getElementById("tile-grid");
-  if(!grid) return;
   const layout = getCardLayout();
-
-  grid.classList.remove(
-    "card-cols-4","card-cols-5","card-cols-6","card-cols-8","card-cols-10",
-    "card-size-large","card-size-medium","card-size-small"
-  );
-  grid.classList.add("card-cols-" + layout.cols, "card-size-" + layout.size);
+  ["tile-grid", "radical-grid"].forEach(id => {
+    const grid = document.getElementById(id);
+    if(grid) {
+      grid.classList.remove(
+        "card-cols-4","card-cols-5","card-cols-6","card-cols-8","card-cols-10",
+        "card-size-large","card-size-medium","card-size-small"
+      );
+      grid.classList.add("card-cols-" + layout.cols, "card-size-" + layout.size);
+    }
+  });
 
   document.querySelectorAll(".card-layout-btn[data-card-cols]").forEach(btn=>{
     btn.classList.toggle("active", Number(btn.dataset.cardCols) === layout.cols);
@@ -3876,7 +3901,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         '<div class="tile-face front">' +
           '<span class="tile-hanzi">' + escHtml(item.c) + '</span>' +
           '<span class="tile-pinyin" ' + (browseShowPinyin ? '' : 'hidden') + '>' + escHtml(item.p) + '</span>' +
-          '' +
+          '<span class="tile-english" ' + (browseShowEnglish ? '' : 'hidden') + '>' + escHtml(meaning) + '</span>' +
           mark +
         '</div>' +
         '<div class="tile-face back">' +
@@ -5600,16 +5625,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("radical-count").textContent = filtered.length + " of 214 radicals";
     el("radical-grid").innerHTML = filtered.map(r=>{
       const char = r.base && r.base !== "—" ? r.base : r.char;
-      const status = getStatus(char);
-      const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
       return `
-      <button type="button" class="radical-card status-${status}" data-radical="${r.number}" data-char="${escHtml(char)}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
-        <span class="radical-card-badge" aria-hidden="true">${icon}</span>
+      <button type="button" class="radical-card" data-radical="${r.number}" data-char="${escHtml(char)}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
         <span class="radical-number">#${r.number}</span>
         <span class="radical-char">${r.char}</span>
         <span class="radical-name" ${radicalsShowEnglish?"":"hidden"}>${escHtml(r.meaning)}</span>
         <span class="radical-pinyin" ${radicalsShowPinyin?"":"hidden"}>${escHtml(r.pinyin)}</span>
-        <span class="radical-strokes">${r.strokes} stroke${r.strokes===1?"":"s"}</span>
       </button>
     `;
     }).join("");
@@ -5828,12 +5849,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
         : "Showing all " + chars.length.toLocaleString() + " characters assigned to Radical " + number + ".";
 
       list.innerHTML = visible.map((c,i) => {
-        const status = getStatus(c);
-        const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
-        return '<button type="button" class="radical-character status-' + status + '" data-char="' +
+        return '<button type="button" class="radical-character" data-char="' +
           escHtml(c) + '" title="' +
           escHtml((trackerMap.get(c)?.m || "") + (trackerMap.has(c) ? " · frequency rank " + trackerMap.get(c).f : "")) +
-          '">' + escHtml(c) + '<span class="radical-character-badge" aria-hidden="true">' + icon + '</span></button>';
+          '">' + escHtml(c) + '</button>';
       }).join("");
 
       tracker.textContent =
@@ -5895,9 +5914,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("detail-radical-position").textContent =
       r.position.charAt(0).toUpperCase() + r.position.slice(1) + ".";
     el("detail-radical-examples").innerHTML = r.examples.map(c => {
-      const status = getStatus(c);
-      const icon = status === "known" ? "✓" : status === "learning" ? "📖" : "N";
-      return '<span class="radical-example status-' + status + '">' + escHtml(c) + '<span class="radical-character-badge" aria-hidden="true">' + icon + '</span></span>';
+      return '<span class="radical-example">' + escHtml(c) + '</span>';
     }).join("");
     el("detail-radical-note").textContent =
       "Unicode’s radical-stroke indexes use the 214 Kangxi radicals and count the remaining strokes after the radical. Unicode notes that some ideographs can be classified under more than one radical or have differing stroke counts, so a character can appear in more than one index position.";
