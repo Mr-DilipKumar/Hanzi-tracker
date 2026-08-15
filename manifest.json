@@ -1,6 +1,7 @@
 {
   "name": "刻符 · Hanzi Tracker",
   "short_name": "Hanzi Tracker",
+  "id": "/index.html",
   "description": "Stamp your way through every Chinese character — track, review, and master Hanzi with SRS flashcards.",
   "start_url": "./index.html",
   "scope": "./",
@@ -19,13 +20,13 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
