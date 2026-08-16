@@ -15,7 +15,7 @@ function getCardLayout(){
 
 function applyCardLayout(){
   const layout = getCardLayout();
-  ["tile-grid", "radical-grid"].forEach(id => {
+  ["tile-grid", "radical-grid", "word-grid"].forEach(id => {
     const grid = document.getElementById(id);
     if(grid) {
       grid.classList.remove(
@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   let usingLocalStorageFallback = false;
 
   async function loadState(){
-    const defaults = {progress:{}, sentenceProgress:{}, streak:{count:0,last:null}};
+    const defaults = {progress:{}, sentenceProgress:{}, wordProgress:{}, streak:{count:0,last:null}};
 
     // ChatGPT/host storage when available.
     try{
@@ -116,6 +116,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
           state = Object.assign(defaults, parsed);
           if (!state.progress) state.progress = {};
           if (!state.sentenceProgress) state.sentenceProgress = {};
+          if (!state.wordProgress) state.wordProgress = {};
           if (!state.streak) state.streak = {count:0,last:null};
           return;
         }
@@ -130,6 +131,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         state = Object.assign(defaults, parsed);
         if (!state.progress) state.progress = {};
         if (!state.sentenceProgress) state.sentenceProgress = {};
+        if (!state.wordProgress) state.wordProgress = {};
         if (!state.streak) state.streak = {count:0,last:null};
       }
       usingLocalStorageFallback = true;
@@ -249,6 +251,57 @@ document.addEventListener("DOMContentLoaded", ()=>{
   /* ---------- status / progress core ---------- */
   function getEntry(char){ return state.progress[char] || null; }
   function getStatus(char){ const e = getEntry(char); return e ? e.status : "new"; }
+
+  function getWordEntry(word){ return state.wordProgress[word] || null; }
+  function getWordStatus(word){ const e = getWordEntry(word); return e ? e.status : "new"; }
+
+  function writeWordEntry(word, opts){
+    const now = Date.now();
+    const prev = state.wordProgress[word] || { status:"new", interval:0, reviews:0, due:now, stampedAt:null };
+    let stampedAt = prev.stampedAt || null;
+    if (opts.status === "known" && !stampedAt) stampedAt = now;
+    if (opts.status !== "known") stampedAt = null;
+    const due = now + (opts.interval || 0) * MS_PER_DAY;
+    state.wordProgress[word] = {
+      status: opts.status,
+      interval: opts.interval || 0,
+      reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0),
+      due, stampedAt
+    };
+    bumpStreak();
+    saveState();
+  }
+
+  function setWordStatusManual(word, status){
+    const prev = state.wordProgress[word] || { interval:0 };
+    let interval = prev.interval || 0;
+    if (status === "known") interval = Math.max(interval, 30);
+    if (status === "new") interval = 0;
+    return writeWordEntry(word, { status, interval, incrementReviews:false });
+  }
+
+  function computeWordCounts(){
+    let known = 0, learning = 0;
+    for (const w in state.wordProgress){
+      const s = state.wordProgress[w].status;
+      if (s === "known") known++; else if (s === "learning") learning++;
+    }
+    const total = WORD_DATA ? WORD_DATA.length : 0;
+    return { known, learning, neu: Math.max(0, total - known - learning), total };
+  }
+
+  function updateWordSidebars(){
+    const counts = computeWordCounts();
+    el("word-stat-total").textContent = counts.total.toLocaleString();
+    el("word-side-known").textContent = counts.known.toLocaleString();
+    el("word-side-learning").textContent = counts.learning.toLocaleString();
+    el("word-side-new").textContent = counts.neu.toLocaleString();
+    const pct = counts.total ? (counts.known / counts.total * 100) : 0;
+    el("word-side-progress-ring").style.setProperty("--pct", pct.toFixed(2));
+    el("word-side-progress-pct").textContent = pct.toFixed(0) + "%";
+    el("word-side-progress-known").textContent = counts.known.toLocaleString();
+    el("word-side-progress-total").textContent = counts.total.toLocaleString();
+  }
 
   function bumpStreak(){
     const today = new Date().toDateString();
@@ -705,6 +758,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const q=sentenceFilters.query.trim().toLowerCase();
     let data=SENTENCE_DATA.filter(x=>{
       if(q && !(x.z.toLowerCase().includes(q)||x.t.toLowerCase().includes(q))) return false;
+      if(/[a-zA-Z]/.test(x.z)) return false;
       const h=sentenceHskLevel(x);
       if(sentenceFilters.hsk!=="all"){
         if(sentenceFilters.hsk==="adv" ? h<7 : h!==Number(sentenceFilters.hsk)) return false;
@@ -1067,6 +1121,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("live-reviewed").textContent=total;
     el("live-accuracy").textContent=total?Math.round(sessionStats.correct/total*100)+"%":"—";
     el("live-streak").textContent=sessionStats.streak||0;
+    el("live-streak").classList.toggle("hot-streak", sessionStats.streak > 5);
   }
 
   function rateCurrent(rating){
@@ -1085,9 +1140,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
       if(type==="word"){
         prevStatus=getWordStatus(item.word);
-        entry=rateWord(item.word,rating);
+        entry = setWordStatusManual(item.word, rating);
         sessionStats.reviewed++;
-        if(rating!=="again"){
+        if(rating==="known"){
           sessionStats.correct++;
           sessionStats.streak++;
           sessionStats.bestStreak=Math.max(sessionStats.bestStreak,sessionStats.streak);
@@ -1102,10 +1157,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
         }
       }else{
         prevStatus=type==="sentence"?getSentenceStatus(item.i):getStatus(item.c);
-        entry=type==="sentence"?rateSentence(item.i,rating):rateCard(item.c,rating);
+        entry=type==="sentence"?setSentenceStatus(item.i,rating):setStatusManual(item.c,rating);
         sessionStats.reviewed++;
         if(type==="sentence") sessionStats.sentences++; else sessionStats.characters++;
-        if(rating!=="again"){
+        if(rating==="known"){
           sessionStats.correct++;
           sessionStats.streak++;
           sessionStats.bestStreak=Math.max(sessionStats.bestStreak,sessionStats.streak);
@@ -1290,12 +1345,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   /* ---------- WORDS ---------- */
-  let wordFilters = {query:"", sort:"common", length:"all", usage:"all"};
+  let wordFilters = {query:"", sort:"common", length:"all", usage:"all", srs:"all", status:"all"};
   let wordPage = 0;
   let wordPageSize = 96;
   let WORD_DATA = null;
   let wordsShowPinyin = true;
   let wordsShowEnglish = false;
+  let wordSelectionMode = "off";
+  let selectedWords = new Set();
 
   function isHanWord(value){
     return /^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]{2,4}$/.test(String(value||""));
@@ -1333,12 +1390,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
             item.corpusCount++;
             const zh = String(sentence.z||"").trim();
             const translation = String(sentence.t||"").trim();
-            if (zh && translation && !item.exampleSentences.some(x=>x.en===translation)){
+            if (!zh || !translation) continue;
+            
+            // Optimization: if we already have 3 short examples and this one is longer than the longest we kept, skip it.
+            if (item.exampleSentences.length === 3 && zh.length >= item.exampleSentences[2].zh.length) continue;
+            
+            if (!item.exampleSentences.some(x=>x.en===translation)){
               item.exampleSentences.push({zh,en:translation});
-              item.exampleSentences.sort((a,b)=>{
-                const al=Array.from(a.zh).length, bl=Array.from(b.zh).length;
-                return (al-bl) || (a.zh.length-b.zh.length);
-              });
+              item.exampleSentences.sort((a,b)=>a.zh.length - b.zh.length);
               if (item.exampleSentences.length>3) item.exampleSentences.length=3;
             }
           }
@@ -1399,6 +1458,15 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
   }
 
+  function getWordSrsStage(word){
+    const entry = getWordEntry(word);
+    if (!entry || !entry.reviews) return "new";
+    const interval = Number(entry.interval) || 0;
+    if (interval >= 90) return "mastered";
+    if (interval >= 21) return "mature";
+    return "learning";
+  }
+
   function renderWords(){
     const data=buildWordData();
     const q=wordFilters.query.trim().toLowerCase();
@@ -1406,6 +1474,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
       if(wordFilters.length!=="all" && Array.from(item.word).length!==Number(wordFilters.length)) return false;
       if(wordFilters.usage==="used" && item.corpusCount<1) return false;
       if(wordFilters.usage==="very-common" && item.corpusCount<2) return false;
+      if(wordFilters.status!=="all" && getWordStatus(item.word)!==wordFilters.status) return false;
+      if(wordFilters.srs!=="all" && getWordSrsStage(item.word)!==wordFilters.srs) return false;
       if(q && !item.word.toLowerCase().includes(q) && !(item.pinyin||"").toLowerCase().includes(q) && !(item.english||"").toLowerCase().includes(q)) return false;
       return true;
     });
@@ -1424,20 +1494,20 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const pageItems=items.slice(wordPage*wordPageSize,wordPage*wordPageSize+wordPageSize);
     el("word-count").textContent=items.length.toLocaleString()+" words";
     el("word-page-indicator").textContent=(wordPage+1)+" / "+totalPages;
+    if (el("word-page-indicator-top")) el("word-page-indicator-top").textContent=(wordPage+1)+" / "+totalPages;
     el("word-prev-page").disabled=wordPage===0;
     el("word-next-page").disabled=wordPage>=totalPages-1;
-    const used=items.filter(x=>x.corpusCount>0).length;
-    const avgLen=items.length ? items.reduce((sum,x)=>sum+Array.from(x.word).length,0)/items.length : 0;
-    el("word-stat-total").textContent=items.length.toLocaleString();
-    el("word-stat-common").textContent=used.toLocaleString();
-    el("word-stat-length").textContent=avgLen.toFixed(1);
-    el("word-stat-source").textContent=Number(data._sourceExamples||0).toLocaleString();
 
     el("word-grid").innerHTML=pageItems.length ? pageItems.map(word=>{
       const parts=Array.from(word.word).map(ch=>'<button type="button" class="word-part" data-word-char="'+escHtml(ch)+'" title="Open '+escHtml(ch)+' details">'+escHtml(ch)+'</button>').join("");
       const example=word.exampleSentences&&word.exampleSentences.length ? word.exampleSentences[0] : null;
       const meaningText=word.meaning || "Meaning not available";
-      return '<article class="word-card" data-word="'+escHtml(word.word)+'" tabindex="0" role="button" aria-label="Flip '+escHtml(word.word)+' card to reveal meaning">'+
+      const status = getWordStatus(word.word);
+      const isSelected = selectedWords.has(word.word);
+      let classes = "word-card status-" + status;
+      if (isSelected) classes += " selected";
+
+      return '<article class="'+classes+'" data-word="'+escHtml(word.word)+'" tabindex="0" role="button" aria-label="Flip '+escHtml(word.word)+' card to reveal meaning">'+
         '<div class="word-card-inner">'+
           '<div class="word-card-face front">'+
             '<div class="word-zh">'+escHtml(word.word)+'</div>'+
@@ -1450,11 +1520,19 @@ document.addEventListener("DOMContentLoaded", ()=>{
               (example ? '<div class="word-example-zh">'+escHtml(example.zh)+'</div>'+(window.pinyinPro&&typeof window.pinyinPro.pinyin==="function"?'<div class="word-example-py" '+(wordsShowPinyin?'':'hidden')+'>'+escHtml(window.pinyinPro.pinyin(example.zh,{toneType:"symbol",type:"string",v:true}))+'</div>':'')+'<div class="word-example-en">'+escHtml(example.en)+'</div>' : '<div class="word-example-empty">No example sentence in the current corpus.</div>')+
             '</div>'+
             '<div class="word-parts">'+parts+'</div>'+
+            '<div class="word-card-status-buttons">'+
+              '<button type="button" class="word-status-btn'+(status==='new'?' active':'')+'" data-word-set-status="new">New</button>'+
+              '<button type="button" class="word-status-btn'+(status==='learning'?' active':'')+'" data-word-set-status="learning">Learning</button>'+
+              '<button type="button" class="word-status-btn'+(status==='known'?' active':'')+'" data-word-set-status="known">Known</button>'+
+            '</div>'+
           '</div>'+
         '</div>'+
       '</article>';
     }).join("") : '<div class="word-empty">No words match these filters.</div>';
+    
     hydrateWordMeanings();
+    updateWordSidebars();
+    updateWordSelectionBar();
   }
 
   function wireWords(){
@@ -1464,8 +1542,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
       const node=el(id); if(!node) return;
       node.addEventListener("change",()=>{wordFilters[id==="word-sort"?"sort":id==="word-length"?"length":"usage"]=node.value;wordPage=0;renderWords();});
     });
-    const pageSize=el("word-page-size");
-    if(pageSize) pageSize.addEventListener("change",()=>{wordPageSize=Number(pageSize.value)||96;wordPage=0;renderWords();});
     el("word-prev-page")?.addEventListener("click",()=>{wordPage--;renderWords();});
     el("word-next-page")?.addEventListener("click",()=>{wordPage++;renderWords();});
     const showPinyin=el("words-show-pinyin");
@@ -1480,18 +1556,147 @@ document.addEventListener("DOMContentLoaded", ()=>{
       showEnglish.classList.toggle("active",wordsShowEnglish);
       renderWords();
     });
+    
+    const srsSelect = el("word-srs-select");
+    if (srsSelect) srsSelect.addEventListener("change", (e)=>{ wordFilters.srs = e.target.value; wordPage = 0; renderWords(); });
+    const statusSelect = el("word-status-select");
+    if (statusSelect) statusSelect.addEventListener("change", (e)=>{ wordFilters.status = e.target.value; wordPage = 0; renderWords(); });
+
+    el("word-selection-bar")?.querySelectorAll("[data-word-selection-mode]").forEach(btn=>{
+      btn.addEventListener("click", ()=>setWordSelectionMode(btn.dataset.wordSelectionMode));
+    });
+    el("word-selection-bar")?.querySelectorAll("[data-word-bulk-status]").forEach(btn=>{
+      btn.addEventListener("click", ()=>applyBulkWordStatus(btn.dataset.wordBulkStatus));
+    });
+    el("word-clear-selection")?.addEventListener("click", ()=>{
+      selectedWords.clear(); updateWordSelectionBar(); renderWords();
+    });
+
     el("word-grid")?.addEventListener("click",e=>{
+      const statusBtn = e.target.closest("[data-word-set-status]");
+      if (statusBtn) {
+        e.stopPropagation();
+        const card = statusBtn.closest(".word-card");
+        if (!card) return;
+        const word = card.dataset.word;
+        const newStatus = statusBtn.dataset.wordSetStatus;
+        const wasKnown = getWordStatus(word) === "known";
+        setWordStatusManual(word, newStatus);
+        if (newStatus === "known" && !wasKnown) {
+          triggerStampFX(card);
+          spawnConfetti(card);
+        }
+        renderWords();
+        return;
+      }
       const part=e.target.closest("[data-word-char]");
       if(part){ e.stopPropagation(); openDetail(part.dataset.wordChar); return; }
       const card=e.target.closest(".word-card");
-      if(card) card.classList.toggle("flipped");
+      if(!card) return;
+      const word = card.dataset.word;
+      if (wordSelectionMode === "single"){
+        selectedWords.clear(); selectedWords.add(word); updateWordSelectionBar(); renderWords();
+      } else if (wordSelectionMode === "multi"){
+        if (selectedWords.has(word)) selectedWords.delete(word); else selectedWords.add(word);
+        updateWordSelectionBar(); renderWords();
+      } else {
+        card.classList.toggle("flipped");
+      }
     });
+
     el("word-grid")?.addEventListener("keydown",e=>{
       if(e.key!=="Enter" && e.key!==" ") return;
       const card=e.target.closest(".word-card");
       if(!card || e.target.closest("[data-word-char]")) return;
-      e.preventDefault(); card.classList.toggle("flipped");
+      e.preventDefault();
+      const word = card.dataset.word;
+      if (wordSelectionMode === "single"){
+        selectedWords.clear(); selectedWords.add(word); updateWordSelectionBar(); renderWords();
+      } else if (wordSelectionMode === "multi"){
+        if (selectedWords.has(word)) selectedWords.delete(word); else selectedWords.add(word);
+        updateWordSelectionBar(); renderWords();
+      } else {
+        card.classList.toggle("flipped");
+      }
     });
+
+    document.querySelectorAll("[data-word-side-status]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        wordFilters.status = btn.dataset.wordSideStatus;
+        if(statusSelect) statusSelect.value = wordFilters.status;
+        wordPage = 0; renderWords();
+      });
+    });
+    document.querySelectorAll("[data-word-side-sort]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        wordFilters.sort = btn.dataset.wordSideSort;
+        const sel = el("word-sort"); if(sel) sel.value = wordFilters.sort;
+        wordPage = 0; renderWords();
+      });
+    });
+    document.querySelectorAll("[data-word-side-reset]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        wordFilters = {query:"", sort:"common", length:"all", usage:"all", srs:"all", status:"all"};
+        if(statusSelect) statusSelect.value = "all";
+        if(srsSelect) srsSelect.value = "all";
+        const lenSel = el("word-length"); if(lenSel) lenSel.value = "all";
+        const sortSel = el("word-sort"); if(sortSel) sortSel.value = "common";
+        const search = el("word-search"); if(search) search.value = "";
+        wordPage = 0; renderWords();
+      });
+    });
+  }
+
+  function setWordSelectionMode(mode){
+    wordSelectionMode = mode;
+    if (mode === "off") selectedWords.clear();
+    updateWordSelectionBar();
+    renderWords();
+  }
+
+  function updateWordSelectionBar(){
+    const bar = el("word-selection-bar");
+    if (!bar) return;
+    bar.querySelectorAll("[data-word-selection-mode]").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.wordSelectionMode === wordSelectionMode);
+    });
+    el("word-selection-count").textContent = selectedWords.size + " selected";
+    const saveState = el("word-selection-save-state");
+    saveState.textContent = "Saved automatically";
+    saveState.classList.remove("saving", "saved");
+    const actions = bar.querySelector(".selection-actions");
+    if (selectedWords.size > 0 && wordSelectionMode !== "off"){
+      bar.classList.add("active");
+      actions.style.display = "flex";
+    } else {
+      bar.classList.remove("active");
+      actions.style.display = "none";
+    }
+  }
+
+  function applyBulkWordStatus(status){
+    if (selectedWords.size === 0) return;
+    const saveState = el("word-selection-save-state");
+    saveState.textContent = "Saving…";
+    saveState.classList.add("saving");
+    saveState.classList.remove("saved");
+    selectedWords.forEach(word => {
+      setWordStatusManual(word, status);
+    });
+    setTimeout(()=>{
+      saveState.textContent = "Saved!";
+      saveState.classList.remove("saving");
+      saveState.classList.add("saved");
+      setTimeout(()=>{
+        saveState.textContent = "Saved automatically";
+        saveState.classList.remove("saved");
+      }, 1500);
+      if (wordSelectionMode === "single") {
+        selectedWords.clear();
+        setWordSelectionMode("off");
+      }
+      renderWords();
+    }, 200);
   }
 
   /* ---------- wiring ---------- */
@@ -1691,12 +1896,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
     el("flashcard").setAttribute("tabindex","0"); el("flashcard").setAttribute("role","button");
     el("flashcard").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&!reviewRevealed){e.preventDefault();revealCard();}});
-    el("review-focus-toggle").addEventListener("click",()=>{reviewFocusMode=!reviewFocusMode;el("review-session").classList.toggle("focus-mode",reviewFocusMode);el("review-focus-toggle").classList.toggle("active",reviewFocusMode);el("review-focus-toggle").textContent=reviewFocusMode?"⛶ Exit Focus":"⛶ Focus";});
-    document.querySelectorAll(".rate-btn").forEach(btn=>btn.addEventListener("click",()=>rateCurrent(btn.dataset.rate)));
-    el("back-to-setup").addEventListener("click",()=>{el("review-summary").classList.add("hidden");el("review-session").classList.add("hidden");el("review-setup").classList.remove("hidden");refreshDueCount();updateReviewEstimate();});
+    el("review-focus-toggle").addEventListener("click",()=>{reviewFocusMode=!reviewFocusMode;el("review-session").classList.toggle("focus-mode",reviewFocusMode);document.body.classList.toggle("review-focus-active",reviewFocusMode);el("review-focus-toggle").classList.toggle("active",reviewFocusMode);el("review-focus-toggle").textContent=reviewFocusMode?"⛶ Exit Focus":"⛶ Focus";});
+    document.querySelectorAll("#rate-buttons .status-btn").forEach(btn=>btn.addEventListener("click",()=>rateCurrent(btn.dataset.rate)));
+    el("back-to-setup").addEventListener("click",()=>{reviewFocusMode=false;document.body.classList.remove("review-focus-active");el("review-summary").classList.add("hidden");el("review-session").classList.add("hidden");el("review-setup").classList.remove("hidden");refreshDueCount();updateReviewEstimate();});
     el("review-again-btn").addEventListener("click",()=>{if(window._lastReviewMistakes?.length){reviewQueue=shuffle(window._lastReviewMistakes).slice();reviewIndex=0;sessionStats={reviewed:0,known:0,correct:0,streak:0,bestStreak:0,characters:0,sentences:0,mistakes:[],skipped:0,flagged:0};reviewStartedAt=Date.now();el("review-summary").classList.add("hidden");el("review-session").classList.remove("hidden");showCard();}else{el("review-summary").classList.add("hidden");el("review-setup").classList.remove("hidden");}});
     el("review-mistakes-btn").addEventListener("click",()=>{if(!window._lastReviewMistakes?.length)return;reviewQueue=shuffle(window._lastReviewMistakes).slice();reviewIndex=0;sessionStats={reviewed:0,known:0,correct:0,streak:0,bestStreak:0,characters:0,sentences:0,mistakes:[],skipped:0,flagged:0};reviewStartedAt=Date.now();el("review-summary").classList.add("hidden");el("review-session").classList.remove("hidden");showCard();});
-    document.addEventListener("keydown",e=>{if(!el("tab-review").classList.contains("active")||el("review-session").classList.contains("hidden"))return;if(e.code==="Space"){e.preventDefault();if(!reviewRevealed)revealCard();}else if(reviewRevealed){if(e.key==="1")rateCurrent("again");if(e.key==="2")rateCurrent("hard");if(e.key==="3")rateCurrent("good");if(e.key==="4")rateCurrent("easy");}else if(e.key.toLowerCase()==="s"){skipCurrent();}});
+    document.addEventListener("keydown",e=>{if(!el("tab-review").classList.contains("active")||el("review-session").classList.contains("hidden"))return;if(e.code==="Space"){e.preventDefault();if(!reviewRevealed)revealCard();}else if(reviewRevealed){if(e.key==="1")rateCurrent("new");if(e.key==="2")rateCurrent("learning");if(e.key==="3")rateCurrent("known");}else if(e.key.toLowerCase()==="s"){skipCurrent();}});
     setReviewModeUI();
   }
 
@@ -1941,6 +2146,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
       e.preventDefault();
       openContextMenu(e.clientX, e.clientY, "radical", card.dataset.radical || card.getAttribute("data-radical"), card);
     });
+    el("word-grid")?.addEventListener("contextmenu", (e)=>{
+      const card = e.target.closest(".word-card");
+      if (!card) return;
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, "word", card.dataset.word, card);
+    });
     el("context-menu").addEventListener("click", (e)=>{
       const btn = e.target.closest(".context-menu-item");
       if (!btn || !contextMenuChar) return;
@@ -1951,10 +2162,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
         closeContextMenu();
         if (type === "sentence") openSentenceDetails(id);
         else if (type === "radical") openRadicalDetail(Number(id));
+        else if (type === "word") { /* no detail drawer for words yet */ }
         else openDetail(id);
         return;
       }
-      if (contextMenuType === "sentence"){
+      if (contextMenuType === "word"){
+        const wasKnown = getWordStatus(id) === "known";
+        setWordStatusManual(id, action);
+        if (action === "known" && !wasKnown){
+          triggerStampFX(contextMenuTarget || el("app"));
+          spawnConfetti(contextMenuTarget || el("app"));
+        }
+        closeContextMenu();
+        renderWords();
+        return;
+      } else if (contextMenuType === "sentence"){
         const wasKnown = getSentenceStatus(id) === "known";
         setSentenceStatus(id, action);
         if (action === "known" && !wasKnown){
@@ -1981,7 +2203,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       if (!el("context-menu").classList.contains("hidden") && !e.target.closest("#context-menu")) closeContextMenu();
     });
     document.addEventListener("contextmenu", (e)=>{
-      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip") && !e.target.closest(".sentence-card") && !e.target.closest(".radical-card")) closeContextMenu();
+      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip") && !e.target.closest(".sentence-card") && !e.target.closest(".radical-card") && !e.target.closest(".word-card")) closeContextMenu();
     });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape") closeContextMenu(); });
     window.addEventListener("scroll", closeContextMenu, true);
@@ -2323,9 +2545,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       r.variants === "—" ? "No common variant/component form is listed." : r.variants;
     el("detail-radical-position").textContent =
       r.position.charAt(0).toUpperCase() + r.position.slice(1) + ".";
-    el("detail-radical-examples").innerHTML = r.examples.map(c => {
-      return '<span class="radical-example">' + escHtml(c) + '</span>';
-    }).join("");
+
     el("detail-radical-note").textContent =
       "Unicode’s radical-stroke indexes use the 214 Kangxi radicals and count the remaining strokes after the radical. Unicode notes that some ideographs can be classified under more than one radical or have differing stroke counts, so a character can appear in more than one index position.";
 
