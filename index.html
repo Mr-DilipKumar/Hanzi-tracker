@@ -14,9 +14,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/pinyin-pro@3.28.1/dist/index.js" integrity="sha384-XlVnSXtup9i9W3FDSN7dPiOvHCT3sdiSsv2pAzn4O/1l9bIb8GbNBrNaftgK/5Od" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" integrity="sha384-p2WzfM2NW1JYnm3bFTXjUZyzgPx3NMnP4qIJN5M+PqItIAWRvwKyM7f/ZdFLFUad" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/pinyin-pro@3.28.1/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 
 </head>
@@ -66,6 +66,7 @@
       <button class="tab-btn active" data-tab="browse">Characters</button>
       <button class="tab-btn" data-tab="sentences">Sentences</button>
       <button class="tab-btn" data-tab="words">Words</button>
+      <button class="tab-btn" data-tab="tones">Tones</button>
       <button class="tab-btn" data-tab="radicals">Radicals</button>
       <button class="tab-btn" data-tab="review">Review</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
@@ -517,11 +518,32 @@
           <div class="sentence-filter-wrap"><span class="sentence-filter-label">Sort by</span><select id="sentence-sort" class="sentence-filter"><option value="order">Sentence order</option><option value="due">Due first</option><option value="new">Newest first</option><option value="length">Shortest first</option></select></div>
         </div>
         <p class="sentence-focus-note">Tip: click a Chinese character to open its character details. Use 🔊 to hear the sentence.</p>
+
+        <div class="card-layout-bar" id="sentence-layout-bar" aria-label="Sentence layout options">
+          <span class="card-layout-label">Sentence layout</span>
+          <div class="card-layout-modes" id="sentence-col-modes" role="group" aria-label="Choose sentence columns">
+            <button type="button" class="card-layout-btn" data-sentence-cols="1">1 column</button>
+            <button type="button" class="card-layout-btn" data-sentence-cols="2">2 columns</button>
+            <button type="button" class="card-layout-btn active" data-sentence-cols="3">3 columns</button>
+            <button type="button" class="card-layout-btn" data-sentence-cols="4">4 columns</button>
+          </div>
+          <div class="card-layout-modes" id="sentence-size-modes" role="group" aria-label="Choose sentence card size">
+            <button type="button" class="card-layout-btn" data-sentence-size="large">Large</button>
+            <button type="button" class="card-layout-btn active" data-sentence-size="medium">Medium</button>
+            <button type="button" class="card-layout-btn" data-sentence-size="small">Compact</button>
+          </div>
+          <div class="card-layout-modes" id="sentence-page-size-modes" role="group" aria-label="Choose sentences per page">
+            <button type="button" class="card-layout-btn" data-sentence-per-page="12">12 / pg</button>
+            <button type="button" class="card-layout-btn active" data-sentence-per-page="24">24 / pg</button>
+            <button type="button" class="card-layout-btn" data-sentence-per-page="48">48 / pg</button>
+          </div>
+        </div>
+
         <div class="tab-display-controls" aria-label="Sentence card display options">
           <button type="button" class="tab-display-btn" id="sentence-show-pinyin">Show Pinyin</button>
           <button type="button" class="tab-display-btn" id="sentence-show-english">Show English</button>
         </div>
-        <div id="sentence-grid" class="sentence-grid"></div>
+        <div id="sentence-grid" class="sentence-grid card-cols-3 card-size-medium"></div>
         <div class="pager">
           <button id="sentence-prev-page" aria-label="Previous sentence page">←</button>
           <span id="sentence-page-indicator">1 / 1</span>
@@ -689,6 +711,125 @@
               </div>
             </div>
           </aside>
+        </div>
+      </section>
+
+      <!-- TONES & PINYIN LAB -->
+      <section id="tab-tones" class="tab-panel">
+        <div class="tones-dashboard">
+          
+          <!-- Hero Section -->
+          <div class="tone-hero">
+            <div class="tone-hero-text">
+              <div class="tone-hero-kicker">声调 · Pronunciation Lab</div>
+              <h2>Master Mandarin Tones & Tone Pairs</h2>
+              <p>Tones are the melody and meaning of Mandarin. Explore the 5 pitch contours, drill all 20 tone pair combinations, and test your listening ear with interactive quizzes.</p>
+            </div>
+            <div class="tone-hero-actions">
+              <button type="button" class="btn-primary" id="btn-start-tone-quiz">🎧 Tone Listening Quiz</button>
+              <button type="button" class="btn-secondary" id="btn-scroll-tone-pairs">双音节 20 Tone Pairs</button>
+            </div>
+          </div>
+
+          <!-- Quick Tone Guide (The 5 Tones) -->
+          <div class="tone-section-header">
+            <div>
+              <h3>The 5 Mandarin Tones</h3>
+              <p class="section-sub">Pitch contour representation on the traditional 5-point scale (5=High, 1=Low).</p>
+            </div>
+          </div>
+          <div class="tone-cards-grid" id="tone-cards-grid"></div>
+
+          <!-- Interactive Tone Sandhi / Rules Callout -->
+          <div class="tone-rules-banner">
+            <div class="tone-rule-card">
+              <div class="tone-rule-badge">Rule 1 · 3rd Tone Sandhi</div>
+              <strong>3 + 3 → 2 + 3</strong>
+              <p>When two 3rd tones occur consecutively, the first becomes a 2nd tone. Example: 你好 (nǐ hǎo → <em>ní hǎo</em>).</p>
+            </div>
+            <div class="tone-rule-card">
+              <div class="tone-rule-badge">Rule 2 · 不 (bù) Sandhi</div>
+              <strong>不 + 4 → 2 + 4</strong>
+              <p>不 is 4th tone (bù), but changes to 2nd tone (bú) before another 4th tone. Example: 不是 (bù shì → <em>bú shì</em>).</p>
+            </div>
+            <div class="tone-rule-card">
+              <div class="tone-rule-badge">Rule 3 · 一 (yī) Sandhi</div>
+              <strong>一 + 1/2/3 → 4 | 一 + 4 → 2</strong>
+              <p>一 (yī) becomes 4th tone (yì) before tones 1, 2, 3 (一天, 一年), and 2nd tone (yí) before tone 4 (一定).</p>
+            </div>
+          </div>
+
+          <!-- 20 Tone Pair Matrix -->
+          <div class="tone-section-header" id="section-tone-pairs" style="margin-top: 36px;">
+            <div>
+              <h3>20 Two-Syllable Tone Pairs (双音节训练)</h3>
+              <p class="section-sub">Over 80% of spoken words are 2 syllables. Master these 20 pitch transitions to achieve natural Chinese fluency.</p>
+            </div>
+            <div class="tone-pair-filter-bar">
+              <span class="filter-label">Filter by 1st Syllable Tone:</span>
+              <div class="tone-filter-chips" id="tone-pair-filter-chips">
+                <button type="button" class="chip active" data-tone-base="all">All (20)</button>
+                <button type="button" class="chip" data-tone-base="1">1st Tone (55)</button>
+                <button type="button" class="chip" data-tone-base="2">2nd Tone (35)</button>
+                <button type="button" class="chip" data-tone-base="3">3rd Tone (214)</button>
+                <button type="button" class="chip" data-tone-base="4">4th Tone (51)</button>
+              </div>
+            </div>
+          </div>
+          <div class="tone-pairs-grid" id="tone-pairs-grid"></div>
+
+          <!-- Tone Ear Trainer / Listening Quiz Arena -->
+          <div class="tone-quiz-arena" id="section-tone-quiz">
+            <div class="tone-quiz-header">
+              <div class="tone-quiz-title-wrap">
+                <span class="tone-quiz-kicker">Interactive Trainer</span>
+                <h3>🎧 Tone Ear Trainer & Listening Quiz</h3>
+                <p>Listen carefully to the spoken audio and identify the correct tone or tone combination.</p>
+              </div>
+              <div class="tone-quiz-stats">
+                <div class="quiz-stat"><strong id="tone-quiz-score">0</strong><span>Score</span></div>
+                <div class="quiz-stat"><strong id="tone-quiz-streak">0</strong><span>🔥 Streak</span></div>
+                <div class="quiz-stat"><strong id="tone-quiz-best">0</strong><span>Best</span></div>
+              </div>
+            </div>
+
+            <div class="tone-quiz-modes">
+              <button type="button" class="tone-quiz-mode-btn active" data-quiz-mode="single">Single Tones</button>
+              <button type="button" class="tone-quiz-mode-btn" data-quiz-mode="pairs">Tone Pairs</button>
+              <button type="button" class="tone-quiz-mode-btn" data-quiz-mode="minimal">Minimal Pairs (买 vs 卖)</button>
+            </div>
+
+            <div class="tone-quiz-body" id="tone-quiz-body">
+              <div class="tone-quiz-prompt">
+                <button type="button" class="tone-quiz-audio-btn" id="tone-quiz-play-btn" aria-label="Play sound">
+                  <span class="tone-audio-icon">🔊</span>
+                  <span class="tone-audio-label">Click to Play Sound</span>
+                </button>
+                <div class="tone-quiz-hint" id="tone-quiz-hint">Tap to listen to the syllable</div>
+              </div>
+
+              <div class="tone-quiz-options" id="tone-quiz-options"></div>
+
+              <div class="tone-quiz-feedback hidden" id="tone-quiz-feedback">
+                <div class="feedback-icon" id="tone-feedback-icon">✓</div>
+                <div class="feedback-details">
+                  <div class="feedback-title" id="tone-feedback-title">Correct!</div>
+                  <div class="feedback-sub" id="tone-feedback-sub">mā · 1st Tone (High Flat) · 妈 (Mother)</div>
+                </div>
+                <button type="button" class="btn-primary" id="tone-quiz-next-btn">Next Question →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tricky Mandarin Sounds Guide -->
+          <div class="tone-section-header" style="margin-top: 40px;">
+            <div>
+              <h3>Tricky Sounds & Pronunciation Guide</h3>
+              <p class="section-sub">Key sound contrasts that non-native speakers find most challenging.</p>
+            </div>
+          </div>
+          <div class="tricky-sounds-grid" id="tricky-sounds-grid"></div>
+
         </div>
       </section>
 

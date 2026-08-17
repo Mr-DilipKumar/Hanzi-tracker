@@ -216,6 +216,90 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
   }
 
+  /* ==========================================================================
+   *  NATIVE MANDARIN AUDIO ENGINE (Youdao Neural HD + Baidu TTS Stream)
+   * ========================================================================== */
+
+  let currentActiveAudio = null;
+  const audioCache = new Map();
+
+  function playChineseAudio(text, options = {}){
+    if (!text || typeof text !== "string") return;
+    const cleanText = text.replace(/[\uFFFD\u0000-\u001F]/g, "").trim();
+    if (!cleanText) return;
+
+    const rate = options.rate || 0.88;
+    const onStart = options.onStart;
+    const onEnd = options.onEnd;
+
+    if (currentActiveAudio){
+      try {
+        currentActiveAudio.pause();
+        currentActiveAudio.currentTime = 0;
+      } catch(e){}
+      currentActiveAudio = null;
+    }
+
+    if (onStart) onStart();
+
+    if (typeof Audio !== "undefined") {
+      const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&le=zh`;
+      // Baidu TTS stream is accessible globally (unlike Google TTS) and supports full sentences
+      const baiduUrl = `https://fanyi.baidu.com/gettts?lan=zh&text=${encodeURIComponent(cleanText)}&spd=5&source=web`;
+      
+      const isSentence = cleanText.length > 4 || /[，。！？；：“”《》、,.!?]/.test(cleanText);
+      const primaryUrl = isSentence ? baiduUrl : youdaoUrl;
+      const fallbackUrl = isSentence ? youdaoUrl : baiduUrl;
+
+      const playUrl = (url, isRetry = false) => {
+        let audio = audioCache.get(url);
+        if (!audio){
+          audio = new Audio(url);
+          if (audioCache.size > 250){
+            const firstKey = audioCache.keys().next().value;
+            audioCache.delete(firstKey);
+          }
+          audioCache.set(url, audio);
+        }
+
+        currentActiveAudio = audio;
+        audio.currentTime = 0;
+        audio.playbackRate = rate > 0.95 ? 1.0 : (rate < 0.8 ? 0.8 : 0.9);
+
+        audio.onended = () => {
+          if (currentActiveAudio === audio) currentActiveAudio = null;
+          if (onEnd) onEnd();
+        };
+
+        audio.onerror = () => {
+          if (!isRetry && fallbackUrl) {
+            playUrl(fallbackUrl, true);
+          } else {
+            if (currentActiveAudio === audio) currentActiveAudio = null;
+            if (onEnd) onEnd();
+          }
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined){
+          playPromise.catch(() => {
+            if (!isRetry && fallbackUrl) {
+              playUrl(fallbackUrl, true);
+            } else {
+              if (currentActiveAudio === audio) currentActiveAudio = null;
+              if (onEnd) onEnd();
+            }
+          });
+        }
+      };
+
+      playUrl(primaryUrl, false);
+      return;
+    }
+
+    if (onEnd) onEnd();
+  }
+
   /* ---------- indexes ---------- */
   function buildIndexes(){
     HANZI_BY_CHAR = {};
@@ -337,10 +421,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
   function calculateRating(prev, rating){
     let interval = prev.interval || 0;
     let status = prev.status === "new" ? "learning" : prev.status;
-    if (rating === "again"){ interval = 0; status = "learning"; }
-    else if (rating === "hard"){ interval = Math.min(3, interval ? Math.max(.5, interval * 1.2) : .5); status = "learning"; }
+    if (rating === "again" || rating === "new"){ interval = 0; status = "learning"; }
+    else if (rating === "hard" || rating === "learning"){ interval = Math.min(3, interval ? Math.max(.5, interval * 1.2) : .5); status = "learning"; }
     else if (rating === "good"){ interval = Math.min(90, interval ? interval * 2 : 2); status = interval >= 21 ? "known" : "learning"; }
-    else if (rating === "easy"){ interval = Math.min(180, Math.max(30, interval ? interval * 3 : 30)); status = "known"; }
+    else if (rating === "easy" || rating === "known"){ interval = Math.min(180, Math.max(30, interval ? interval * 3 : 30)); status = "known"; }
     return {status, interval};
   }
 
@@ -675,8 +759,26 @@ document.addEventListener("DOMContentLoaded", ()=>{
   /* ---------- SENTENCES ---------- */
   let sentenceFilters = {query:"", hsk:"all", srs:"all", difficulty:"all", sort:"order"};
   let sentencePage = 0;
-  const SENTENCE_PAGE_SIZE = 24;
+  let sentencePageSize = Number(localStorage.getItem("hanziSentencePageSize")) || 24;
+  let sentenceLayoutCols = localStorage.getItem("hanziSentenceLayoutCols") || "3";
+  let sentenceLayoutSize = localStorage.getItem("hanziSentenceLayoutSize") || "medium";
   let sentenceIndexByChar = null;
+
+  function applySentenceLayout(){
+    const grid = el("sentence-grid");
+    if (grid) {
+      grid.className = `sentence-grid card-cols-${sentenceLayoutCols} card-size-${sentenceLayoutSize}`;
+    }
+    document.querySelectorAll("[data-sentence-cols]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.sentenceCols === String(sentenceLayoutCols));
+    });
+    document.querySelectorAll("[data-sentence-size]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.sentenceSize === String(sentenceLayoutSize));
+    });
+    document.querySelectorAll("[data-sentence-per-page]").forEach(btn => {
+      btn.classList.toggle("active", Number(btn.dataset.sentencePerPage) === sentencePageSize);
+    });
+  }
 
   function sentencePinyin(input){
     if (!input) return "";
@@ -761,10 +863,17 @@ document.addEventListener("DOMContentLoaded", ()=>{
       if(/[a-zA-Z]/.test(x.z)) return false;
       const h=sentenceHskLevel(x);
       if(sentenceFilters.hsk!=="all"){
-        if(sentenceFilters.hsk==="adv" ? h<7 : h!==Number(sentenceFilters.hsk)) return false;
+        if(sentenceFilters.hsk==="adv" ? (h>0 && h<7) : h!==Number(sentenceFilters.hsk)) return false;
       }
       const d=sentenceDifficulty(x); if(sentenceFilters.difficulty!=="all" && d!==sentenceFilters.difficulty) return false;
-      const st=sentenceStatusLabel(x).toLowerCase(); if(sentenceFilters.srs!=="all" && st!==sentenceFilters.srs) return false;
+      if(sentenceFilters.srs!=="all"){
+        const st=sentenceStatusLabel(x).toLowerCase();
+        if(sentenceFilters.srs==="known"){
+          if(st!=="mastered" && st!=="known") return false;
+        } else if(st!==sentenceFilters.srs){
+          return false;
+        }
+      }
       return true;
     });
     if(sentenceFilters.sort==="due") data.sort((a,b)=>(getSentenceEntry(a.i)?.due||Infinity)-(getSentenceEntry(b.i)?.due||Infinity));
@@ -784,18 +893,30 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const statusClass = sentenceStatusClass(item);
     const statusIcon = statusClass === "known" ? "✓" : statusClass === "learning" ? "📖" : "🆕";
     const due = getSentenceEntry(item.i)?.due;
+    const wordListHTML = Array.from(new Set(Array.from(item.z).filter(ch=>HANZI_BY_CHAR[ch]))).map(ch=>'<button type="button" class="sentence-word-chip" data-sentence-char="'+escHtml(ch)+'">'+escHtml(ch)+' '+escHtml(HANZI_BY_CHAR[ch].p||"")+'</button>').join("");
     return '<article class="sentence-card status-'+escHtml(statusClass)+'" data-sentence-id="'+escHtml(item.i)+'">'+
-      '<div class="sentence-card-top"><div class="sentence-badges">'+
-        '<span class="sentence-badge">'+escHtml(sentenceHskLabel(item))+'</span>'+ 
-        '<span class="sentence-badge">'+escHtml(sentenceDifficultyLabel(item))+'</span>'+ 
-        '<span class="sentence-badge sentence-badge-status '+(status==="Due"?'due':'')+'"><span class="sentence-status-icon">'+escHtml(statusIcon)+'</span> '+escHtml(status)+'</span>'+ 
-      '</div><button type="button" class="sentence-audio" data-speak-sentence="'+escHtml(item.i)+'" title="Listen">🔊</button></div>'+ 
-      '<div class="sentence-zh">'+sentenceCharsHTML(item.z)+'</div>'+ 
-      '<div class="sentence-hidden-detail'+(sentenceShowPinyin?' open':'')+'" data-pinyin-panel="'+escHtml(item.i)+'"><div class="sentence-pinyin">'+escHtml(sentencePinyin(item))+'</div></div>'+ 
-      '<div class="sentence-hidden-detail'+(sentenceShowEnglish?' open':'')+'" data-english-panel="'+escHtml(item.i)+'"><div class="sentence-en">'+escHtml(item.t)+'</div></div>'+ 
-      '<div class="sentence-meta"><span>'+escHtml(due && status==="Learning" ? "Next review: "+new Date(due).toLocaleDateString() : "Recall first, then reveal")+'</span>'+ 
-        '<div class="sentence-meta-actions"><button type="button" class="sentence-detail-btn" data-detail-sentence="'+escHtml(item.i)+'">Details</button><button type="button" class="sentence-review-btn" data-review-sentence="'+escHtml(item.i)+'">Study</button></div>'+ 
-      '</div></article>';
+      '<div class="sentence-card-inner">'+
+        '<div class="sentence-card-face front">'+
+          '<div class="sentence-card-top"><div class="sentence-badges">'+
+            '<span class="sentence-badge">'+escHtml(sentenceHskLabel(item))+'</span>'+ 
+            '<span class="sentence-badge">'+escHtml(sentenceDifficultyLabel(item))+'</span>'+ 
+            '<span class="sentence-badge sentence-badge-status '+(status==="Due"?'due':'')+'"><span class="sentence-status-icon">'+escHtml(statusIcon)+'</span> '+escHtml(status)+'</span>'+ 
+          '</div><button type="button" class="sentence-audio" data-speak-sentence="'+escHtml(item.i)+'" title="Listen">🔊</button></div>'+ 
+          '<div class="sentence-zh">'+sentenceCharsHTML(item.z)+'</div>'+ 
+          (sentenceShowPinyin ? '<div class="sentence-pinyin" style="margin-top: 8px;">'+escHtml(sentencePinyin(item))+'</div>' : '') +
+          (sentenceShowEnglish ? '<div class="sentence-en" style="margin-top: 8px;">'+escHtml(item.t)+'</div>' : '') +
+          '<div class="sentence-meta"><span>'+escHtml(due && status==="Learning" ? "Next review: "+new Date(due).toLocaleDateString() : "Click to reveal")+'</span></div>'+
+        '</div>'+
+        '<div class="sentence-card-face back">'+
+          '<div class="sentence-hidden-detail open" data-pinyin-panel="'+escHtml(item.i)+'"><div class="sentence-pinyin">'+escHtml(sentencePinyin(item))+'</div></div>'+ 
+          '<div class="sentence-hidden-detail open" data-english-panel="'+escHtml(item.i)+'"><div class="sentence-en">'+escHtml(item.t)+'</div></div>'+ 
+          '<div class="sentence-word-list" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">'+wordListHTML+'</div>'+
+          '<div class="sentence-meta" style="margin-top: auto;">'+
+            '<div class="sentence-meta-actions"><button type="button" class="sentence-review-btn" data-review-sentence="'+escHtml(item.i)+'">Study</button></div>'+ 
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</article>';
   }
 
   function renderSentenceDashboard(){
@@ -811,10 +932,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   function renderSentences(){
     renderSentenceDashboard();
+    applySentenceLayout();
     const data=getFilteredSentences();
-    const totalPages=Math.max(1,Math.ceil(data.length/SENTENCE_PAGE_SIZE));
+    const totalPages=Math.max(1,Math.ceil(data.length/sentencePageSize));
     if(sentencePage>=totalPages) sentencePage=totalPages-1; if(sentencePage<0) sentencePage=0;
-    const pageItems=data.slice(sentencePage*SENTENCE_PAGE_SIZE,sentencePage*SENTENCE_PAGE_SIZE+SENTENCE_PAGE_SIZE);
+    const pageItems=data.slice(sentencePage*sentencePageSize,sentencePage*sentencePageSize+sentencePageSize);
     el("sentence-count").textContent=data.length.toLocaleString()+" sentences";
     el("sentence-page-indicator").textContent=(sentencePage+1)+" / "+totalPages;
     el("sentence-prev-page").disabled=sentencePage===0; el("sentence-next-page").disabled=sentencePage>=totalPages-1;
@@ -822,9 +944,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 
   function speakSentence(item){
-    if(!item || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(item.z); u.lang="zh-CN"; u.rate=.88; window.speechSynthesis.speak(u);
+    if(!item) return;
+    const text = typeof item === "string" ? item : (item.z || "");
+    playChineseAudio(text, { rate: 0.9 });
   }
 
   function openSentenceDetails(id){
@@ -879,21 +1001,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   function getSentenceDueCount(){
     const now = Date.now();
-    return SENTENCE_DATA.filter(item=>{ const e=getSentenceEntry(item.i); return e && e.status !== "new" && e.due <= now; }).length;
-  }
-
-  function buildPool(poolType){
-    if (reviewMode === "sentences"){
-      const now = Date.now();
-      if (poolType === "due") return SENTENCE_DATA.filter(item=>{ const e=getSentenceEntry(item.i); return e && e.status !== "known" && e.due <= now; });
-      if (poolType === "new") return SENTENCE_DATA.filter(item=>getSentenceStatus(item.i)==="new");
-      return SENTENCE_DATA.filter(item=>getSentenceStatus(item.i)!=="known");
-    }
-    const scope = getScopeData(reviewFilters.levels);
-    const now = Date.now();
-    if (poolType === "due") return scope.filter(item=>{ const e = getEntry(item.c); return e && e.status === "learning" && e.due <= now; });
-    if (poolType === "new") return scope.filter(item=> getStatus(item.c) === "new");
-    return scope.filter(item=> getStatus(item.c) !== "known");
+    return SENTENCE_DATA.filter(item=>{ const e=getSentenceEntry(item.i); return e && e.status !== "new" && e.status !== "known" && Number(e.due||0) <= now; }).length;
   }
 
   function shuffle(arr){
@@ -948,7 +1056,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     };
     const buildSentences=()=>{
       let data=SENTENCE_DATA.filter(item=>reviewDifficultyMatch(item,"sentences"));
-      if(poolType==="due") return data.filter(item=>{const e=getSentenceEntry(item.i);return e&&e.status!=="known"&&e.due<=now;});
+      if(poolType==="due") return data.filter(item=>{const e=getSentenceEntry(item.i);return e&&e.status!=="new"&&e.status!=="known"&&Number(e.due||0)<=now;});
       if(poolType==="new") return data.filter(item=>getSentenceStatus(item.i)==="new");
       if(poolType==="all") return data.filter(item=>getSentenceStatus(item.i)!=="known");
       return data.filter(item=>{
@@ -1012,19 +1120,15 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   function fitSentenceLine(el){
     if (!el) return;
-    // Always prefer a single line in Sentence SRS. Reduce the font only as much as needed.
-    el.style.whiteSpace = "nowrap";
-    el.style.width = "max-content";
-    el.style.maxWidth = "none";
-    let size = parseFloat(getComputedStyle(el).fontSize) || 34;
-    const minSize = 12;
-    const available = Math.max(120, (el.parentElement?.clientWidth || 900) - 52);
-    for (let i = 0; i < 30 && el.scrollWidth > available && size > minSize; i++) {
-      size -= 1;
-      el.style.fontSize = size + "px";
-    }
-    // If an exceptionally long sentence still does not fit, use the smallest readable size.
-    if (el.scrollWidth > available) el.style.fontSize = minSize + "px";
+    el.style.whiteSpace = "normal";
+    el.style.wordBreak = "break-word";
+    el.style.width = "100%";
+    el.style.maxWidth = "100%";
+    const len = Array.from(el.textContent || "").length;
+    if (len > 32) el.style.fontSize = "1.55rem";
+    else if (len > 20) el.style.fontSize = "1.9rem";
+    else if (len > 12) el.style.fontSize = "2.2rem";
+    else el.style.fontSize = "2.5rem";
   }
 
   function showCard(){
@@ -1048,17 +1152,15 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("fc-sentence-pinyin").hidden=true;
     el("fc-sentence-en").hidden=true;
     el("fc-related").hidden=true;
-    el("fc-sentence-tools").hidden=true;
+    if(el("review-example-toggle")) el("review-example-toggle").style.display = sentenceMode ? "none" : "";
 
     if(sentenceMode){
-      el("fc-sentence-front").textContent=item.z;
-      el("fc-sentence-back").textContent=item.z;
-      el("fc-sentence-pinyin").textContent=sentencePinyin(item);
-      el("fc-sentence-en").textContent=item.t;
-      const sentenceLength=Array.from(item.z||"").length;
-      el("fc-sentence-front").style.fontSize=sentenceLength>32?"2rem":sentenceLength>24?"2.2rem":"2.45rem";
-      el("fc-sentence-back").style.fontSize=sentenceLength>32?"1.65rem":sentenceLength>24?"1.8rem":"2rem";
-      requestAnimationFrame(()=>{fitSentenceLine(el("fc-sentence-front"));fitSentenceLine(el("fc-sentence-back"));});
+      el("fc-sentence-front").textContent=item.z || "";
+      el("fc-sentence-back").textContent=item.z || "";
+      el("fc-sentence-pinyin").textContent=sentencePinyin(item) || "";
+      el("fc-sentence-en").textContent=item.t || "";
+      fitSentenceLine(el("fc-sentence-front"));
+      fitSentenceLine(el("fc-sentence-back"));
       el("review-card-reason").textContent=getSentenceEntry(item.i)?.due<=Date.now()?"🔴 Due for review":"🟡 Learning sentence";
     } else if(wordMode){
       el("fc-hanzi").hidden=false;
@@ -1140,7 +1242,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
       if(type==="word"){
         prevStatus=getWordStatus(item.word);
-        entry = setWordStatusManual(item.word, rating);
+        entry = rateWord(item.word, rating);
         sessionStats.reviewed++;
         if(rating==="known"){
           sessionStats.correct++;
@@ -1157,7 +1259,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         }
       }else{
         prevStatus=type==="sentence"?getSentenceStatus(item.i):getStatus(item.c);
-        entry=type==="sentence"?setSentenceStatus(item.i,rating):setStatusManual(item.c,rating);
+        entry=type==="sentence"?rateSentence(item.i,rating):rateCard(item.c,rating);
         sessionStats.reviewed++;
         if(type==="sentence") sessionStats.sentences++; else sessionStats.characters++;
         if(rating==="known"){
@@ -1510,6 +1612,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
       return '<article class="'+classes+'" data-word="'+escHtml(word.word)+'" tabindex="0" role="button" aria-label="Flip '+escHtml(word.word)+' card to reveal meaning">'+
         '<div class="word-card-inner">'+
           '<div class="word-card-face front">'+
+            '<button type="button" class="tone-audio-btn-sm" data-speak-word="'+escHtml(word.word)+'" title="Listen to '+escHtml(word.word)+'" style="position:absolute; top:12px; right:12px; z-index:2;">🔊</button>'+
             '<div class="word-zh">'+escHtml(word.word)+'</div>'+
             '<div class="word-pinyin" '+(wordsShowPinyin?'':'hidden')+'>'+escHtml(word.pinyin||"—")+'</div>'+
           '</div>'+
@@ -1573,6 +1676,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
 
     el("word-grid")?.addEventListener("click",e=>{
+      const speakBtn = e.target.closest("[data-speak-word]");
+      if (speakBtn){
+        e.stopPropagation();
+        playChineseAudio(speakBtn.dataset.speakWord);
+        return;
+      }
       const statusBtn = e.target.closest("[data-word-set-status]");
       if (statusBtn) {
         e.stopPropagation();
@@ -1712,6 +1821,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         if (btn.dataset.tab === "progress") renderProgress();
         if (btn.dataset.tab === "sentences") renderSentences();
         if (btn.dataset.tab === "words") renderWords();
+        if (btn.dataset.tab === "tones") renderTonesTab();
         if (btn.dataset.tab === "review") refreshDueCount();
       });
     });
@@ -1868,11 +1978,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
 
     el("drawer-speak")?.addEventListener("click", () => {
-      if (!currentDetailChar || !window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(currentDetailChar);
-      u.lang = "zh-CN"; u.rate = 0.85;
-      window.speechSynthesis.speak(u);
+      if (!currentDetailChar) return;
+      playChineseAudio(currentDetailChar, { rate: 0.82 });
     });
   }
 
@@ -1888,8 +1995,30 @@ document.addEventListener("DOMContentLoaded", ()=>{
     el("review-show-english").addEventListener("change",()=>{reviewShowEnglish=el("review-show-english").checked;localStorage.setItem("hanziReviewShowEnglish",String(reviewShowEnglish));});
     el("review-pinyin-toggle").addEventListener("click",()=>updateReviewReveal("pinyin"));el("review-english-toggle").addEventListener("click",()=>updateReviewReveal("english"));
     el("review-example-toggle").addEventListener("click",()=>{const box=el("fc-examples");const show=box.hidden;box.hidden=!show;el("review-example-toggle").classList.toggle("active",show);el("review-example-toggle").textContent=show?"Hide examples":"Show examples";});
-    el("review-audio-btn").addEventListener("click",()=>{const item=reviewQueue[reviewIndex];const type=item?.__reviewType||(reviewMode==="sentences"?"sentence":"character");if(type==="sentence")speakSentence(item);else if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(type==="word"?item.word:item.c);u.lang="zh-CN";u.rate=.88;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}});
+    el("review-audio-btn").addEventListener("click",()=>{
+      const item=reviewQueue[reviewIndex];
+      if(!item) return;
+      const type=item.__reviewType||(reviewMode==="sentences"?"sentence":reviewMode==="words"?"word":"character");
+      const text = type==="sentence" ? item.z : (type==="word" ? item.word : item.c);
+      playChineseAudio(text, { rate: 0.88 });
+    });
     el("start-review").addEventListener("click",startReview);el("stop-review").addEventListener("click",stopReview);el("reveal-btn").addEventListener("click",revealCard);el("review-skip-btn").addEventListener("click",skipCurrent);el("review-flag-btn").addEventListener("click",flagCurrent);
+    el("radical-grid")?.addEventListener("click",e=>{
+      if(e.target.closest("button") && !e.target.closest(".radical-card")) return;
+      const btn=e.target.closest(".radical-card");
+      if(btn){
+        btn.classList.toggle("flipped");
+      }
+    });
+    
+    // Add right click context menu for radical grid so they can still see details or mark known via right click
+    el("radical-grid")?.addEventListener("contextmenu",e=>{
+      const btn=e.target.closest(".radical-card");
+      if(btn){
+        e.preventDefault();
+        openRadicalDrawer(btn.dataset.radical);
+      }
+    });
     el("flashcard").addEventListener("click",e=>{
       if(e.target.closest("button,a")) return;
       if(!reviewRevealed) revealCard();
@@ -1915,11 +2044,62 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const sentenceEnglishBtn=el("sentence-show-english");
     sentencePinyinBtn?.addEventListener("click",()=>{sentenceShowPinyin=!sentenceShowPinyin;sentencePinyinBtn.classList.toggle("active",sentenceShowPinyin);renderSentences();});
     sentenceEnglishBtn?.addEventListener("click",()=>{sentenceShowEnglish=!sentenceShowEnglish;sentenceEnglishBtn.classList.toggle("active",sentenceShowEnglish);renderSentences();});
-    el("sentence-grid").addEventListener("click",e=>{
-      const char=e.target.closest("[data-sentence-char]"); if(char){openDetail(char.dataset.sentenceChar);return;}
-      const speak=e.target.closest("[data-speak-sentence]"); if(speak){const item=SENTENCE_DATA.find(x=>String(x.i)===String(speak.dataset.speakSentence));speakSentence(item);return;}
-      const detail=e.target.closest("[data-detail-sentence]"); if(detail){openSentenceDetails(detail.dataset.detailSentence);return;}
-      const review=e.target.closest("[data-review-sentence]"); if(review){openSentenceReview(review.dataset.reviewSentence);return;}
+
+    // Sentence layout controls
+    document.querySelectorAll("[data-sentence-cols]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        sentenceLayoutCols = btn.dataset.sentenceCols || "3";
+        localStorage.setItem("hanziSentenceLayoutCols", sentenceLayoutCols);
+        applySentenceLayout();
+      });
+    });
+    document.querySelectorAll("[data-sentence-size]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        sentenceLayoutSize = btn.dataset.sentenceSize || "medium";
+        localStorage.setItem("hanziSentenceLayoutSize", sentenceLayoutSize);
+        applySentenceLayout();
+      });
+    });
+    document.querySelectorAll("[data-sentence-per-page]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        sentencePageSize = Number(btn.dataset.sentencePerPage) || 24;
+        localStorage.setItem("hanziSentencePageSize", String(sentencePageSize));
+        sentencePage = 0;
+        applySentenceLayout();
+        renderSentences();
+      });
+    });
+
+    el("sentence-grid")?.addEventListener("click",e=>{
+      const char=e.target.closest("[data-sentence-char]");
+      if(char){
+        e.stopPropagation();
+        openDetail(char.dataset.sentenceChar);
+        return;
+      }
+      const speak=e.target.closest("[data-speak-sentence]");
+      if(speak){
+        e.stopPropagation();
+        const item=SENTENCE_DATA.find(x=>String(x.i)===String(speak.dataset.speakSentence));
+        speakSentence(item);
+        return;
+      }
+      const detail=e.target.closest("[data-detail-sentence]");
+      if(detail){
+        e.stopPropagation();
+        openSentenceDetails(detail.dataset.detailSentence);
+        return;
+      }
+      const review=e.target.closest("[data-review-sentence]");
+      if(review){
+        e.stopPropagation();
+        openSentenceReview(review.dataset.reviewSentence);
+        return;
+      }
+      const card=e.target.closest(".sentence-card");
+      if(card && !e.target.closest("button,a,input,select")){
+        card.classList.toggle("flipped");
+      }
     });
     el("sentence-study-due").addEventListener("click",()=>startSentencePool("due"));
     el("sentence-study-new").addEventListener("click",()=>startSentencePool("new"));
@@ -1945,7 +2125,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const tab=document.querySelector('.tab-btn[data-tab="review"]'); if(tab) tab.click();
     reviewMode="sentences"; setReviewModeUI();
     const pool=buildPool(poolType); if(!pool.length){showToast(poolType==="due"?"No sentence reviews are due right now.":"No new sentences are available right now.");return;}
-    reviewQueue=shuffle(pool).slice(0,Number(el("session-size").value)||10); reviewIndex=0; sessionStats={reviewed:0,known:0,correct:0,streak:0,bestStreak:0,characters:0,sentences:0,mistakes:[],skipped:0,flagged:0};
+    reviewQueue=shuffle(pool).slice(0,Number(el("session-size").value)||10); reviewIndex=0; sessionStats={reviewed:0,known:0,correct:0,streak:0,bestStreak:0,characters:0,sentences:0,mistakes:[],skipped:0,flagged:0}; reviewStartedAt=Date.now();
     el("review-setup").classList.add("hidden");el("review-summary").classList.add("hidden");el("review-session").classList.remove("hidden");showCard();
   }
 
@@ -2265,10 +2445,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
       const char = r.base && r.base !== "—" ? r.base : r.char;
       return `
       <button type="button" class="radical-card" data-radical="${r.number}" data-char="${escHtml(char)}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
-        <span class="radical-number">#${r.number}</span>
-        <span class="radical-char">${r.char}</span>
-        <span class="radical-name" ${radicalsShowEnglish?"":"hidden"}>${escHtml(r.meaning)}</span>
-        <span class="radical-pinyin" ${radicalsShowPinyin?"":"hidden"}>${escHtml(r.pinyin)}</span>
+        <div class="radical-card-inner">
+          <div class="radical-card-face front">
+            <span class="radical-number">#${r.number}</span>
+            <span class="radical-char">${r.char}</span>
+            <span class="radical-name" ${radicalsShowEnglish?"":"hidden"}>${escHtml(r.meaning)}</span>
+            <span class="radical-pinyin" ${radicalsShowPinyin?"":"hidden"}>${escHtml(r.pinyin)}</span>
+          </div>
+          <div class="radical-card-face back">
+            <span class="radical-name">${escHtml(r.meaning)}</span>
+            <span class="radical-pinyin">${escHtml(r.pinyin)}</span>
+          </div>
+        </div>
       </button>
     `;
     }).join("");
@@ -2584,28 +2772,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
       renderRadicals();
     });
 
-    const showPinyin = el("radical-show-pinyin");
-    const showEnglish = el("radical-show-english");
-    showPinyin?.addEventListener("click", ()=>{
+    el("radical-show-pinyin").addEventListener("click", (e)=>{
       radicalsShowPinyin = !radicalsShowPinyin;
-      showPinyin.classList.toggle("active", radicalsShowPinyin);
-      renderRadicals();
+      e.target.classList.toggle("active", radicalsShowPinyin);
+      document.querySelectorAll(".front .radical-pinyin").forEach(n=>n.hidden=!radicalsShowPinyin);
     });
-    showEnglish?.addEventListener("click", ()=>{
+    el("radical-show-english").addEventListener("click", (e)=>{
       radicalsShowEnglish = !radicalsShowEnglish;
-      showEnglish.classList.toggle("active", radicalsShowEnglish);
-      renderRadicals();
+      e.target.classList.toggle("active", radicalsShowEnglish);
+      document.querySelectorAll(".front .radical-name").forEach(n=>n.hidden=!radicalsShowEnglish);
     });
 
-    if (grid){
-      grid.addEventListener("click", function(e){
-        const card = e.target.closest(".radical-card");
-        if (!card) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openRadicalDetail(parseInt(card.getAttribute("data-radical"), 10));
-      }, false);
-    }
+    // The old grid.addEventListener("click") for openRadicalDetail was removed so cards just flip.
 
     ["new","learning","known"].forEach(s => {
       const btn = el("detail-radical-status-btn-" + s);
@@ -2662,7 +2840,518 @@ document.addEventListener("DOMContentLoaded", ()=>{
     renderRadicals();
   }
 
+  /* ==========================================================================
+   *  TONE & PRONUNCIATION LAB MODULE (声调)
+   * ========================================================================== */
 
+  const TONE_DATA = [
+    {
+      num: 1,
+      name: "1st Tone (阴平)",
+      pinyin: "mā",
+      pitch: "55 · High Level",
+      desc: "High, flat, steady pitch held at the top of your natural speaking range (like singing 'ahhh' to a doctor).",
+      points: "M 10 14 L 190 14",
+      color: "#e11d48",
+      samples: [{ zh: "妈", py: "mā", en: "Mother" }, { zh: "天", py: "tiān", en: "Sky/Day" }, { zh: "高", py: "gāo", en: "High" }, { zh: "飞", py: "fēi", en: "Fly" }]
+    },
+    {
+      num: 2,
+      name: "2nd Tone (阳平)",
+      pinyin: "má",
+      pitch: "35 · Rising",
+      desc: "Rises from mid pitch to high pitch, identical to an English question inflection ('What?!' or 'Huh?').",
+      points: "M 10 38 L 190 12",
+      color: "#f59e0b",
+      samples: [{ zh: "麻", py: "má", en: "Hemp/Numb" }, { zh: "人", py: "rén", en: "Person" }, { zh: "学", py: "xué", en: "Learn" }, { zh: "国", py: "guó", en: "Country" }]
+    },
+    {
+      num: 3,
+      name: "3rd Tone (上声)",
+      pinyin: "mǎ",
+      pitch: "214 · Dipping / Low",
+      desc: "Dips down into the lower vocal register before rising. In natural speech, it is often a low flat tone.",
+      points: "M 10 26 Q 100 44 190 16",
+      color: "#10b981",
+      samples: [{ zh: "马", py: "mǎ", en: "Horse" }, { zh: "好", py: "hǎo", en: "Good" }, { zh: "水", py: "shuǐ", en: "Water" }, { zh: "小", py: "xiǎo", en: "Small" }]
+    },
+    {
+      num: 4,
+      name: "4th Tone (去声)",
+      pinyin: "mà",
+      pitch: "51 · Falling / Sharp",
+      desc: "Drops steeply and sharply from top to bottom, like a definitive command in English ('No!' or 'Stop!').",
+      points: "M 10 12 L 190 42",
+      color: "#6366f1",
+      samples: [{ zh: "骂", py: "mà", en: "Scold" }, { zh: "大", py: "dà", en: "Big" }, { zh: "去", py: "qù", en: "Go" }, { zh: "看", py: "kàn", en: "Look" }]
+    },
+    {
+      num: 5,
+      name: "Neutral Tone (轻声)",
+      pinyin: "ma",
+      pitch: "· · Light & Short",
+      desc: "Soft, brief, unstressed tone whose pitch depends on the preceding syllable (e.g. question particle 吗).",
+      points: "M 95 24 A 4 4 0 1 1 105 24",
+      color: "#8b5cf6",
+      samples: [{ zh: "吗", py: "ma", en: "Question?" }, { zh: "的", py: "de", en: "Possessive" }, { zh: "子", py: "zi", en: "Noun suffix" }, { zh: "了", py: "le", en: "Aspect" }]
+    }
+  ];
+
+  const TONE_PAIRS_DATA = [
+    { base: "1", pair: "1-1", title: "1st + 1st", pitch: "55-55 ── ──", desc: "Steady high plateau", items: [
+      { zh: "今天", py: "jīntiān", en: "Today" },
+      { zh: "飞机", py: "fēijī", en: "Airplane" },
+      { zh: "医生", py: "yīshēng", en: "Doctor" }
+    ]},
+    { base: "1", pair: "1-2", title: "1st + 2nd", pitch: "55-35 ── ↗", desc: "High plateau then rises", items: [
+      { zh: "中国", py: "zhōngguó", en: "China" },
+      { zh: "新年", py: "xīnnián", en: "New Year" },
+      { zh: "帮忙", py: "bāngmáng", en: "Help" }
+    ]},
+    { base: "1", pair: "1-3", title: "1st + 3rd", pitch: "55-214 ── ↘↗", desc: "High plateau drops to low", items: [
+      { zh: "机场", py: "jīchǎng", en: "Airport" },
+      { zh: "经理", py: "jīnglǐ", en: "Manager" },
+      { zh: "身体", py: "shēntǐ", en: "Body/Health" }
+    ]},
+    { base: "1", pair: "1-4", title: "1st + 4th", pitch: "55-51 ── ↘", desc: "High plateau then drops sharply", items: [
+      { zh: "帮助", py: "bāngzhù", en: "Help" },
+      { zh: "音乐", py: "yīnyuè", en: "Music" },
+      { zh: "方便", py: "fāngbiàn", en: "Convenient" }
+    ]},
+    { base: "1", pair: "1-0", title: "1st + Neutral", pitch: "55-· ── ·", desc: "High plateau then soft drop", items: [
+      { zh: "妈妈", py: "māma", en: "Mother" },
+      { zh: "东西", py: "dōngxi", en: "Things" },
+      { zh: "清楚", py: "qīngchu", en: "Clear" }
+    ]},
+    { base: "2", pair: "2-1", title: "2nd + 1st", pitch: "35-55 ↗ ──", desc: "Rises up to high plateau", items: [
+      { zh: "国家", py: "guójiā", en: "Country" },
+      { zh: "时间", py: "shíjiān", en: "Time" },
+      { zh: "银行", py: "yínháng", en: "Bank" }
+    ]},
+    { base: "2", pair: "2-2", title: "2nd + 2nd", pitch: "35-35 ↗ ↗", desc: "Double rising wave", items: [
+      { zh: "学习", py: "xuéxí", en: "Study" },
+      { zh: "常常", py: "chángcháng", en: "Often" },
+      { zh: "留学", py: "liúxué", en: "Study abroad" }
+    ]},
+    { base: "2", pair: "2-3", title: "2nd + 3rd", pitch: "35-214 ↗ ↘↗", desc: "Rises then dips down", items: [
+      { zh: "苹果", py: "píngguǒ", en: "Apple" },
+      { zh: "游泳", py: "yóuyǒng", en: "Swim" },
+      { zh: "传统", py: "chuántǒng", en: "Tradition" }
+    ]},
+    { base: "2", pair: "2-4", title: "2nd + 4th", pitch: "35-51 ↗ ↘", desc: "Rises then plunges down", items: [
+      { zh: "决定", py: "juédìng", en: "Decide" },
+      { zh: "习惯", py: "xíguàn", en: "Habit" },
+      { zh: "难过", py: "nánguò", en: "Sad" }
+    ]},
+    { base: "2", pair: "2-0", title: "2nd + Neutral", pitch: "35-· ↗ ·", desc: "Rises then soft landing", items: [
+      { zh: "学生", py: "xuésheng", en: "Student" },
+      { zh: "朋友", py: "péngyou", en: "Friend" },
+      { zh: "便宜", py: "piányi", en: "Cheap" }
+    ]},
+    { base: "3", pair: "3-1", title: "3rd + 1st", pitch: "21-55 ↘ ──", desc: "Low dip jumps to high", items: [
+      { zh: "北京", py: "běijīng", en: "Beijing" },
+      { zh: "手机", py: "shǒujī", en: "Mobile phone" },
+      { zh: "老师", py: "lǎoshī", en: "Teacher" }
+    ]},
+    { base: "3", pair: "3-2", title: "3rd + 2nd", pitch: "21-35 ↘ ↗", desc: "Low dip rises upward", items: [
+      { zh: "语言", py: "yǔyán", en: "Language" },
+      { zh: "旅行", py: "lǚxíng", en: "Travel" },
+      { zh: "每年", py: "měinián", en: "Every year" }
+    ]},
+    { base: "3", pair: "3-3", title: "3rd + 3rd (Sandhi)", pitch: "35-214 ↗ ↘↗", desc: "Changes to 2nd + 3rd!", items: [
+      { zh: "你好", py: "nǐhǎo (ní hǎo)", en: "Hello" },
+      { zh: "可以", py: "kěyǐ (ké yǐ)", en: "Can / May" },
+      { zh: "了解", py: "liǎojiě (liáo jiě)", en: "Understand" }
+    ]},
+    { base: "3", pair: "3-4", title: "3rd + 4th", pitch: "21-51 ↘ ↘", desc: "Low dip followed by sharp drop", items: [
+      { zh: "比赛", py: "bǐsài", en: "Match/Game" },
+      { zh: "努力", py: "nǔlì", en: "Hard-working" },
+      { zh: "准备", py: "zhǔnbèi", en: "Prepare" }
+    ]},
+    { base: "3", pair: "3-0", title: "3rd + Neutral", pitch: "21-· ↘ ·", desc: "Low dip then light high neutral", items: [
+      { zh: "喜欢", py: "xǐhuan", en: "Like" },
+      { zh: "姐姐", py: "jiějie", en: "Older sister" },
+      { zh: "怎么", py: "zěnme", en: "How" }
+    ]},
+    { base: "4", pair: "4-1", title: "4th + 1st", pitch: "51-55 ↘ ──", desc: "Sharp drop leaps to high", items: [
+      { zh: "面包", py: "miànbāo", en: "Bread" },
+      { zh: "认真", py: "rènzhēn", en: "Earnest" },
+      { zh: "汽车", py: "qìchē", en: "Automobile" }
+    ]},
+    { base: "4", pair: "4-2", title: "4th + 2nd", pitch: "51-35 ↘ ↗", desc: "Sharp drop then rises", items: [
+      { zh: "练习", py: "liànxí", en: "Practice" },
+      { zh: "热情", py: "rèqíng", en: "Enthusiastic" },
+      { zh: "特别", py: "tèbié", en: "Special" }
+    ]},
+    { base: "4", pair: "4-3", title: "4th + 3rd", pitch: "51-214 ↘ ↘↗", desc: "Sharp drop into dipping", items: [
+      { zh: "电影", py: "diànyǐng", en: "Movie" },
+      { zh: "电脑", py: "diànnǎo", en: "Computer" },
+      { zh: "办法", py: "bànfǎ", en: "Method" }
+    ]},
+    { base: "4", pair: "4-4", title: "4th + 4th", pitch: "51-51 ↘ ↘", desc: "Double sharp falls", items: [
+      { zh: "汉字", py: "hànzì", en: "Chinese character" },
+      { zh: "再见", py: "zàijiàn", en: "Goodbye" },
+      { zh: "变化", py: "biànhuà", en: "Change" }
+    ]},
+    { base: "4", pair: "4-0", title: "4th + Neutral", pitch: "51-· ↘ ·", desc: "Sharp drop then low neutral", items: [
+      { zh: "谢谢", py: "xièxie", en: "Thank you" },
+      { zh: "爸爸", py: "bàba", en: "Father" },
+      { zh: "漂亮", py: "piàoliang", en: "Pretty" }
+    ]}
+  ];
+
+  const MINIMAL_PAIRS_DATA = [
+    { a: { zh: "买", py: "mǎi", en: "Buy (3rd Tone)" }, b: { zh: "卖", py: "mài", en: "Sell (4th Tone)" } },
+    { a: { zh: "知道", py: "zhīdào", en: "Know (1-4)" }, b: { zh: "迟到", py: "chídào", en: "Late (2-4)" } },
+    { a: { zh: "练习", py: "liànxí", en: "Practice (4-2)" }, b: { zh: "联系", py: "liánxì", en: "Contact (2-4)" } },
+    { a: { zh: "眼睛", py: "yǎnjing", en: "Eyes (3-0)" }, b: { zh: "眼镜", py: "yǎnjìng", en: "Glasses (3-4)" } },
+    { a: { zh: "汤", py: "tāng", en: "Soup (1st Tone)" }, b: { zh: "糖", py: "táng", en: "Sugar/Candy (2nd Tone)" } },
+    { a: { zh: "狮子", py: "shīzi", en: "Lion (1-0)" }, b: { zh: "柿子", py: "shìzi", en: "Persimmon (4-0)" } },
+    { a: { zh: "问", py: "wèn", en: "Ask (4th Tone)" }, b: { zh: "吻", py: "wěn", en: "Kiss (3rd Tone)" } },
+    { a: { zh: "十", py: "shí", en: "Ten (2nd Tone)" }, b: { zh: "四", py: "sì", en: "Four (4th Tone)" } },
+    { a: { zh: "睡觉", py: "shuìjiào", en: "Sleep (4-4)" }, b: { zh: "水饺", py: "shuǐjiǎo", en: "Dumpling (3-3)" } },
+    { a: { zh: "老师", py: "lǎoshī", en: "Teacher (3-1)" }, b: { zh: "老实", py: "lǎoshi", en: "Honest (3-0)" } }
+  ];
+
+  const TRICKY_SOUNDS_DATA = [
+    {
+      title: "zh / ch / sh vs z / c / s",
+      desc: "Retroflex (curled tongue tip toward roof of mouth) vs Dental (flat tongue tip against back of upper teeth).",
+      samples: [
+        { zh: "知道 / 自己", py: "zhīdào (curled) vs zìjǐ (flat)" },
+        { zh: "吃饭 / 菜单", py: "chīfàn (curled) vs càidān (flat)" },
+        { zh: "老师 / 三个", py: "lǎoshī (curled) vs sāngè (flat)" }
+      ]
+    },
+    {
+      title: "j / q / x vs zh / ch / sh",
+      desc: "Palatal sounds (j, q, x) are pronounced with flat tongue body touching the hard palate and lips spread wide. Only pair with 'i' and 'ü'.",
+      samples: [
+        { zh: "今天 / 知道", py: "jīntiān (palatal) vs zhīdào (retroflex)" },
+        { zh: "请问 / 吃饭", py: "qǐngwèn (palatal) vs chīfàn (retroflex)" },
+        { zh: "谢谢 / 学习", py: "xièxie (palatal) vs xuéxí (palatal)" }
+      ]
+    },
+    {
+      title: "ü vs u (Front Rounded vs Back Vowel)",
+      desc: "To pronounce ü, shape your tongue for 'ee' (as in 'see') while rounding your lips tightly like whistling. Don't move your tongue!",
+      samples: [
+        { zh: "绿 / 路", py: "lǜ (green) vs lù (road)" },
+        { zh: "女 / 努", py: "nǚ (female) vs nǔ (strive)" },
+        { zh: "去 / 出", py: "qù (go) vs chū (exit)" }
+      ]
+    }
+  ];
+
+  let toneQuizScore = 0;
+  let toneQuizStreak = 0;
+  let toneQuizBest = 0;
+  let currentQuizItem = null;
+  let currentQuizMode = "single";
+  let toneQuizAnswered = false;
+  let tonePairFilterBase = "all";
+
+  function speakToneText(text, onEnd){
+    playChineseAudio(text, { rate: 0.84, onEnd });
+  }
+
+  function renderToneCards(){
+    const container = el("tone-cards-grid");
+    if (!container) return;
+    container.innerHTML = TONE_DATA.map(t => {
+      const sampleChips = t.samples.map(s => `
+        <button type="button" class="tone-example-chip" data-speak-text="${s.zh}" title="${s.py} · ${s.en}">
+          <strong>${s.zh}</strong> ${s.py}
+        </button>
+      `).join("");
+
+      return `
+        <article class="tone-card">
+          <div class="tone-card-top">
+            <span class="tone-num-badge">${t.name}</span>
+            <button type="button" class="tone-audio-btn-sm" data-speak-text="${t.samples[0].zh}" aria-label="Listen to ${t.name}">🔊</button>
+          </div>
+          <div class="tone-pinyin-hero">${t.pinyin}</div>
+          <div class="tone-pitch-code">${t.pitch}</div>
+          <svg class="tone-pitch-svg" viewBox="0 0 200 50">
+            <line x1="10" y1="12" x2="190" y2="12" stroke="rgba(0,0,0,0.08)" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="10" y1="20" x2="190" y2="20" stroke="rgba(0,0,0,0.08)" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="10" y1="28" x2="190" y2="28" stroke="rgba(0,0,0,0.08)" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="10" y1="36" x2="190" y2="36" stroke="rgba(0,0,0,0.08)" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="10" y1="44" x2="190" y2="44" stroke="rgba(0,0,0,0.08)" stroke-width="1" stroke-dasharray="3,3" />
+            <path d="${t.points}" fill="none" stroke="${t.color}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <p class="tone-card-desc">${t.desc}</p>
+          <div class="tone-example-row">
+            ${sampleChips}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderTonePairs(baseTone = "all"){
+    const container = el("tone-pairs-grid");
+    if (!container) return;
+    const filtered = baseTone === "all" 
+      ? TONE_PAIRS_DATA 
+      : TONE_PAIRS_DATA.filter(p => p.base === String(baseTone));
+
+    container.innerHTML = filtered.map(p => {
+      const itemsHtml = p.items.map(item => `
+        <div class="tone-pair-item">
+          <div>
+            <span class="tone-pair-zh">${item.zh}</span>
+            <span class="tone-pair-py">${item.py}</span>
+          </div>
+          <span class="tone-pair-en">${item.en}</span>
+          <button type="button" class="tone-audio-btn-sm" data-speak-text="${item.zh}" aria-label="Listen to ${item.zh}">🔊</button>
+        </div>
+      `).join("");
+
+      return `
+        <div class="tone-pair-card">
+          <div class="tone-pair-top">
+            <span class="tone-pair-title">${p.title}</span>
+            <span class="tone-pair-pitch-badge">${p.pitch}</span>
+          </div>
+          <p style="font-size:0.85rem; color:var(--ink-soft); margin:0 0 10px;">${p.desc}</p>
+          <div class="tone-pair-examples">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderTrickySounds(){
+    const container = el("tricky-sounds-grid");
+    if (!container) return;
+    container.innerHTML = TRICKY_SOUNDS_DATA.map(s => {
+      const samplesHtml = s.samples.map(sample => `
+        <div class="tricky-sample-item">
+          <span class="tricky-sample-zh">${sample.zh}</span>
+          <span class="tricky-sample-py">${sample.py}</span>
+          <button type="button" class="tone-audio-btn-sm" data-speak-text="${sample.zh.split('/')[0].trim()}" aria-label="Listen to ${sample.zh}">🔊</button>
+        </div>
+      `).join("");
+
+      return `
+        <article class="tricky-sound-card">
+          <div class="tricky-sound-header">
+            <span class="tricky-sound-title">${s.title}</span>
+          </div>
+          <p class="tricky-sound-desc">${s.desc}</p>
+          <div class="tricky-sound-samples">
+            ${samplesHtml}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function generateQuizQuestion(mode){
+    toneQuizAnswered = false;
+    el("tone-quiz-feedback")?.classList.add("hidden");
+    const optContainer = el("tone-quiz-options");
+    if (!optContainer) return;
+
+    if (mode === "single"){
+      const toneIndex = Math.floor(Math.random() * 4);
+      const toneObj = TONE_DATA[toneIndex];
+      const sample = toneObj.samples[Math.floor(Math.random() * toneObj.samples.length)];
+      currentQuizItem = {
+        mode: "single",
+        correctIndex: toneIndex,
+        spokenText: sample.zh,
+        pinyin: sample.py,
+        meaning: sample.en,
+        toneName: toneObj.name,
+        options: [
+          { label: "1st Tone", sub: "High Flat (55) · ¯", value: 0 },
+          { label: "2nd Tone", sub: "Rising (35) · ˊ", value: 1 },
+          { label: "3rd Tone", sub: "Dipping (214) · ˇ", value: 2 },
+          { label: "4th Tone", sub: "Falling (51) · ˋ", value: 3 }
+        ]
+      };
+      if (el("tone-quiz-hint")) el("tone-quiz-hint").textContent = "Which tone did you hear?";
+    } else if (mode === "pairs"){
+      const pairIndex = Math.floor(Math.random() * TONE_PAIRS_DATA.length);
+      const pairObj = TONE_PAIRS_DATA[pairIndex];
+      const sample = pairObj.items[Math.floor(Math.random() * pairObj.items.length)];
+      
+      const otherPairs = TONE_PAIRS_DATA.filter((_, idx) => idx !== pairIndex);
+      const distractors = shuffle(otherPairs).slice(0, 3);
+      const allChoices = shuffle([pairObj, ...distractors]);
+      const correctIdx = allChoices.indexOf(pairObj);
+
+      currentQuizItem = {
+        mode: "pairs",
+        correctIndex: correctIdx,
+        spokenText: sample.zh,
+        pinyin: sample.py,
+        meaning: sample.en,
+        toneName: pairObj.title + " (" + pairObj.pitch + ")",
+        options: allChoices.map((c, i) => ({
+          label: c.title,
+          sub: c.pitch,
+          value: i
+        }))
+      };
+      if (el("tone-quiz-hint")) el("tone-quiz-hint").textContent = "Which tone pair did you hear?";
+    } else {
+      const pair = MINIMAL_PAIRS_DATA[Math.floor(Math.random() * MINIMAL_PAIRS_DATA.length)];
+      const isA = Math.random() < 0.5;
+      const target = isA ? pair.a : pair.b;
+      const distractor = isA ? pair.b : pair.a;
+
+      const opts = shuffle([
+        { label: target.zh, sub: target.py + " · " + target.en, isCorrect: true },
+        { label: distractor.zh, sub: distractor.py + " · " + distractor.en, isCorrect: false }
+      ]);
+
+      currentQuizItem = {
+        mode: "minimal",
+        correctIndex: opts.findIndex(o => o.isCorrect),
+        spokenText: target.zh,
+        pinyin: target.py,
+        meaning: target.en,
+        toneName: target.zh + " (" + target.py + ")",
+        options: opts
+      };
+      if (el("tone-quiz-hint")) el("tone-quiz-hint").textContent = "Listen and distinguish the meaning:";
+    }
+
+    optContainer.innerHTML = currentQuizItem.options.map((opt, idx) => `
+      <button type="button" class="tone-quiz-opt-btn" data-quiz-opt="${idx}">
+        <span>${opt.label}</span>
+        <span class="opt-sub">${opt.sub}</span>
+      </button>
+    `).join("");
+
+    setTimeout(() => {
+      speakToneText(currentQuizItem.spokenText);
+    }, 150);
+  }
+
+  function checkToneQuizAnswer(chosenIdx){
+    if (toneQuizAnswered || !currentQuizItem) return;
+    toneQuizAnswered = true;
+    const isCorrect = chosenIdx === currentQuizItem.correctIndex;
+
+    const optButtons = document.querySelectorAll(".tone-quiz-opt-btn");
+    optButtons.forEach((btn, idx) => {
+      if (idx === currentQuizItem.correctIndex){
+        btn.classList.add("correct");
+      } else if (idx === chosenIdx && !isCorrect){
+        btn.classList.add("wrong");
+      }
+    });
+
+    const feedback = el("tone-quiz-feedback");
+    const fIcon = el("tone-feedback-icon");
+    const fTitle = el("tone-feedback-title");
+    const fSub = el("tone-feedback-sub");
+
+    if (isCorrect){
+      toneQuizScore += 10;
+      toneQuizStreak++;
+      toneQuizBest = Math.max(toneQuizBest, toneQuizStreak);
+      awardXP(10, "Tone Listening Quiz");
+
+      if (feedback){
+        feedback.className = "tone-quiz-feedback is-correct";
+        if (fIcon) fIcon.textContent = "✓";
+        if (fTitle) fTitle.textContent = "Correct! +10 XP";
+        if (fSub) fSub.textContent = `${currentQuizItem.spokenText} · ${currentQuizItem.pinyin} · ${currentQuizItem.toneName} (${currentQuizItem.meaning})`;
+        feedback.classList.remove("hidden");
+      }
+      if (toneQuizStreak > 0 && toneQuizStreak % 5 === 0){
+        showToast(`🔥 ${toneQuizStreak} in a row on Tone Quiz!`);
+      }
+    } else {
+      toneQuizStreak = 0;
+      if (feedback){
+        feedback.className = "tone-quiz-feedback is-wrong";
+        if (fIcon) fIcon.textContent = "✗";
+        if (fTitle) fTitle.textContent = "Not quite!";
+        if (fSub) fSub.textContent = `Correct answer: ${currentQuizItem.spokenText} · ${currentQuizItem.pinyin} · ${currentQuizItem.toneName} (${currentQuizItem.meaning})`;
+        feedback.classList.remove("hidden");
+      }
+    }
+
+    if (el("tone-quiz-score")) el("tone-quiz-score").textContent = toneQuizScore;
+    if (el("tone-quiz-streak")) el("tone-quiz-streak").textContent = toneQuizStreak;
+    if (el("tone-quiz-best")) el("tone-quiz-best").textContent = toneQuizBest;
+  }
+
+  function wireToneLab(){
+    const chipContainer = el("tone-pair-filter-chips");
+    if (chipContainer){
+      chipContainer.addEventListener("click", e => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        chipContainer.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        tonePairFilterBase = chip.dataset.toneBase || "all";
+        renderTonePairs(tonePairFilterBase);
+      });
+    }
+
+    el("tab-tones")?.addEventListener("click", e => {
+      const speakBtn = e.target.closest("[data-speak-text]");
+      if (speakBtn){
+        speakToneText(speakBtn.dataset.speakText);
+        return;
+      }
+      const optBtn = e.target.closest("[data-quiz-opt]");
+      if (optBtn){
+        checkToneQuizAnswer(Number(optBtn.dataset.quizOpt));
+        return;
+      }
+    });
+
+    el("tone-quiz-play-btn")?.addEventListener("click", () => {
+      if (currentQuizItem){
+        const playBtn = el("tone-quiz-play-btn");
+        playBtn?.classList.add("playing");
+        speakToneText(currentQuizItem.spokenText, () => {
+          playBtn?.classList.remove("playing");
+        });
+        setTimeout(() => playBtn?.classList.remove("playing"), 1200);
+      }
+    });
+
+    el("tone-quiz-next-btn")?.addEventListener("click", () => {
+      generateQuizQuestion(currentQuizMode);
+    });
+
+    document.querySelectorAll(".tone-quiz-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tone-quiz-mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentQuizMode = btn.dataset.quizMode || "single";
+        generateQuizQuestion(currentQuizMode);
+      });
+    });
+
+    el("btn-start-tone-quiz")?.addEventListener("click", () => {
+      el("section-tone-quiz")?.scrollIntoView({ behavior: "smooth" });
+    });
+
+    el("btn-scroll-tone-pairs")?.addEventListener("click", () => {
+      el("section-tone-pairs")?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
+  function renderTonesTab(){
+    renderToneCards();
+    renderTonePairs(tonePairFilterBase);
+    renderTrickySounds();
+    if (!currentQuizItem){
+      generateQuizQuestion(currentQuizMode);
+    }
+  }
 
   function enhanceThemeDropdowns(){
     const selects=[...document.querySelectorAll('.filter-select,.sentence-filter')];
@@ -3020,25 +3709,33 @@ document.addEventListener("DOMContentLoaded", ()=>{
       console.log("[Sync] Supabase not configured — running in local-only mode");
       return;
     }
+    if (!window.supabase || typeof window.supabase.createClient !== "function") {
+      console.warn("[Sync] Supabase client library not loaded — running in local mode");
+      return;
+    }
     
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-    
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      currentUser = session?.user || null;
-      updateAuthUI(currentUser);
-      if (currentUser && event === 'SIGNED_IN') {
-        loadFromCloud();
-      }
-    });
-    
-    // Initial check
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      currentUser = session?.user || null;
-      updateAuthUI(currentUser);
-      if (currentUser) {
-        loadFromCloud();
-      }
-    });
+    try {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+      
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        updateAuthUI(currentUser);
+        if (currentUser && event === 'SIGNED_IN') {
+          loadFromCloud();
+        }
+      });
+      
+      // Initial check
+      supabaseClient.auth.getSession().then(({ data: { session } }) => {
+        currentUser = session?.user || null;
+        updateAuthUI(currentUser);
+        if (currentUser) {
+          loadFromCloud();
+        }
+      }).catch(e => console.warn("[Sync] getSession failed:", e));
+    } catch(err) {
+      console.warn("[Sync] Failed to initialize Supabase:", err);
+    }
   }
 
   function updateAuthUI(user) {
@@ -3223,43 +3920,75 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
   /* ---------- init ---------- */
   async function init(){
-    buildIndexes();
-    await loadState();
-    wireTabs();
-  wireWords();
-  el("smart-review-btn")?.addEventListener("click",openSmartReview);
-  el("progress-review-due")?.addEventListener("click",()=>{const tab=document.querySelector('.tab-btn[data-tab="review"]');if(tab)tab.click();const r=document.querySelector('input[name="pool"][value="due"]');if(r)r.checked=true;});
-  el("progress-review-sentences")?.addEventListener("click",()=>{const tab=document.querySelector('.tab-btn[data-tab="sentences"]');if(tab)tab.click();});
-  el("progress-weak-list")?.addEventListener("click",e=>{const c=e.target.closest("[data-progress-char]");if(c){openDetail(c.dataset.progressChar);return}const x=e.target.closest("[data-progress-sentence]");if(x)openSentenceDetails(x.dataset.progressSentence);});
-    wireBrowse();
-    wireDrawer();
-    wireReview();
-    wireSentences();
-    enhanceThemeDropdowns();
-    wireProgress();
-    wireDataManagement();
-    wireRadicals();
-    wireContextMenu();
-    buildSentenceIndex();
-    renderBrowse();
-    renderSentences();
-    renderProgress();
-    updateHeaderProgress();
-    refreshDueCount();
+    const dismissLoading = () => {
+      const appEl = el("app");
+      const loadEl = el("loading-screen");
+      if (appEl) appEl.classList.remove("loading");
+      if (loadEl) {
+        loadEl.classList.add("hidden");
+        setTimeout(() => { loadEl.style.display = "none"; }, 400);
+      }
+    };
 
-    // --- Phase 1: Commercial features ---
-    updateXPDisplay();
-    renderAchievementGrid();
-    wireAuth();
-    initSupabase();
+    // Failsafe timer: Ensure the loading screen is never stuck if any initialization step encounters an issue
+    const failsafe = setTimeout(dismissLoading, 2500);
 
-    // Register service worker for PWA
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW:", e));
+    try {
+      buildIndexes();
+      await loadState();
+      wireTabs();
+      wireWords();
+      el("smart-review-btn")?.addEventListener("click", openSmartReview);
+      el("progress-review-due")?.addEventListener("click", () => {
+        const tab = document.querySelector('.tab-btn[data-tab="review"]');
+        if (tab) tab.click();
+        const r = document.querySelector('input[name="pool"][value="due"]');
+        if (r) r.checked = true;
+      });
+      el("progress-review-sentences")?.addEventListener("click", () => {
+        const tab = document.querySelector('.tab-btn[data-tab="sentences"]');
+        if (tab) tab.click();
+      });
+      el("progress-weak-list")?.addEventListener("click", e => {
+        const c = e.target.closest("[data-progress-char]");
+        if (c) { openDetail(c.dataset.progressChar); return; }
+        const x = e.target.closest("[data-progress-sentence]");
+        if (x) openSentenceDetails(x.dataset.progressSentence);
+      });
+      wireBrowse();
+      wireDrawer();
+      wireReview();
+      wireSentences();
+      wireToneLab();
+      enhanceThemeDropdowns();
+      wireProgress();
+      wireDataManagement();
+      wireRadicals();
+      wireContextMenu();
+      buildSentenceIndex();
+      renderBrowse();
+      renderSentences();
+      renderProgress();
+      renderTonesTab();
+      updateHeaderProgress();
+      refreshDueCount();
+
+      // --- Commercial features & sync ---
+      updateXPDisplay();
+      renderAchievementGrid();
+      wireAuth();
+      initSupabase();
+
+      // Register service worker for PWA
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW:", e));
+      }
+    } catch(err) {
+      console.error("[HanziTracker] App init error:", err);
+    } finally {
+      clearTimeout(failsafe);
+      dismissLoading();
     }
-
-    el("app").classList.remove("loading");
-    el("loading-screen").classList.add("hidden");
   }
 
   init();
