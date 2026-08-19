@@ -221,7 +221,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
    * ========================================================================== */
 
   let currentActiveAudio = null;
-  const audioCache = new Map();
+  let activeAudioSequence = [];
 
   function playChineseAudio(text, options = {}){
     if (!text || typeof text !== "string") return;
@@ -235,69 +235,102 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if (currentActiveAudio){
       try {
         currentActiveAudio.pause();
-        currentActiveAudio.currentTime = 0;
       } catch(e){}
       currentActiveAudio = null;
     }
 
+    // Stop any previously playing sequence
+    activeAudioSequence = [];
+
     if (onStart) onStart();
 
     if (typeof Audio !== "undefined") {
-      const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&le=zh`;
-      // Baidu TTS stream is accessible globally (unlike Google TTS) and supports full sentences
-      const baiduUrl = `https://fanyi.baidu.com/gettts?lan=zh&text=${encodeURIComponent(cleanText)}&spd=5&source=web`;
-      
-      const isSentence = cleanText.length > 4 || /[，。！？；：“”《》、,.!?]/.test(cleanText);
-      const primaryUrl = isSentence ? baiduUrl : youdaoUrl;
-      const fallbackUrl = isSentence ? youdaoUrl : baiduUrl;
+      let chunks = [];
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+         const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
+         const segments = Array.from(segmenter.segment(cleanText));
+         chunks = segments.filter(s => s.isWordLike).map(s => s.segment);
+      } else {
+         const chars = Array.from(cleanText).filter(ch => !/[，。！？；：“”《》、,.!?\s]/.test(ch));
+         for (let i = 0; i < chars.length; i += 2) {
+            chunks.push(chars.slice(i, i+2).join(''));
+         }
+      }
 
-      const playUrl = (url, isRetry = false) => {
-        let audio = audioCache.get(url);
-        if (!audio){
-          audio = new Audio(url);
-          if (audioCache.size > 250){
-            const firstKey = audioCache.keys().next().value;
-            audioCache.delete(firstKey);
+      if (chunks.length === 0) {
+        if (onEnd) onEnd();
+        return;
+      }
+
+      // Pre-create all Audio elements and call load() SYNCHRONOUSLY 
+      // during the user gesture to satisfy strict autoplay policies (e.g. Safari)
+      const audioElements = chunks.map(chunkText => {
+        let encoded = "";
+        try {
+           encoded = encodeURIComponent(chunkText);
+        } catch(e) {
+           encoded = encodeURIComponent(chunkText.replace(/[\uD800-\uDFFF]/g, ''));
+        }
+        const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encoded}&le=zh`;
+        const a = new Audio(audioUrl);
+        a.playbackRate = rate > 0.95 ? 1.0 : (rate < 0.8 ? 0.8 : 0.9);
+        a.load(); // CRITICAL for unlocking sequential playback
+        return a;
+      });
+
+      activeAudioSequence = audioElements;
+      let currentChunkIndex = 0;
+
+      const playNextChunk = () => {
+        // If the sequence was interrupted by another click, stop playing.
+        if (activeAudioSequence !== audioElements || currentChunkIndex >= audioElements.length) {
+          if (activeAudioSequence === audioElements) {
+             currentActiveAudio = null;
+             if (onEnd) onEnd();
           }
-          audioCache.set(url, audio);
+          return;
         }
 
+        const audio = audioElements[currentChunkIndex++];
         currentActiveAudio = audio;
-        audio.currentTime = 0;
-        audio.playbackRate = rate > 0.95 ? 1.0 : (rate < 0.8 ? 0.8 : 0.9);
 
-        audio.onended = () => {
-          if (currentActiveAudio === audio) currentActiveAudio = null;
-          if (onEnd) onEnd();
-        };
-
-        audio.onerror = () => {
-          if (!isRetry && fallbackUrl) {
-            playUrl(fallbackUrl, true);
-          } else {
-            if (currentActiveAudio === audio) currentActiveAudio = null;
-            if (onEnd) onEnd();
+        audio.ontimeupdate = () => {
+          // Trigger next chunk slightly before this one ends to eliminate the gap
+          if (audio.duration && audio.currentTime > 0 && audio.duration - audio.currentTime < 0.15 && !audio.nextTriggered) {
+             audio.nextTriggered = true;
+             playNextChunk();
           }
         };
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined){
-          playPromise.catch(() => {
-            if (!isRetry && fallbackUrl) {
-              playUrl(fallbackUrl, true);
-            } else {
-              if (currentActiveAudio === audio) currentActiveAudio = null;
-              if (onEnd) onEnd();
-            }
-          });
+        audio.onended = () => {
+          if (!audio.nextTriggered) {
+             audio.nextTriggered = true;
+             playNextChunk();
+          }
+        };
+        
+        audio.onerror = () => {
+          if (!audio.nextTriggered) {
+             audio.nextTriggered = true;
+             playNextChunk();
+          }
+        };
+
+        try {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              console.error("Audio playback error:", err);
+              setTimeout(playNextChunk, 50); // proceed to next chunk if blocked
+            });
+          }
+        } catch(e) {
+          setTimeout(playNextChunk, 50);
         }
       };
 
-      playUrl(primaryUrl, false);
-      return;
+      playNextChunk();
     }
-
-    if (onEnd) onEnd();
   }
 
   /* ---------- indexes ---------- */
@@ -671,6 +704,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     return '<div class="tile selectable status-' + status + (selected ? ' selected' : '') + (flipped ? ' flipped' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '" tabindex="0" role="button" aria-label="' + escHtml(item.c + ' card') + '">' +
       '<div class="tile-inner">' +
         '<div class="tile-face front">' +
+          '<button type="button" class="tone-audio-btn-sm" data-speak-char="' + escHtml(item.c) + '" title="Listen" style="position:absolute; top:4px; right:4px; z-index:2;">🔊</button>' +
           '<span class="tile-hanzi">' + escHtml(item.c) + '</span>' +
           '<span class="tile-pinyin" ' + (browseShowPinyin ? '' : 'hidden') + '>' + escHtml(item.p) + '</span>' +
           '<span class="tile-english" ' + (browseShowEnglish ? '' : 'hidden') + '>' + escHtml(meaning) + '</span>' +
@@ -1884,6 +1918,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     browsePinyin?.addEventListener("click",()=>{browseShowPinyin=!browseShowPinyin;browsePinyin.classList.toggle("active",browseShowPinyin);renderBrowse();});
     browseEnglish?.addEventListener("click",()=>{browseShowEnglish=!browseShowEnglish;browseEnglish.classList.toggle("active",browseShowEnglish);renderBrowse();});
     el("tile-grid").addEventListener("click", (e)=>{
+      const speak = e.target.closest("[data-speak-char]");
+      if (speak) {
+         e.stopPropagation();
+         playChineseAudio(speak.dataset.speakChar, { rate: 0.88 });
+         return;
+      }
       const tile = e.target.closest(".tile");
       if (!tile) return;
       const char = tile.dataset.char;
