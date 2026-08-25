@@ -1659,7 +1659,6 @@ document.addEventListener("DOMContentLoaded", () => {
     el("word-next-page").disabled = wordPage >= totalPages - 1;
 
     el("word-grid").innerHTML = pageItems.length ? pageItems.map(word => {
-      const parts = Array.from(word.word).map(ch => '<button type="button" class="word-part" data-word-char="' + escHtml(ch) + '" title="Open ' + escHtml(ch) + ' details">' + escHtml(ch) + '</button>').join("");
       const example = word.exampleSentences && word.exampleSentences.length ? word.exampleSentences[0] : null;
       const meaningText = word.meaning || "Meaning not available";
       const status = getWordStatus(word.word);
@@ -1675,16 +1674,11 @@ document.addEventListener("DOMContentLoaded", () => {
         '<div class="word-pinyin" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(word.pinyin || "—") + '</div>' +
         '</div>' +
         '<div class="word-card-face back">' +
+        '<div class="word-pinyin" style="font-size: 1.2rem; color: var(--gold-dark); font-weight: 700; margin-bottom: 8px;">' + escHtml(word.pinyin || "—") + '</div>' +
         '<div class="word-card-back-meaning" data-word-meaning="' + escHtml(word.word) + '">' + escHtml(meaningText) + '</div>' +
         '<div class="word-example" ' + (wordsShowEnglish ? '' : 'hidden') + '>' +
         '<div class="word-example-label">Simple example</div>' +
         (example ? '<div class="word-example-zh">' + escHtml(example.zh) + '</div>' + (window.pinyinPro && typeof window.pinyinPro.pinyin === "function" ? '<div class="word-example-py" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(window.pinyinPro.pinyin(example.zh, { toneType: "symbol", type: "string", v: true })) + '</div>' : '') + '<div class="word-example-en">' + escHtml(example.en) + '</div>' : '<div class="word-example-empty">No example sentence in the current corpus.</div>') +
-        '</div>' +
-        '<div class="word-parts">' + parts + '</div>' +
-        '<div class="word-card-status-buttons">' +
-        '<button type="button" class="word-status-btn' + (status === 'new' ? ' active' : '') + '" data-word-set-status="new">New</button>' +
-        '<button type="button" class="word-status-btn' + (status === 'learning' ? ' active' : '') + '" data-word-set-status="learning">Learning</button>' +
-        '<button type="button" class="word-status-btn' + (status === 'known' ? ' active' : '') + '" data-word-set-status="known">Known</button>' +
         '</div>' +
         '</div>' +
         '</div>' +
