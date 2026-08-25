@@ -3820,7 +3820,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: {
+          storage: window.localStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        }
+      });
 
       supabaseClient.auth.onAuthStateChange((event, session) => {
         currentUser = session?.user || null;
