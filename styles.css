@@ -9140,3 +9140,8 @@ button[data-status="new"].active,
 
 
 
+
+/* Reading Status Colors */
+.readings-content .status-known { color: var(--jade-dark); font-weight: 500; }
+.readings-content .status-learning { color: var(--gold-dark); font-weight: 500; }
+.readings-content .status-new { color: var(--spark); font-weight: 500; }

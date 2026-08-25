@@ -66,6 +66,7 @@
       <button class="tab-btn active" data-tab="browse">Characters</button>
       <button class="tab-btn" data-tab="sentences">Sentences</button>
       <button class="tab-btn" data-tab="words">Words</button>
+      <button class="tab-btn" data-tab="readings">Readings</button>
       <button class="tab-btn" data-tab="tones">Tones</button>
       <button class="tab-btn" data-tab="radicals">Radicals</button>
       <button class="tab-btn" data-tab="review">Review</button>
@@ -830,6 +831,60 @@
           </div>
           <div class="tricky-sounds-grid" id="tricky-sounds-grid"></div>
 
+        </div>
+      </section>
+
+      <!-- READINGS -->
+      <section id="tab-readings" class="tab-panel">
+        <div class="readings-layout" style="max-width: 800px; margin: 0 auto; padding: 24px 16px;">
+          
+          <!-- Library View -->
+          <div id="readings-library-view">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+              <div>
+                <h2 style="font-size: 1.8rem; margin-bottom: 8px; color: #fff;">Reading Library</h2>
+                <p class="subtitle" style="color: var(--text-light); margin: 0;">Your collection of saved Chinese texts.</p>
+              </div>
+              <button id="readings-new-btn" class="btn-primary">Add New Reading</button>
+            </div>
+            
+            <div id="readings-list" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Reading items will be rendered here -->
+            </div>
+          </div>
+
+          <!-- Reader View -->
+          <div id="readings-reader-view" class="hidden">
+            <button id="readings-back-btn" class="btn-secondary" style="margin-bottom: 16px;">← Back to Library</button>
+            
+            <div id="readings-edit-section">
+              <input type="text" id="readings-title-input" placeholder="Title (optional)" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-ui); font-size: 1.2rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); background: rgba(255,255,255,0.05); color: #fff;">
+              <textarea id="readings-input" placeholder="Paste Chinese text here..." style="width: 100%; height: 150px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-zh); font-size: 1.1rem; resize: vertical; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); background: rgba(255,255,255,0.05); color: #fff;"></textarea>
+              <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                <button id="readings-save-btn" class="btn-primary">Save & Read</button>
+                <button id="readings-delete-btn" class="btn-secondary" style="color: #ff6b6b; border-color: #ff6b6b; display: none;">Delete</button>
+              </div>
+            </div>
+            
+            <div id="readings-stats" class="readings-stats hidden" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: var(--paper); border-radius: 8px; border: 1px solid var(--line-on-paper);">
+              <div class="readings-comprehension" style="display: flex; gap: 16px; font-size: 0.95rem; font-weight: 500;">
+                <span style="color: var(--jade);"><span id="reading-stat-known">0</span> Known</span>
+                <span style="color: var(--gold-dark);"><span id="reading-stat-learning">0</span> Learning</span>
+                <span style="color: var(--ink);"><span id="reading-stat-new">0</span> New</span>
+              </div>
+              <div class="readings-controls" style="display: flex; gap: 8px; align-items: center;">
+                <button id="reading-toggle-pinyin" class="btn-secondary" style="padding: 6px 12px; font-size: 0.9rem;">Show Pinyin</button>
+                <label style="font-size: 0.85rem; color: var(--text-light); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="checkbox" id="reading-pinyin-unknown-only"> Only for New/Learning
+                </label>
+                <button id="reading-play-audio" class="btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; margin-left: 8px;">🔊 Play</button>
+              </div>
+            </div>
+            
+            <div id="readings-output" class="readings-content" style="font-size: 2.2rem; line-height: 2.5; font-family: var(--font-zh); padding: 24px; background: var(--paper); color: var(--ink); border: 1px solid var(--line-on-paper); border-radius: 12px; min-height: 300px; box-shadow: 0 8px 24px var(--paper-shadow);">
+              <div style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">Your parsed text will appear here.</div>
+            </div>
+          </div>
         </div>
       </section>
 

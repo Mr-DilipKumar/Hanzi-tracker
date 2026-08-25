@@ -720,9 +720,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = getStatus(item.c);
     const selected = selectedBrowseChars.has(item.c);
     const flipped = flippedBrowseChars.has(item.c);
-    let mark = "";
-    if (status === "known") mark = '';
-    else if (status === "learning") mark = '<span class="ink-dot" aria-hidden="true"></span>';
     const meaning = formatDefinition(item.m || 'No English meaning recorded.');
     return '<div class="tile selectable status-' + status + (selected ? ' selected' : '') + (flipped ? ' flipped' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '" tabindex="0" role="button" aria-label="' + escHtml(item.c + ' card') + '">' +
       '<div class="tile-inner">' +
@@ -731,7 +728,6 @@ document.addEventListener("DOMContentLoaded", () => {
       '<span class="tile-hanzi">' + escHtml(item.c) + '</span>' +
       '<span class="tile-pinyin" ' + (browseShowPinyin ? '' : 'hidden') + '>' + escHtml(item.p) + '</span>' +
       '<span class="tile-english" ' + (browseShowEnglish ? '' : 'hidden') + '>' + escHtml(meaning) + '</span>' +
-      mark +
       '</div>' +
       '<div class="tile-face back">' +
       '<div class="tile-back-meaning">' + escHtml(meaning) + '</div>' +
@@ -763,6 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------- DRAWER ---------- */
   let currentDetailChar = null;
+  let currentDetailWord = null;
   let currentRadicalChar = null;
 
   /* Sentence-first details: synonym/antonym enrichment intentionally removed. */
@@ -808,9 +805,48 @@ document.addEventListener("DOMContentLoaded", () => {
     el("detail-drawer").classList.remove("open");
     el("drawer-backdrop").classList.remove("open");
     currentDetailChar = null;
+    currentDetailWord = null;
     if (typeof window.hanziWriterInstance !== "undefined" && window.hanziWriterInstance) {
       window.hanziWriterInstance.cancelQuiz();
     }
+  }
+
+  function openWordDetail(wordText) {
+    const item = WORD_DATA.find(w => w.word === wordText);
+    if (!item) return;
+
+    currentDetailChar = null;
+    currentDetailWord = wordText;
+    
+    if (el("drawer-stat-char")) el("drawer-stat-char").textContent = wordText;
+    if (el("drawer-stat-unicode")) el("drawer-stat-unicode").textContent = "—";
+    if (el("drawer-stat-frequency")) el("drawer-stat-frequency").textContent = "—";
+    
+    const status = getWordStatus(wordText) || "new";
+    if (el("drawer-stat-status")) el("drawer-stat-status").textContent = status;
+
+    el("drawer-hanzi").textContent = item.word;
+    el("drawer-hanzi").style.display = "";
+    if (el("hanzi-writer-container")) {
+      el("hanzi-writer-container").style.display = "none";
+    }
+    if (typeof window.hanziWriterInstance !== "undefined" && window.hanziWriterInstance) {
+      window.hanziWriterInstance.cancelQuiz();
+    }
+    
+    el("drawer-pinyin").textContent = item.pinyin || "—";
+    el("drawer-level").textContent = item.level ? "HSK " + item.level : "Word";
+    el("drawer-meaning").textContent = formatDefinition(item.meaning || item.english || "No recorded meaning.");
+    if (el("drawer-meaning-expanded")) el("drawer-meaning-expanded").textContent = formatDefinition(item.meaning || item.english || "No recorded meaning.");
+    
+    el("drawer-freq").textContent = "Multi-character word";
+    
+    const charBreakdown = Array.from(item.word).map(c => `<span class="example-chip" style="cursor:pointer;" onclick="event.stopPropagation(); setTimeout(() => openDetail('${c}'), 50);">${c}</span>`).join('');
+    el("drawer-examples").innerHTML = '<div style="margin-bottom:8px;font-size:0.8rem;color:var(--text-lighter);text-transform:uppercase;letter-spacing:1px;">Characters</div>' + charBreakdown;
+    
+    ["new", "learning", "known"].forEach(s => el("status-btn-" + s).classList.toggle("active", status === s));
+    el("detail-drawer").classList.add("open");
+    el("drawer-backdrop").classList.add("open");
   }
 
   /* ---------- SENTENCES ---------- */
@@ -1595,11 +1631,14 @@ document.addEventListener("DOMContentLoaded", () => {
   async function fetchCombinedWordMeaning(word) {
     if (wordMeaningCache[word]) return wordMeaningCache[word];
     try {
-      const url = "https://api.mymemory.translated.net/get?langpair=zh-CN%7Cen&mt=1&q=" + encodeURIComponent(word);
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=" + encodeURIComponent(word);
       const response = await fetch(url);
       if (!response.ok) throw new Error("translation request failed");
       const data = await response.json();
-      const translated = String(data?.responseData?.translatedText || "").trim();
+      let translated = "";
+      if (data && data[0]) {
+        translated = data[0].map(item => item[0]).join("").trim();
+      }
       if (!translated || translated.toLowerCase() === word.toLowerCase()) throw new Error("no useful translation");
       saveWordMeaning(word, translated);
       return translated;
@@ -1863,6 +1902,261 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- wiring ---------- */
   function openSmartReview() { const tab = document.querySelector('.tab-btn[data-tab="review"]'); if (tab) tab.click(); const r = document.querySelector('input[name="pool"][value="due"]'); if (r) r.checked = true; const b = el("start-review"); if (b) setTimeout(() => b.click(), 80); }
 
+  function wireReadings() {
+    const parseBtn = el('readings-parse-btn');
+    const input = el('readings-input');
+    const output = el('readings-output');
+    const statsContainer = el('readings-stats');
+    const pinyinUnknownOnlyCheckbox = el('reading-pinyin-unknown-only');
+    const libraryView = el('readings-library-view');
+    const readerView = el('readings-reader-view');
+    const readingsList = el('readings-list');
+    const titleInput = el('readings-title-input');
+    const saveBtn = el('readings-save-btn');
+    const newBtn = el('readings-new-btn');
+    const backBtn = el('readings-back-btn');
+    const deleteBtn = el('readings-delete-btn');
+    
+    let currentReadingText = '';
+    let currentReadingId = null;
+    let readingShowPinyin = false;
+    let readingPinyinUnknownOnly = false;
+    let wordDict = new Set();
+    let maxWordLen = 1;
+
+    // Build dict for MaxMatch
+    if (typeof WORD_DATA !== "undefined" && WORD_DATA) {
+        wordDict = new Set(WORD_DATA.map(w => w.word));
+        maxWordLen = Math.max(...WORD_DATA.map(w => Array.from(w.word).length));
+    }
+
+    function renderLibrary() {
+        if (!state.readings) state.readings = [];
+        readingsList.innerHTML = state.readings.length === 0 
+            ? '<div style="color: var(--text-light); font-style: italic;">No saved readings yet. Click "Add New Reading" to get started.</div>'
+            : state.readings.map(r => 
+                '<div class="reading-item" data-id="' + r.id + '" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s;">' +
+                '<h3 style="margin: 0 0 8px 0; color: var(--gold-bright);">' + escHtml(r.title || 'Untitled Reading') + '</h3>' +
+                '<p style="margin: 0; color: var(--text-light); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escHtml((r.text || "").substring(0, 50)) + '...</p>' +
+                '</div>'
+            ).join('');
+            
+        // Bind clicks
+        readingsList.querySelectorAll('.reading-item').forEach(e => {
+            e.addEventListener('click', () => {
+                const id = e.dataset.id;
+                const reading = state.readings.find(r => r.id === id);
+                if (reading) {
+                    currentReadingId = id;
+                    titleInput.value = reading.title || '';
+                    input.value = reading.text || '';
+                    currentReadingText = reading.text || '';
+                    deleteBtn.style.display = 'block';
+                    libraryView.classList.add('hidden');
+                    readerView.classList.remove('hidden');
+                    renderReadingOutput();
+                }
+            });
+        });
+    }
+
+    newBtn?.addEventListener('click', () => {
+        currentReadingId = null;
+        titleInput.value = '';
+        input.value = '';
+        currentReadingText = '';
+        output.innerHTML = '<div style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">Your parsed text will appear here.</div>';
+        statsContainer?.classList.add('hidden');
+        deleteBtn.style.display = 'none';
+        libraryView.classList.add('hidden');
+        readerView.classList.remove('hidden');
+    });
+
+    backBtn?.addEventListener('click', () => {
+        libraryView.classList.remove('hidden');
+        readerView.classList.add('hidden');
+        renderLibrary();
+    });
+
+    deleteBtn?.addEventListener('click', () => {
+        if (!currentReadingId) return;
+        state.readings = state.readings.filter(r => r.id !== currentReadingId);
+        saveState();
+        libraryView.classList.remove('hidden');
+        readerView.classList.add('hidden');
+        renderLibrary();
+    });
+
+    saveBtn?.addEventListener('click', () => {
+        const text = input.value.trim();
+        if (!text) return;
+        
+        currentReadingText = text;
+        const title = titleInput.value.trim();
+        
+        if (currentReadingId) {
+            const reading = state.readings.find(r => r.id === currentReadingId);
+            if (reading) {
+                reading.text = text;
+                reading.title = title;
+            }
+        } else {
+            currentReadingId = Date.now().toString();
+            state.readings.push({ id: currentReadingId, title, text, date: Date.now() });
+        }
+        
+        saveState();
+        renderReadingOutput();
+    });
+    
+    parseBtn?.addEventListener("click", () => {
+        const text = input.value;
+        if (!text.trim()) return;
+        currentReadingText = text;
+        renderReadingOutput();
+    });
+
+    pinyinUnknownOnlyCheckbox?.addEventListener('change', (e) => {
+        readingPinyinUnknownOnly = e.target.checked;
+        renderReadingOutput();
+    });
+
+    function renderReadingOutput() {
+        if (!currentReadingText) return;
+        
+        let known = 0, learning = 0, newCount = 0;
+        
+        // Tokenizer: MaxMatch
+        const chars = Array.from(currentReadingText);
+        let tokens = [];
+        let i = 0;
+        while (i < chars.length) {
+            let matched = false;
+            for (let len = maxWordLen; len >= 2; len--) {
+                if (i + len <= chars.length) {
+                    const candidate = chars.slice(i, i + len).join('');
+                    if (wordDict.has(candidate)) {
+                        tokens.push({ text: candidate, isWord: true });
+                        i += len;
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if (!matched) {
+                tokens.push({ text: chars[i], isWord: false });
+                i++;
+            }
+        }
+        
+        output.innerHTML = tokens.map(token => {
+            if (token.isWord) {
+                // Multi-char word
+                let wordHtml = '';
+                let allKnown = true;
+                
+                const charSpans = Array.from(token.text).map(ch => {
+                    if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
+                        const status = getStatus(ch);
+                        if (status === 'known') known++;
+                        else if (status === 'learning') { learning++; allKnown = false; }
+                        else { newCount++; allKnown = false; }
+                        
+                        const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
+                        return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; transition: transform 0.2s; padding: 0 1px;">' + escHtml(ch) + '</span>';
+                    } else {
+                        return escHtml(ch);
+                    }
+                }).join('');
+                
+                if (readingShowPinyin) {
+                    let showThisPinyin = true;
+                    if (readingPinyinUnknownOnly && allKnown) showThisPinyin = false;
+                    
+                    const wordObj = WORD_DATA.find(w => w.word === token.text);
+                    const py = wordObj ? wordObj.pinyin : sentencePinyin(token.text);
+                    const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
+                    wordHtml = '<ruby class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="display:inline-flex; flex-direction:column-reverse; align-items:center; cursor:pointer;" title="' + escHtml(wordObj?.meaning || '') + '">' + charSpans + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
+                } else {
+                    wordHtml = '<span class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="cursor:pointer; display:inline-block;" title="' + escHtml(WORD_DATA.find(w => w.word === token.text)?.meaning || '') + '">' + charSpans + '</span>';
+                }
+                return wordHtml;
+                
+            } else {
+                // Single char
+                const ch = token.text;
+                if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
+                    const status = getStatus(ch);
+                    if (status === 'known') known++;
+                    else if (status === 'learning') learning++;
+                    else newCount++;
+                    
+                    const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
+                    let html = '<span class="sentence-char ' + statusClass + '" data-sentence-char="' + escHtml(ch) + '" title="Open ' + escHtml(ch) + ' details" style="cursor:pointer; display:inline-block; transition: transform 0.2s; padding: 0 1px;">' + escHtml(ch) + '</span>';
+                    
+                    if (readingShowPinyin) {
+                        let showThisPinyin = true;
+                        if (readingPinyinUnknownOnly && status === 'known') showThisPinyin = false;
+                        const py = sentencePinyin(ch);
+                        const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
+                        html = '<ruby style="display:inline-flex; flex-direction:column-reverse; align-items:center;">' + html + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
+                    }
+                    return html;
+                }
+                return escHtml(ch);
+            }
+        }).join('');
+        
+        if (statsContainer) {
+            statsContainer.classList.remove('hidden');
+            el('reading-stat-known').textContent = known;
+            el('reading-stat-learning').textContent = learning;
+            el('reading-stat-new').textContent = newCount;
+        }
+    }
+
+    if (output) {
+      output.addEventListener('click', e => {
+        const word = e.target.closest('[data-sentence-word]');
+        if (word) {
+          e.stopPropagation();
+          openWordDetail(word.dataset.sentenceWord);
+          return;
+        }
+        const char = e.target.closest('[data-sentence-char]');
+        if (char) {
+          e.stopPropagation();
+          openDetail(char.dataset.sentenceChar);
+        }
+      });
+    }
+    
+    const toggleBtn = el('reading-toggle-pinyin');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            readingShowPinyin = !readingShowPinyin;
+            toggleBtn.classList.toggle('active', readingShowPinyin);
+            renderReadingOutput();
+        });
+    }
+    
+    const playBtn = el('reading-play-audio');
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            if (currentReadingText) {
+                playChineseAudio(currentReadingText, { rate: 0.9 });
+            }
+        });
+    }
+    
+    // Initial render
+    setTimeout(() => {
+        if (libraryView && !libraryView.classList.contains('hidden')) {
+            renderLibrary();
+        }
+    }, 100);
+  }
+
   function wireTabs() {
     document.querySelectorAll(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1875,6 +2169,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (btn.dataset.tab === "words") renderWords();
         if (btn.dataset.tab === "tones") renderTonesTab();
         if (btn.dataset.tab === "review") refreshDueCount();
+        if (btn.dataset.tab === "readings") {
+            const libraryView = el("readings-library-view");
+            if (libraryView && !libraryView.classList.contains("hidden")) {
+               // Re-render library when tab clicked
+               const list = el("readings-list");
+               if (list && list.innerHTML === "") {
+                   // trigger initial render indirectly
+                   setTimeout(() => document.getElementById("readings-new-btn")?.click(), 10);
+                   setTimeout(() => document.getElementById("readings-back-btn")?.click(), 20);
+               }
+            }
+        }
       });
     });
   }
@@ -1993,12 +2299,23 @@ document.addEventListener("DOMContentLoaded", () => {
     el("drawer-backdrop").addEventListener("click", closeDetail);
     ["new", "learning", "known"].forEach(s => {
       el("status-btn-" + s).addEventListener("click", () => {
-        if (!currentDetailChar) return;
-        const wasKnown = getStatus(currentDetailChar) === "known";
-        setStatusManual(currentDetailChar, s);
-        if (s === "known" && !wasKnown) { triggerStampFX(el("drawer-hanzi")); spawnConfetti(el("detail-drawer")); }
-        openDetail(currentDetailChar);
-        syncUI();
+        if (currentDetailChar) {
+          const wasKnown = getStatus(currentDetailChar) === "known";
+          setStatusManual(currentDetailChar, s);
+          if (s === "known" && !wasKnown) { triggerStampFX(el("drawer-hanzi")); spawnConfetti(el("detail-drawer")); }
+          openDetail(currentDetailChar);
+          syncUI();
+        } else if (currentDetailWord) {
+          const wasKnown = getWordStatus(currentDetailWord) === "known";
+          setWordStatusManual(currentDetailWord, s);
+          if (s === "known" && !wasKnown) { triggerStampFX(el("drawer-hanzi")); spawnConfetti(el("detail-drawer")); }
+          openWordDetail(currentDetailWord);
+          const libView = el("readings-library-view");
+          if (libView && libView.classList.contains("hidden")) {
+              const parseBtn = el('readings-parse-btn');
+              if (parseBtn) parseBtn.click();
+          }
+        }
       });
     });
     document.addEventListener("keydown", (e) => {
@@ -4042,6 +4359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       buildIndexes();
       await loadState();
+      wireReadings();
       wireTabs();
       wireWords();
       el("smart-review-btn")?.addEventListener("click", openSmartReview);
