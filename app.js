@@ -2032,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let i = 0;
         while (i < chars.length) {
             let matched = false;
-            for (let len = maxWordLen; len >= 2; len--) {
+            for (let len = maxWordLen; len >= 1; len--) {
                 if (i + len <= chars.length) {
                     const candidate = chars.slice(i, i + len).join('');
                     if (wordDict.has(candidate)) {
@@ -2063,7 +2063,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         else { newCount++; allKnown = false; }
                         
                         const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-                        return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; transition: transform 0.2s; padding: 0 1px;">' + escHtml(ch) + '</span>';
+                        return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
                     } else {
                         return escHtml(ch);
                     }
@@ -2092,7 +2092,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     else newCount++;
                     
                     const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-                    let html = '<span class="sentence-char ' + statusClass + '" data-sentence-char="' + escHtml(ch) + '" title="Open ' + escHtml(ch) + ' details" style="cursor:pointer; display:inline-block; transition: transform 0.2s; padding: 0 1px;">' + escHtml(ch) + '</span>';
+                    let html = '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
                     
                     if (readingShowPinyin) {
                         let showThisPinyin = true;
