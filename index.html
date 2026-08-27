@@ -69,6 +69,7 @@
       <button class="tab-btn" data-tab="readings">Readings</button>
       <button class="tab-btn" data-tab="tones">Tones</button>
       <button class="tab-btn" data-tab="radicals">Radicals</button>
+      <button class="tab-btn" data-tab="evolution">古文字 Evolution</button>
       <button class="tab-btn" data-tab="review">Review</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
@@ -392,6 +393,7 @@
             <div class="radical-hero-pinyin" id="detail-radical-pinyin">yī</div>
             <div class="radical-hero-id">#<span id="detail-radical-number">1</span></div>
           </div>
+          <button type="button" class="tone-audio-btn-sm radical-audio-btn" id="detail-radical-audio" title="Listen to radical" aria-label="Listen to radical">🔊</button>
         </div>
 
         <div class="radical-detail-status-row">
@@ -888,6 +890,119 @@
         </div>
       </section>
 
+      <!-- EVOLUTION -->
+      <section id="tab-evolution" class="tab-panel">
+        <div class="evolution-layout">
+
+          <!-- GRID VIEW -->
+          <div id="evolution-grid-view">
+            <div class="evolution-hero">
+              <div class="evolution-hero-glyph">古</div>
+              <div class="evolution-hero-text">
+                <div class="evolution-hero-kicker">古文字演变 · Historical Character Evolution</div>
+                <h2>How Chinese Characters Were Born</h2>
+                <p>Every modern character carries thousands of years of visual history. Explore how pictographs evolved from Oracle Bone inscriptions (甲骨文) through Bronze script (金文), Seal script (篆书), and Clerical script (隶书) into the characters you study today.</p>
+              </div>
+            </div>
+
+            <div class="evolution-toolbar">
+              <input id="evolution-search" type="text" placeholder="Search character, pinyin, or meaning…" aria-label="Search evolution">
+              <div class="evolution-filter-chips" id="evolution-level-chips">
+                <button type="button" class="chip active" data-evo-level="all">All HSK</button>
+                <button type="button" class="chip" data-evo-level="1">HSK 1</button>
+                <button type="button" class="chip" data-evo-level="2">HSK 2</button>
+                <button type="button" class="chip" data-evo-level="3">HSK 3</button>
+                <button type="button" class="chip" data-evo-level="4">HSK 4</button>
+                <button type="button" class="chip" data-evo-level="5">HSK 5</button>
+                <button type="button" class="chip" data-evo-level="6">HSK 6</button>
+              </div>
+              <span class="results-meta" id="evolution-count"></span>
+            </div>
+
+            <p class="filter-hint">Click any character to explore its full script evolution — from Oracle Bone pictograph to modern form.</p>
+
+            <div id="evolution-grid" class="evolution-grid"></div>
+            <div class="pager" id="evolution-pager">
+              <button id="evolution-prev-page" aria-label="Previous evolution page">←</button>
+              <span id="evolution-page-indicator">1 / 1</span>
+              <button id="evolution-next-page" aria-label="Next evolution page">→</button>
+            </div>
+          </div>
+
+          <!-- DETAIL VIEW -->
+          <div id="evolution-detail-view" class="hidden">
+            <button id="evolution-back-btn" class="btn-secondary evolution-back-btn">← Back to Evolution Gallery</button>
+
+            <div class="evolution-detail">
+              <!-- Hero -->
+              <div class="evolution-detail-hero">
+                <div class="evolution-detail-glyph" id="evo-detail-char">字</div>
+                <div class="evolution-detail-info">
+                  <div class="evolution-detail-kicker">Character Evolution</div>
+                  <div class="evolution-detail-pinyin" id="evo-detail-pinyin">zì</div>
+                  <div class="evolution-detail-meaning" id="evo-detail-meaning">character</div>
+                  <div class="evolution-detail-meta">
+                    <span class="evolution-detail-badge" id="evo-detail-level">HSK 1</span>
+                    <span class="evolution-detail-freq" id="evo-detail-freq"></span>
+                  </div>
+                </div>
+                <button type="button" class="evo-open-drawer-btn" id="evo-open-drawer" title="Open full character details">Open Details ↗</button>
+              </div>
+
+              <!-- Script Timeline -->
+              <div class="evolution-section">
+                <div class="evolution-section-header">
+                  <h3>Script Timeline · 字形演变</h3>
+                  <p class="section-sub">Click any stage to enlarge and read its contextual note.</p>
+                </div>
+                <div class="evolution-timeline-scroll">
+                  <div class="evolution-timeline" id="evo-timeline"></div>
+                </div>
+              </div>
+
+              <!-- Stage Spotlight -->
+              <div class="evolution-spotlight" id="evo-spotlight">
+                <div class="evo-spotlight-glyph" id="evo-spotlight-glyph"></div>
+                <div class="evo-spotlight-info">
+                  <div class="evo-spotlight-era" id="evo-spotlight-era"></div>
+                  <div class="evo-spotlight-period" id="evo-spotlight-period"></div>
+                  <p class="evo-spotlight-note" id="evo-spotlight-note"></p>
+                </div>
+              </div>
+
+              <!-- Etymology Story -->
+              <div class="evolution-section">
+                <div class="evolution-section-header">
+                  <h3>Semantic Story · 字义溯源</h3>
+                </div>
+                <div class="evolution-story" id="evo-story">
+                  <div class="evo-story-loading">Loading etymology…</div>
+                </div>
+              </div>
+
+              <!-- Component Breakdown -->
+              <div class="evolution-section" id="evo-components-section">
+                <div class="evolution-section-header">
+                  <h3>Component Breakdown · 部件分析</h3>
+                  <p class="section-sub">Radical + semantic/phonetic components. Click to open the character detail drawer.</p>
+                </div>
+                <div class="evolution-components" id="evo-components"></div>
+              </div>
+
+              <!-- External Sources -->
+              <div class="evolution-section">
+                <div class="evolution-section-header">
+                  <h3>Primary Sources · 参考资料</h3>
+                  <p class="section-sub">Open this character in established Chinese etymology references.</p>
+                </div>
+                <div class="evolution-sources" id="evo-sources"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       <!-- PROGRESS -->
       <section id="tab-progress" class="tab-panel">
         <div class="progress-dashboard">
@@ -972,6 +1087,15 @@
     <div><span>Frequency</span><strong id="drawer-stat-frequency">—</strong></div>
     <div><span>Status</span><strong id="drawer-stat-status">—</strong></div>
   </div>
+
+  <section class="character-detail-section">
+    <h3>My Mnemonic</h3>
+    <textarea id="drawer-mnemonic-input" class="drawer-textarea" placeholder="Add your own story or mnemonic here to remember this character..." rows="3"></textarea>
+    <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+      <span id="drawer-mnemonic-saved" style="font-size: 0.8rem; color: var(--jade); opacity: 0; transition: opacity 0.3s; margin-right: auto; align-self: center;">Saved</span>
+      <button id="drawer-mnemonic-save" class="btn-secondary" style="padding:4px 12px; font-size:0.9rem;">Save</button>
+    </div>
+  </section>
 
   <section class="character-detail-section">
     <h3>Meaning & usage</h3>

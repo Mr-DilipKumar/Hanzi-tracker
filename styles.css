@@ -27,6 +27,34 @@
   box-sizing: border-box;
 }
 
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-mid-2);
+  border-radius: 4px;
+  border: 2px solid var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dark);
+}
+
+/* Global Focus Styles for Accessibility */
+:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 html,
 body {
   margin: 0;
@@ -304,29 +332,6 @@ header.topbar {
 }
 
 .word-card {
-  background: var(--paper);
-  color: var(--ink);
-  border: 3px solid var(--line-on-paper);
-  border-radius: 16px;
-  padding: 16px 14px 13px;
-  box-shadow: 0 6px 18px var(--paper-shadow);
-  min-height: 150px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  cursor: pointer;
-}
-
-.word-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--gold);
-  box-shadow: 0 10px 24px var(--paper-shadow);
-}
-
-.word-card {
   perspective: 1200px;
   padding: 0;
   min-height: 190px;
@@ -345,6 +350,7 @@ header.topbar {
   box-shadow: none;
 }
 
+
 .word-card-inner {
   position: relative;
   width: 100%;
@@ -353,6 +359,14 @@ header.topbar {
   transform-style: preserve-3d;
   transition: transform .5s cubic-bezier(.34, 1.15, .4, 1);
   cursor: pointer;
+}
+
+.word-card:hover .word-card-inner {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.word-card.flipped:hover .word-card-inner {
+  transform: rotateY(180deg) translateY(-4px) scale(1.02);
 }
 
 .word-card.flipped .word-card-inner {
@@ -1416,6 +1430,7 @@ nav.tabs {
 .btn-secondary:hover {
   border-color: var(--gold-bright);
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 .btn-danger {
@@ -1428,6 +1443,8 @@ nav.tabs {
   background: var(--spark);
   border-color: var(--spark);
   color: #3B1512;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 /* ---------- drawer ---------- */
@@ -3208,6 +3225,7 @@ body.review-focus-active {
 }
 
 .radical-detail-hero {
+  position: relative;
   display: flex !important;
   align-items: center !important;
   gap: 22px !important;
@@ -3262,6 +3280,14 @@ body.review-focus-active {
   color: var(--ink-soft);
   font-size: .93rem;
   font-weight: 900;
+}
+
+.radical-audio-btn {
+  position: absolute;
+  right: 30px;
+  bottom: 24px;
+  width: 42px;
+  height: 42px;
 }
 
 .radical-detail-grid {
@@ -3607,7 +3633,7 @@ body.review-focus-active {
 .radical-card {
   perspective: 1200px;
   padding: 0;
-  min-height: 170px;
+  min-height: 190px;
   display: block;
   overflow: visible;
   background: transparent;
@@ -3624,7 +3650,7 @@ body.review-focus-active {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 170px;
+  min-height: 190px;
   transform-style: preserve-3d;
   transition: transform .5s cubic-bezier(.34, 1.15, .4, 1);
 }
@@ -3635,12 +3661,12 @@ body.review-focus-active {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
-  border: 1px solid rgba(217, 180, 115, .28);
+  border: 6px solid var(--line-on-paper);
   border-radius: 18px;
   background: linear-gradient(160deg, var(--paper), rgba(255, 247, 229, .96));
   color: var(--ink);
-  padding: 18px 12px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, .12);
+  padding: 16px 14px 13px;
+  box-shadow: 0 6px 18px var(--paper-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3655,7 +3681,7 @@ body.review-focus-active {
 }
 .radical-card:hover .radical-card-face {
   border-color: var(--gold);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, .18);
+  box-shadow: 0 10px 24px var(--paper-shadow);
 }
 .radical-card.status-new .radical-card-face.front {
   background: var(--paper);
@@ -3663,11 +3689,11 @@ body.review-focus-active {
 }
 .radical-card.status-learning .radical-card-face.front {
   background: #FFF0B8;
-  border: 4px solid var(--gold);
+  border-color: var(--gold);
 }
 .radical-card.status-known .radical-card-face.front {
   background: #D4F3E2;
-  border: 6px solid var(--jade);
+  border-color: var(--jade);
 }
 
 .radical-card-badge:empty,
@@ -3682,15 +3708,27 @@ body.review-focus-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  min-width: 26px;
   height: 26px;
+  padding: 0 7px;
   border-radius: 999px;
-  font-size: 1rem;
+  font-size: .72rem;
   font-weight: 900;
   background: var(--paper);
   color: var(--ink);
   border: 1px solid rgba(0, 0, 0, .08);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .3);
+}
+
+.radical-card-audio {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: .9rem;
 }
 
 .radical-card.status-learning .radical-card-badge {
@@ -3707,8 +3745,9 @@ body.review-focus-active {
 
 .radical-char {
   font-family: var(--font-hanzi);
-  font-size: 3.3rem;
-  line-height: 1;
+  font-size: 2.7rem;
+  line-height: 1.12;
+  font-weight: 600;
 }
 
 .radical-number {
@@ -4438,11 +4477,15 @@ body.review-focus-active {
 }
 
 .radical-grid.card-size-large .radical-card {
-  min-height: 160px !important;
+  min-height: 220px !important;
+}
+
+.radical-grid.card-size-large .radical-card-inner {
+  min-height: 220px !important;
 }
 
 .radical-grid.card-size-large .radical-char {
-  font-size: 4.5rem !important;
+  font-size: 3.2rem !important;
 }
 
 .radical-grid.card-size-large .radical-name {
@@ -4450,11 +4493,15 @@ body.review-focus-active {
 }
 
 .radical-grid.card-size-medium .radical-card {
-  min-height: 130px !important;
+  min-height: 190px !important;
+}
+
+.radical-grid.card-size-medium .radical-card-inner {
+  min-height: 190px !important;
 }
 
 .radical-grid.card-size-medium .radical-char {
-  font-size: 3.5rem !important;
+  font-size: 2.7rem !important;
 }
 
 .radical-grid.card-size-medium .radical-name {
@@ -4462,12 +4509,15 @@ body.review-focus-active {
 }
 
 .radical-grid.card-size-small .radical-card {
-  min-height: 90px !important;
-  padding: 8px 6px !important;
+  min-height: 130px !important;
+}
+
+.radical-grid.card-size-small .radical-card-inner {
+  min-height: 130px !important;
 }
 
 .radical-grid.card-size-small .radical-char {
-  font-size: 2.5rem !important;
+  font-size: 2.1rem !important;
 }
 
 .radical-grid.card-size-small .radical-name {
@@ -5165,6 +5215,25 @@ header.topbar {
 .character-detail-section {
   padding: 18px 0;
   border-top: 1px solid var(--line-on-paper);
+}
+
+.drawer-textarea {
+  width: 100%;
+  background: rgba(140, 90, 75, 0.05);
+  border: 1px solid rgba(140, 90, 75, 0.2);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  padding: 10px 12px;
+  border-radius: 8px;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.drawer-textarea:focus {
+  outline: none;
+  border-color: var(--gold-dark);
+  box-shadow: 0 0 0 2px rgba(245, 185, 66, 0.3);
 }
 
 .character-detail-section h3 {
@@ -9145,3 +9214,708 @@ button[data-status="new"].active,
 .readings-content .status-known { color: var(--jade-dark); font-weight: 500; }
 .readings-content .status-learning { color: var(--gold-dark); font-weight: 500; }
 .readings-content .status-new { color: var(--spark); font-weight: 500; }
+
+
+/* ============================================================
+   EVOLUTION TAB — 古文字演变
+   Historical Character Evolution | Script Timeline
+   ============================================================ */
+
+.evolution-layout {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+/* ---- Hero Banner ---- */
+.evolution-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  background: linear-gradient(135deg, var(--bg-mid), #1a0a0e);
+  border: 1px solid rgba(122,17,40,0.5);
+  border-radius: 20px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.evolution-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(122,17,40,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.evolution-hero-glyph {
+  font-family: var(--font-hanzi);
+  font-size: 5rem;
+  line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(245,185,66,0.15);
+  flex-shrink: 0;
+  animation: evo-glyph-pulse 4s ease-in-out infinite;
+}
+
+@keyframes evo-glyph-pulse {
+  0%, 100% { text-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(245,185,66,0.15); }
+  50% { text-shadow: 0 0 60px var(--gold-glow), 0 0 120px rgba(245,185,66,0.25); }
+}
+
+.evolution-hero-kicker {
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--gold-bright);
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.evolution-hero-text h2 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+  color: var(--cream-text);
+  line-height: 1.25;
+}
+
+.evolution-hero-text p {
+  margin: 0;
+  font-size: .97rem;
+  color: var(--text-soft-on-desk);
+  line-height: 1.55;
+  max-width: 580px;
+}
+
+/* ---- Toolbar ---- */
+.evolution-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+/* filter-hint and results-meta sit on the dark desk background */
+#tab-evolution .filter-hint {
+  color: var(--text-soft-on-desk);
+  font-size: .92rem;
+  margin: 0 0 14px;
+}
+
+#tab-evolution .results-meta {
+  color: var(--text-soft-on-desk);
+  font-size: .9rem;
+  white-space: nowrap;
+}
+
+#evolution-search {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-mid);
+  border: 1px solid var(--line-on-desk);
+  color: var(--cream-text) !important;
+  caret-color: var(--cream-text);
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+#evolution-search::placeholder { color: rgba(255,243,214,0.65); }
+#evolution-search:focus {
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.evolution-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ---- Evolution Grid ---- */
+.evolution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.evolution-card {
+  background: var(--paper);
+  border: 1px solid var(--line-on-paper);
+  border-radius: 16px;
+  padding: 16px 14px 12px;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  box-shadow: 0 4px 12px var(--paper-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evolution-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(122,17,40,0.18), 0 4px 12px var(--paper-shadow);
+  border-color: var(--gold);
+}
+
+.evolution-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.evolution-card-hanzi {
+  font-family: var(--font-hanzi);
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.evolution-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.evolution-card-pinyin {
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--gold-dark);
+}
+
+.evolution-card-hsk {
+  font-size: .74rem;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(122,17,40,0.12);
+  border: 1px solid rgba(122,17,40,0.25);
+  color: var(--spark);
+  letter-spacing: .04em;
+}
+
+.evolution-card-meaning {
+  font-size: .88rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini stage ribbon on card */
+.evolution-card-ribbon {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.evo-ribbon-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  background: var(--paper-dim);
+  border: 1px solid var(--line-on-paper);
+  border-radius: 6px;
+  padding: 3px 5px;
+  min-width: 28px;
+}
+
+.evo-ribbon-glyph {
+  font-family: var(--font-hanzi);
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.evo-ribbon-label {
+  font-size: .55rem;
+  font-weight: 900;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+/* ---- Detail View ---- */
+.evolution-back-btn {
+  margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* back button sits on the dark desk background */
+  color: var(--cream-text) !important;
+}
+
+.evolution-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Detail hero */
+.evolution-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: linear-gradient(135deg, var(--bg-mid), #1a0a0e);
+  border: 1px solid rgba(122,17,40,0.4);
+  border-radius: 20px;
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.evolution-detail-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 0% 50%, rgba(122,17,40,0.22) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.evolution-detail-glyph {
+  font-family: var(--font-hanzi);
+  font-size: 5.5rem;
+  line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 50px var(--gold-glow);
+  flex-shrink: 0;
+}
+
+.evolution-detail-kicker {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--gold-bright);
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.evolution-detail-pinyin {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--cream-text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.evolution-detail-meaning {
+  font-size: 1.1rem;
+  color: var(--text-soft-on-desk);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.evolution-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.evolution-detail-badge {
+  font-size: .8rem;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(122,17,40,0.25);
+  border: 1px solid rgba(122,17,40,0.5);
+  color: var(--spark);
+  letter-spacing: .05em;
+}
+
+.evolution-detail-freq {
+  font-size: .87rem;
+  color: var(--text-soft-on-desk);
+}
+
+.evo-open-drawer-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(245,185,66,0.12);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-family: var(--font-ui);
+  font-size: .95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+  z-index: 1;
+}
+
+.evo-open-drawer-btn:hover {
+  background: rgba(245,185,66,0.22);
+  transform: translateY(-1px);
+}
+
+/* ---- Sections ---- */
+.evolution-section {
+  background: var(--paper);
+  border: 1px solid var(--line-on-paper);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 14px var(--paper-shadow);
+}
+
+.evolution-section-header {
+  margin-bottom: 16px;
+}
+
+.evolution-section-header h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.evolution-section-header .section-sub {
+  margin: 0;
+  font-size: .88rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Script Timeline ---- */
+.evolution-timeline-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.evolution-timeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: max-content;
+  padding: 4px 2px;
+}
+
+.evo-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+/* connector line between stages */
+.evo-stage:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+  color: var(--gold);
+  opacity: .5;
+  z-index: 1;
+}
+
+.evo-stage-chip {
+  background: var(--paper-dim);
+  border: 2px solid var(--line-on-paper);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0 18px;
+  min-width: 80px;
+  transition: border-color .18s, background .18s, transform .18s, box-shadow .18s;
+}
+
+.evo-stage-chip:hover,
+.evo-stage-chip.active {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(245,185,66,0.12), rgba(245,185,66,0.05));
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(245,185,66,0.12);
+}
+
+.evo-stage-glyph {
+  font-family: var(--font-hanzi);
+  font-size: 2.1rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.evo-stage-name {
+  font-size: .74rem;
+  font-weight: 900;
+  color: var(--gold-dark);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+.evo-stage-era {
+  font-size: .67rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* ---- Spotlight ---- */
+/* The spotlight panel sits on the dark desk surface (not on paper),
+   so all text within it must use cream/light colors. */
+.evolution-spotlight {
+  background: linear-gradient(135deg, rgba(245,185,66,0.10), rgba(245,185,66,0.04));
+  border: 1px solid rgba(245,185,66,0.30);
+  border-radius: 14px;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 90px;
+  transition: all .3s ease;
+}
+
+.evo-spotlight-glyph {
+  font-family: var(--font-hanzi);
+  font-size: 4.2rem;
+  line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 30px var(--gold-glow);
+  flex-shrink: 0;
+  transition: all .3s ease;
+}
+
+.evo-spotlight-era {
+  font-size: .85rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--gold-bright);
+  margin-bottom: 2px;
+}
+
+.evo-spotlight-period {
+  font-size: .82rem;
+  color: var(--text-soft-on-desk);
+  margin-bottom: 6px;
+}
+
+.evo-spotlight-note {
+  margin: 0;
+  font-size: .95rem;
+  color: var(--cream-text);
+  line-height: 1.55;
+}
+
+/* ---- Story / Etymology ---- */
+/* Story sits inside .evolution-section which has --paper background */
+.evolution-story {
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.evolution-story p {
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+
+.evolution-story strong {
+  color: var(--ink);
+}
+
+.evolution-story em {
+  color: var(--ink-soft);
+}
+
+.evolution-story blockquote {
+  margin: 12px 0;
+  padding: 10px 16px;
+  border-left: 3px solid var(--gold);
+  background: rgba(245,185,66,0.07);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.evo-story-loading {
+  color: var(--ink-soft);
+  font-style: italic;
+  font-size: .97rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evo-story-loading::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gold);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: evo-spin 0.8s linear infinite;
+}
+
+@keyframes evo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Components ---- */
+.evolution-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.evo-component-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper-dim);
+  border: 1px solid var(--line-on-paper);
+  border-radius: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+
+.evo-component-chip:hover {
+  border-color: var(--gold);
+  background: rgba(245,185,66,0.08);
+  transform: translateY(-1px);
+}
+
+.evo-component-hanzi {
+  font-family: var(--font-hanzi);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.evo-component-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.evo-component-label {
+  font-size: .7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--gold-dark);
+}
+
+.evo-component-meaning {
+  font-size: .88rem;
+  color: var(--ink-soft);
+}
+
+/* ---- External Sources ---- */
+.evolution-sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.evo-source-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--paper-dim);
+  border: 1px solid var(--line-on-paper);
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+
+.evo-source-card:hover {
+  border-color: var(--gold);
+  background: rgba(245,185,66,0.08);
+  transform: translateY(-2px);
+}
+
+.evo-source-name {
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.evo-source-desc {
+  font-size: .8rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.evo-source-action {
+  font-size: .78rem;
+  font-weight: 900;
+  color: var(--gold-dark);
+  margin-top: 3px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 860px) {
+  .evolution-hero { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .evolution-hero-glyph { font-size: 3.5rem; }
+  .evolution-detail-hero { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .evo-open-drawer-btn { margin-left: 0; }
+}
+
+@media (max-width: 600px) {
+  .evolution-layout { padding: 16px 12px 36px; }
+  .evolution-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .evolution-card-hanzi { font-size: 2rem; }
+  .evo-stage-chip { min-width: 64px; padding: 10px 12px; margin: 0 12px; }
+  .evo-stage-glyph { font-size: 1.7rem; }
+}
+
+/* Placeholder stage styling — stages without specific historical glyph data */
+.evo-ribbon-stage.placeholder {
+  opacity: 0.42;
+  border-style: dashed;
+}
+
+.evo-ribbon-label.placeholder-label {
+  font-style: italic;
+}
+
+.evo-stage-chip.placeholder {
+  opacity: 0.48;
+  border-style: dashed;
+  border-color: var(--line-on-paper);
+}
+
+.evo-stage-chip.placeholder:hover {
+  opacity: 0.8;
+  border-color: var(--gold);
+  border-style: dashed;
+}
+
+.evo-stage-chip.placeholder .evo-stage-name::after {
+  content: ' ?';
+  font-size: .6rem;
+  opacity: .65;
+}
+
+/* Evolution pager indicator — sits on dark desk, needs cream text */
+#evolution-page-indicator {
+  font-size: 1rem;
+  color: var(--text-soft-on-desk);
+  font-weight: 600;
+}
+
+/* Ensure spotlight has a visible dark bg so cream text reads clearly */
+.evolution-spotlight {
+  background: linear-gradient(135deg, rgba(30,6,14,0.72), rgba(30,6,14,0.55)) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

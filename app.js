@@ -555,6 +555,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return writeEntry(char, { status, interval, incrementReviews: false });
   }
 
+  function saveMnemonic(char, mnemonic) {
+    const prev = state.progress[char] || { status: "new", interval: 0, reviews: 0, due: Date.now(), stampedAt: null };
+    prev.mnemonic = mnemonic;
+    state.progress[char] = prev;
+    saveState();
+  }
+
   function computeCounts() {
     let known = 0, learning = 0;
     for (const c in state.progress) {
@@ -792,6 +799,12 @@ document.addEventListener("DOMContentLoaded", () => {
     el("drawer-level").textContent = levelLabel(item.h);
     el("drawer-meaning").textContent = formatDefinition(item.m || "No recorded meaning for this character.");
     el("drawer-freq").textContent = item.f < 99999 ? ("Frequency rank #" + item.f.toLocaleString()) : "Frequency rank unavailable";
+    
+    // Load mnemonic if exists
+    const entry = getEntry(char);
+    el("drawer-mnemonic-input").value = (entry && entry.mnemonic) ? entry.mnemonic : "";
+    el("drawer-mnemonic-saved").style.opacity = "0";
+
     renderDetailSentences(char);
     el("drawer-examples").innerHTML = item.e.length
       ? item.e.map(w => '<span class="example-chip">' + escHtml(w) + '</span>').join("")
@@ -841,6 +854,12 @@ document.addEventListener("DOMContentLoaded", () => {
     
     el("drawer-freq").textContent = "Multi-character word";
     
+    // Clear mnemonic (currently char only)
+    if (el("drawer-mnemonic-input")) {
+      el("drawer-mnemonic-input").value = "";
+      el("drawer-mnemonic-saved").style.opacity = "0";
+    }
+
     const charBreakdown = Array.from(item.word).map(c => `<span class="example-chip" style="cursor:pointer;" onclick="event.stopPropagation(); setTimeout(() => openDetail('${c}'), 50);">${c}</span>`).join('');
     el("drawer-examples").innerHTML = '<div style="margin-bottom:8px;font-size:0.8rem;color:var(--text-lighter);text-transform:uppercase;letter-spacing:1px;">Characters</div>' + charBreakdown;
     
@@ -2164,6 +2183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
         btn.classList.add("active");
         el("tab-" + btn.dataset.tab).classList.add("active");
+        if (btn.dataset.tab === "evolution") renderEvolutionTab();
         if (btn.dataset.tab === "progress") renderProgress();
         if (btn.dataset.tab === "sentences") renderSentences();
         if (btn.dataset.tab === "words") renderWords();
@@ -2297,6 +2317,20 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireDrawer() {
     el("drawer-close").addEventListener("click", closeDetail);
     el("drawer-backdrop").addEventListener("click", closeDetail);
+    
+    const saveMnemBtn = el("drawer-mnemonic-save");
+    if (saveMnemBtn) {
+      saveMnemBtn.addEventListener("click", () => {
+        if (currentDetailChar) {
+          const val = el("drawer-mnemonic-input").value.trim();
+          saveMnemonic(currentDetailChar, val);
+          const savedMsg = el("drawer-mnemonic-saved");
+          savedMsg.style.opacity = "1";
+          setTimeout(() => { savedMsg.style.opacity = "0"; }, 2000);
+        }
+      });
+    }
+
     ["new", "learning", "known"].forEach(s => {
       el("status-btn-" + s).addEventListener("click", () => {
         if (currentDetailChar) {
@@ -2379,14 +2413,6 @@ document.addEventListener("DOMContentLoaded", () => {
       playChineseAudio(text, { rate: 0.88, sentenceId });
     });
     el("start-review").addEventListener("click", startReview); el("stop-review").addEventListener("click", stopReview); el("reveal-btn").addEventListener("click", revealCard); el("review-skip-btn").addEventListener("click", skipCurrent); el("review-flag-btn").addEventListener("click", flagCurrent);
-    el("radical-grid")?.addEventListener("click", e => {
-      if (e.target.closest("button") && !e.target.closest(".radical-card")) return;
-      const btn = e.target.closest(".radical-card");
-      if (btn) {
-        btn.classList.toggle("flipped");
-      }
-    });
-
     // Add right click context menu for radical grid so they can still see details or mark known via right click
     el("radical-grid")?.addEventListener("contextmenu", e => {
       const btn = e.target.closest(".radical-card");
@@ -2819,11 +2845,13 @@ document.addEventListener("DOMContentLoaded", () => {
     el("radical-count").textContent = filtered.length + " of 214 radicals";
     el("radical-grid").innerHTML = filtered.map(r => {
       const char = r.base && r.base !== "—" ? r.base : r.char;
+      const status = getStatus(char);
       return `
-      <button type="button" class="radical-card" data-radical="${r.number}" data-char="${escHtml(char)}" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
+      <article class="radical-card status-${status}" data-radical="${r.number}" data-char="${escHtml(char)}" tabindex="0" role="button" aria-label="Open details for radical ${r.number}: ${escHtml(r.meaning)}">
         <div class="radical-card-inner">
           <div class="radical-card-face front">
             <span class="radical-number">#${r.number}</span>
+            <button type="button" class="tone-audio-btn-sm radical-card-audio" data-speak-char="${escHtml(char)}" title="Listen to ${escHtml(char)}" aria-label="Listen to ${escHtml(char)}">🔊</button>
             <span class="radical-char">${r.char}</span>
             <span class="radical-name" ${radicalsShowEnglish ? "" : "hidden"}>${escHtml(r.meaning)}</span>
             <span class="radical-pinyin" ${radicalsShowPinyin ? "" : "hidden"}>${escHtml(r.pinyin)}</span>
@@ -2833,7 +2861,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <span class="radical-pinyin">${escHtml(r.pinyin)}</span>
           </div>
         </div>
-      </button>
+      </article>
     `;
     }).join("");
   }
@@ -3159,7 +3187,28 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".front .radical-name").forEach(n => n.hidden = !radicalsShowEnglish);
     });
 
-    // The old grid.addEventListener("click") for openRadicalDetail was removed so cards just flip.
+    if (grid) grid.addEventListener("click", (e) => {
+      const audio = e.target.closest("[data-speak-char]");
+      if (audio) {
+        e.stopPropagation();
+        playChineseAudio(audio.dataset.speakChar, { rate: 0.88 });
+        return;
+      }
+      const card = e.target.closest(".radical-card");
+      if (card) card.classList.toggle("flipped");
+    });
+    if (grid) grid.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const card = e.target.closest(".radical-card");
+      if (!card || e.target.closest("[data-speak-char]")) return;
+      e.preventDefault();
+      card.classList.toggle("flipped");
+    });
+
+    el("detail-radical-audio")?.addEventListener("click", () => {
+      const radical = RADICALS[Number(el("detail-radical-number").textContent.replace("#", "")) - 1];
+      if (radical) playChineseAudio(radical.base && radical.base !== "—" ? radical.base : radical.char, { rate: 0.88 });
+    });
 
     ["new", "learning", "known"].forEach(s => {
       const btn = el("detail-radical-status-btn-" + s);
@@ -4389,7 +4438,9 @@ document.addEventListener("DOMContentLoaded", () => {
       wireDataManagement();
       wireRadicals();
       wireContextMenu();
+      initEvolution();
       buildSentenceIndex();
+
       renderBrowse();
       renderSentences();
       renderProgress();
@@ -4414,6 +4465,538 @@ document.addEventListener("DOMContentLoaded", () => {
       dismissLoading();
     }
   }
+
+  /* ============================================================
+   EVOLUTION MODULE — 古文字演变
+   ============================================================ */
+
+  // ---- Script stage registry ----
+  const EVO_STAGES_META = [
+    { key: "oracle",   name: "Oracle Bone",   era: "甲骨文 c.1250\u20131000 BC" },
+    { key: "bronze",   name: "Bronze Script",  era: "\u91d1\u6587 c.1100\u2013221 BC" },
+    { key: "seal",     name: "Seal Script",    era: "\u7bc6\u4e66 c.221 BC" },
+    { key: "clerical", name: "Clerical",       era: "\u96b6\u4e66 c.200 BC\u2013200 AD" },
+    { key: "regular",  name: "Regular",        era: "\u6977\u4e66 c.200 AD+" },
+    { key: "modern",   name: "Modern",         era: "\u73b0\u4ee3 Simplified" },
+  ];
+
+  // ---- Curated evolution data ----
+  // Glyph key priority:
+  //   oracle/bronze: Unicode CJK Extension codepoint if known, else same as modern (marked placeholder)
+  //   seal/clerical/regular: traditional character form where applicable (REAL historical difference)
+  //   modern: current simplified/standard form
+  // The traditional form IS a genuine historical form — used until PRC script reform (1956\u20131964).
+  const EVO_DATA = {
+    // ── Pictographs (oracle = modern, no simplification) ──────────────────────
+    "\u4e00": { oracle:"\u4e00",bronze:"\u4e00",seal:"\u4e00",clerical:"\u4e00",regular:"\u4e00",modern:"\u4e00",
+      notes:{ oracle:"A single horizontal stroke \u2014 the simplest pictograph of unity.",seal:"Standardised by the Qin dynasty.",clerical:"Horizontal stroke with slight brush lift.",modern:"Unchanged for 3,000+ years." } },
+    "\u5c71": { oracle:"\u5c71",bronze:"\u5c71",seal:"\u5c71",clerical:"\u5c71",regular:"\u5c71",modern:"\u5c71",
+      notes:{ oracle:"Three peaks of a mountain \u2014 iconic pictograph.",bronze:"Three vertical strokes, longer centre peak.",seal:"Regularised strokes of even weight.",clerical:"Horizontal base bar added.",modern:"Mountain silhouette retained." } },
+    "\u6c34": { oracle:"\u6c34",bronze:"\u6c34",seal:"\u6c34",clerical:"\u6c34",regular:"\u6c34",modern:"\u6c34",
+      notes:{ oracle:"Wavy lines depicting flowing water.",bronze:"Central stream with flanking ripples.",seal:"Central vertical with angled strokes.",clerical:"Four strokes; angles sharpen.",modern:"Standard 4-stroke form; radical in \u6c5f,\u6d77,\u6cb3." } },
+    "\u706b": { oracle:"\u706b",bronze:"\u706b",seal:"\u706b",clerical:"\u706b",regular:"\u706b",modern:"\u706b",
+      notes:{ oracle:"Flames leaping from a base \u2014 direct pictograph of fire.",seal:"Four symmetric strokes.",modern:"Radical in \u7130,\u70e7,\u70df." } },
+    "\u6728": { oracle:"\u6728",bronze:"\u6728",seal:"\u6728",clerical:"\u6728",regular:"\u6728",modern:"\u6728",
+      notes:{ oracle:"Tree: trunk, branches above, roots below.",seal:"Symmetrical balanced form.",modern:"Radical in \u6797,\u68ee,\u684c." } },
+    "\u5927": { oracle:"\u5927",bronze:"\u5927",seal:"\u5927",clerical:"\u5927",regular:"\u5927",modern:"\u5927",
+      notes:{ oracle:"Person standing with arms spread wide \u2014 \u2018big\u2019.",bronze:"Arms clearly extended laterally.",modern:"Radical in \u5929,\u592a,\u592b." } },
+    "\u4e2d": { oracle:"\u4e2d",bronze:"\u4e2d",seal:"\u4e2d",clerical:"\u4e2d",regular:"\u4e2d",modern:"\u4e2d",
+      notes:{ oracle:"A flag through the centre of a target \u2014 \u2018middle\u2019.",seal:"Rectangular frame with vertical axis.",modern:"One of the most common characters." } },
+    "\u53e3": { oracle:"\u53e3",bronze:"\u53e3",seal:"\u53e3",clerical:"\u53e3",regular:"\u53e3",modern:"\u53e3",
+      notes:{ oracle:"An open square \u2014 the mouth or opening.",seal:"Perfect square standardised.",modern:"Radical in \u5403,\u559d,\u53eb." } },
+    "\u624b": { oracle:"\u624b",bronze:"\u624b",seal:"\u624b",clerical:"\u624b",regular:"\u624b",modern:"\u624b",
+      notes:{ oracle:"Five finger lines from a palm \u2014 direct pictograph.",seal:"4 horizontal strokes + vertical.",modern:"Radical in \u6253,\u62ff,\u63e1." } },
+    "\u5fc3": { oracle:"\u5fc3",bronze:"\u5fc3",seal:"\u5fc3",clerical:"\u5fc3",regular:"\u5fc3",modern:"\u5fc3",
+      notes:{ oracle:"Heart shape with ventricles \u2014 ancient anatomical knowledge.",seal:"Curved base with three points.",modern:"Radical in \u60f3,\u5fd8,\u60c5." } },
+    "\u6708": { oracle:"\u6708",bronze:"\u6708",seal:"\u6708",clerical:"\u6708",regular:"\u6708",modern:"\u6708",
+      notes:{ oracle:"Crescent with interior dots representing stars.",seal:"Near-rectangular form.",modern:"Radical in \u6709,\u670d,\u671f." } },
+    "\u76ee": { oracle:"\u76ee",bronze:"\u76ee",seal:"\u76ee",clerical:"\u76ee",regular:"\u76ee",modern:"\u76ee",
+      notes:{ oracle:"An eye drawn vertically \u2014 later rotated 90\u00b0.",seal:"Standardised rectangle with pupil bar.",modern:"Radical in \u770b,\u771f,\u77e5." } },
+    "\u8033": { oracle:"\u8033",bronze:"\u8033",seal:"\u8033",clerical:"\u8033",regular:"\u8033",modern:"\u8033",
+      notes:{ oracle:"An ear with inner curves \u2014 detailed pictograph.",seal:"Formalised into rectangular outer form.",modern:"Radical in \u806a,\u8046." } },
+    "\u5973": { oracle:"\u5973",bronze:"\u5973",seal:"\u5973",clerical:"\u5973",regular:"\u5973",modern:"\u5973",
+      notes:{ oracle:"A woman kneeling with arms crossed \u2014 respectful posture.",seal:"Simplified into flowing strokes.",modern:"Radical in \u59b9,\u5979,\u5983." } },
+    "\u5b50": { oracle:"\u5b50",bronze:"\u5b50",seal:"\u5b50",clerical:"\u5b50",regular:"\u5b50",modern:"\u5b50",
+      notes:{ oracle:"A baby with arms outstretched \u2014 pictograph of a child.",seal:"Standardised with rounded head stroke.",modern:"Radical in \u5b66,\u5b66,\u5b78." } },
+    "\u725b": { oracle:"\u725b",bronze:"\u725b",seal:"\u725b",clerical:"\u725b",regular:"\u725b",modern:"\u725b",
+      notes:{ oracle:"Ox head with horns pointing up \u2014 top-down view.",seal:"Horns and body regularised.",modern:"Radical in \u7269,\u7272,\u7248." } },
+    "\u7f8a": { oracle:"\u7f8a",bronze:"\u7f8a",seal:"\u7f8a",clerical:"\u7f8a",regular:"\u7f8a",modern:"\u7f8a",
+      notes:{ oracle:"Sheep/goat head with curved horns \u2014 clear pictograph.",seal:"Horns balanced over body strokes.",modern:"Radical in \u7f8e,\u7fa4,\u7fa3." } },
+    "\u9e1f": { oracle:"\u9ce5",bronze:"\u9ce5",seal:"\u9ce5",clerical:"\u9ce5",regular:"\u9ce5",modern:"\u9e1f",
+      notes:{ oracle:"A bird with beak, body, wings, tail and feet visible.",bronze:"Wing and tail feathers prominent.",seal:"Stylised; body and tail compressed.",clerical:"Traditional \u9ce5 \u2014 11 strokes.",modern:"Simplified to \u9e1f (5 strokes)." } },
+    // ── Simplified \u2192 Traditional (major visual difference) ───────────────────────────
+    "\u4eba": { oracle:"\ud840\udc89",bronze:"\ud840\udc89",seal:"\u4eba",clerical:"\u4eba",regular:"\u4eba",modern:"\u4eba",
+      notes:{ oracle:"Person in side profile, arms at sides.",bronze:"Simplified silhouette.",seal:"Two strokes established.",modern:"Universal modern form." } },
+    "\u65e5": { oracle:"\ud841\uddb8",bronze:"\u65e5",seal:"\u65e5",clerical:"\u65e5",regular:"\u65e5",modern:"\u65e5",
+      notes:{ oracle:"Circle with a dot inside \u2014 the sun.",bronze:"Rectangular; dot centred.",seal:"Squared form.",modern:"Square with internal bar." } },
+    "\u56fd": { oracle:"\u6216",bronze:"\u6216",seal:"\u56fd",clerical:"\u570b",regular:"\u570B",modern:"\u56fd",
+      notes:{ oracle:"\u6208 (weapon) + \u53e3 (people) \u2014 to defend.",bronze:"Enclosure begins to form.",seal:"Full enclosure: \u56d7 wraps inner element.",clerical:"Traditional \u570B with \u7389 jade inside.",regular:"Full 11-stroke traditional form.",modern:"Simplified: \u738b inside \u56d7 (1956)." } },
+    "\u9a6c": { oracle:"\u99AC",bronze:"\u99AC",seal:"\u99AC",clerical:"\u99AC",regular:"\u99ac",modern:"\u9a6c",
+      notes:{ oracle:"Horse in full profile: mane, body, four legs.",bronze:"Mane and legs prominent.",seal:"Legs compressed to parallel strokes.",clerical:"Traditional \u99ac with four leg dots.",regular:"Full traditional form pre-1956.",modern:"\u9a6c (3 strokes) \u2014 dramatic reduction." } },
+    "\u9c7c": { oracle:"\u9b5a",bronze:"\u9b5a",seal:"\u9b5a",clerical:"\u9b5a",regular:"\u9b5a",modern:"\u9c7c",
+      notes:{ oracle:"Fish with head, scales, and tail fin.",bronze:"Grid-like scale pattern.",seal:"Stylised fish outline.",clerical:"Traditional \u9b5a with four bottom strokes.",regular:"Full traditional form.",modern:"\u9c7c \u2014 four bottom strokes become one." } },
+    "\u8f66": { oracle:"\u8eca",bronze:"\u8eca",seal:"\u8eca",clerical:"\u8eca",regular:"\u8eca",modern:"\u8f66",
+      notes:{ oracle:"Top-down chariot view: axle, wheels, yoke.",bronze:"Wheels and axle visible.",seal:"Balanced rectangular structure.",clerical:"Traditional \u8eca \u2014 7 strokes.",modern:"\u8f66 (4 strokes) \u2014 most dramatic simplification." } },
+    "\u9f99": { oracle:"\u9f8d",bronze:"\u9f8d",seal:"\u9f8d",clerical:"\u9f8d",regular:"\u9f8d",modern:"\u9f99",
+      notes:{ oracle:"Dragon rearing: head, body, claws, scales.",bronze:"Serpentine body with horns.",seal:"Dragon elements compressed.",clerical:"Traditional \u9f8d \u2014 16 strokes.",modern:"\u9f99 (5 strokes) \u2014 modern marvel." } },
+    "\u7231": { oracle:"\u611b",bronze:"\u611b",seal:"\u611b",clerical:"\u611b",regular:"\u611b",modern:"\u7231",
+      notes:{ oracle:"Walking person (\u5902) + heart (\u5fc3) \u2014 feeling.",bronze:"Hand/gift + heart.",seal:"\u65e1 (person) + \u5fc3 (heart) + \u5902 (foot).",clerical:"Traditional \u611b \u2014 13 strokes.",modern:"\u7231 \u2014 \u5fc3 replaced by \u53cb stroke." } },
+    "\u4e66": { oracle:"\u7c50",bronze:"\u7c50",seal:"\u7c50",clerical:"\u66f8",regular:"\u66f8",modern:"\u4e66",
+      notes:{ oracle:"A hand holding a brush \u2014 pictograph of writing.",bronze:"Brush and bamboo tablet shown.",seal:"Stylised writing implement.",clerical:"Traditional \u66f8 \u2014 10 strokes.",modern:"\u4e66 (4 strokes) \u2014 simplified." } },
+    "\u65f6": { oracle:"\u6642",bronze:"\u6642",seal:"\u6642",clerical:"\u6642",regular:"\u6642",modern:"\u65f6",
+      notes:{ oracle:"\u65e5 (sun) + \u5bfa (temple/time) \u2014 time measured by sun at temple.",seal:"Compound fully formed.",clerical:"Traditional \u6642 \u2014 10 strokes.",modern:"\u65f6 (7 strokes) \u2014 simplified." } },
+    "\u6765": { oracle:"\u4f86",bronze:"\u4f86",seal:"\u4f86",clerical:"\u4f86",regular:"\u4f86",modern:"\u6765",
+      notes:{ oracle:"A wheat stalk \u2014 original meaning: grain coming in.",bronze:"Grain stalk with hanging seeds.",seal:"Stylised stalk form.",clerical:"Traditional \u4f86 \u2014 8 strokes.",modern:"\u6765 (7 strokes) \u2014 simplified." } },
+    "\u4e1c": { oracle:"\u6771",bronze:"\u6771",seal:"\u6771",clerical:"\u6771",regular:"\u6771",modern:"\u4e1c",
+      notes:{ oracle:"Sun rising through a tree \u2014 east is where sun rises.",bronze:"Tree silhouette with rising sun.",seal:"Stylised tree + sun compound.",clerical:"Traditional \u6771 \u2014 8 strokes.",modern:"\u4e1c (5 strokes) \u2014 simplified." } },
+    "\u5f00": { oracle:"\u958b",bronze:"\u958b",seal:"\u958b",clerical:"\u958b",regular:"\u958b",modern:"\u5f00",
+      notes:{ oracle:"Hands pulling a door bolt open.",seal:"Door frame + hands compound.",clerical:"Traditional \u958b \u2014 12 strokes.",modern:"\u5f00 (4 strokes) \u2014 simplified." } },
+    "\u957f": { oracle:"\u9577",bronze:"\u9577",seal:"\u9577",clerical:"\u9577",regular:"\u9577",modern:"\u957f",
+      notes:{ oracle:"An elder with long hair \u2014 \u2018long/elder\u2019.",bronze:"Hair strands flowing from head.",seal:"Stylised long-hair figure.",clerical:"Traditional \u9577 \u2014 8 strokes.",modern:"\u957f (4 strokes) \u2014 simplified." } },
+    "\u5934": { oracle:"\u982d",bronze:"\u982d",seal:"\u982d",clerical:"\u982d",regular:"\u982d",modern:"\u5934",
+      notes:{ oracle:"\u9875 (page/head) + \u8c46 (bean/person shape) \u2014 head.",seal:"Compound head pictograph.",clerical:"Traditional \u982d \u2014 16 strokes.",modern:"\u5934 (5 strokes) \u2014 simplified." } },
+    "\u542c": { oracle:"\u807d",bronze:"\u807d",seal:"\u807d",clerical:"\u807d",regular:"\u807d",modern:"\u542c",
+      notes:{ oracle:"\u8033 (ear) + \u5fb7 (virtue/king listening) \u2014 to hear.",seal:"Ear + directional compound.",clerical:"Traditional \u807d \u2014 22 strokes!",modern:"\u542c (7 strokes) \u2014 dramatically simplified." } },
+    "\u95e8": { oracle:"\u9580",bronze:"\u9580",seal:"\u9580",clerical:"\u9580",regular:"\u9580",modern:"\u95e8",
+      notes:{ oracle:"Double-door gate viewed from the front.",bronze:"Two door panels clearly shown.",seal:"Symmetrical double-door form.",clerical:"Traditional \u9580 \u2014 8 strokes.",modern:"\u95e8 (3 strokes) \u2014 simplified." } },
+    "\u95ee": { oracle:"\u554f",bronze:"\u554f",seal:"\u554f",clerical:"\u554f",regular:"\u554f",modern:"\u95ee",
+      notes:{ oracle:"\u95e8 (door) + \u53e3 (mouth) \u2014 calling through a door.",seal:"Mouth at the door compound.",clerical:"Traditional \u554f \u2014 11 strokes.",modern:"\u95ee (6 strokes) \u2014 simplified." } },
+    "\u8bed": { oracle:"\u8a9e",bronze:"\u8a9e",seal:"\u8a9e",clerical:"\u8a9e",regular:"\u8a9e",modern:"\u8bed",
+      notes:{ oracle:"\u8a00 (speech) + \u543e (I/my) \u2014 my speech/language.",seal:"Speech radical + phonetic.",clerical:"Traditional \u8a9e \u2014 14 strokes.",modern:"\u8bed (9 strokes) \u2014 simplified." } },
+    "\u8bf4": { oracle:"\u8aaa",bronze:"\u8aaa",seal:"\u8aaa",clerical:"\u8aaa",regular:"\u8aaa",modern:"\u8bf4",
+      notes:{ oracle:"\u8a00 (speech) + \u5151 (exchange) \u2014 to speak.",seal:"Speech + phonetic compound.",clerical:"Traditional \u8aaa \u2014 14 strokes.",modern:"\u8bf4 (9 strokes) \u2014 simplified." } },
+    "\u89c1": { oracle:"\u898b",bronze:"\u898b",seal:"\u898b",clerical:"\u898b",regular:"\u898b",modern:"\u89c1",
+      notes:{ oracle:"An eye on top of a person \u2014 to see.",bronze:"Eye perched on human legs.",seal:"Stylised eye-on-person compound.",clerical:"Traditional \u898b \u2014 7 strokes.",modern:"\u89c1 (4 strokes) \u2014 simplified." } },
+    "\u98de": { oracle:"\u98db",bronze:"\u98db",seal:"\u98db",clerical:"\u98db",regular:"\u98db",modern:"\u98de",
+      notes:{ oracle:"A bird in flight with wings spread \u2014 pictograph of flying.",bronze:"Wings and body in dynamic pose.",seal:"Stylised flying form.",clerical:"Traditional \u98db \u2014 9 strokes.",modern:"\u98de (3 strokes) \u2014 simplified." } },
+    "\u98ce": { oracle:"\u98a8",bronze:"\u98a8",seal:"\u98a8",clerical:"\u98a8",regular:"\u98a8",modern:"\u98ce",
+      notes:{ oracle:"\u51e0 (sails) + \u866b (insects swarming, wind-blown) \u2014 wind.",seal:"Sail + insect compound.",clerical:"Traditional \u98a8 \u2014 9 strokes.",modern:"\u98ce (4 strokes) \u2014 simplified." } },
+    "\u4e91": { oracle:"\u96f2",bronze:"\u96f2",seal:"\u96f2",clerical:"\u96f2",regular:"\u96f2",modern:"\u4e91",
+      notes:{ oracle:"Billowing cloud shapes \u2014 natural pictograph.",bronze:"Cloud curves with rain below.",seal:"\u96e8 (rain) + cloud form \u2014 \u96f2.",clerical:"Traditional \u96f2 \u2014 12 strokes.",modern:"\u4e91 (4 strokes) = original cloud-only form." } },
+    "\u6c14": { oracle:"\u6c23",bronze:"\u6c23",seal:"\u6c23",clerical:"\u6c23",regular:"\u6c23",modern:"\u6c14",
+      notes:{ oracle:"Rising vapour/breath lines \u2014 pictograph of air/steam.",bronze:"Three undulating breath-vapour lines.",seal:"Vapour + rice (\u7c73) \u2014 steam from cooking.",clerical:"Traditional \u6c23 \u2014 10 strokes.",modern:"\u6c14 (4 strokes) \u2014 simplified." } },
+    "\u7535": { oracle:"\u96fb",bronze:"\u96fb",seal:"\u96fb",clerical:"\u96fb",regular:"\u96fb",modern:"\u7535",
+      notes:{ oracle:"Lightning bolt beneath a rain cloud \u2014 electricity from lightning.",seal:"Rain + lightning compound \u96fb.",clerical:"Traditional \u96fb \u2014 13 strokes.",modern:"\u7535 (5 strokes) \u2014 simplified." } },
+    "\u5b66": { oracle:"\u5b78",bronze:"\u5b78",seal:"\u5b78",clerical:"\u5b78",regular:"\u5b78",modern:"\u5b66",
+      notes:{ oracle:"Hands teaching a child in a building \u2014 to learn.",bronze:"Teacher + child + roof compound.",seal:"Stylised teaching scene \u5b78.",clerical:"Traditional \u5b78 \u2014 16 strokes.",modern:"\u5b66 (8 strokes) \u2014 simplified." } },
+    "\u4e70": { oracle:"\u8cb7",bronze:"\u8cb7",seal:"\u8cb7",clerical:"\u8cb7",regular:"\u8cb7",modern:"\u4e70",
+      notes:{ oracle:"\u8ca1 (goods) + net \u2014 catch goods in trade.",seal:"Net catching goods \u8cb7.",clerical:"Traditional \u8cb7 \u2014 12 strokes.",modern:"\u4e70 (6 strokes) \u2014 simplified." } },
+    "\u5356": { oracle:"\u8ce3",bronze:"\u8ce3",seal:"\u8ce3",clerical:"\u8ce3",regular:"\u8ce3",modern:"\u5356",
+      notes:{ oracle:"\u58eb (person) + \u8cb7 (buy) \u2014 the other side of trade.",seal:"Seller compound \u8ce3.",clerical:"Traditional \u8ce3 \u2014 15 strokes.",modern:"\u5356 (8 strokes) \u2014 simplified." } },
+    "\u793e": { oracle:"\u793e",bronze:"\u793e",seal:"\u793e",clerical:"\u793e",regular:"\u793e",modern:"\u793e",
+      notes:{ oracle:"\u793a (spirit/altar) + \u571f (earth) \u2014 earth altar/society.",seal:"Altar + earth compound.",modern:"Unchanged across scripts." } },
+    "\u4e07": { oracle:"\u842c",bronze:"\u842c",seal:"\u842c",clerical:"\u842c",regular:"\u842c",modern:"\u4e07",
+      notes:{ oracle:"A scorpion \u2014 originally meant scorpion, borrowed for 10,000.",bronze:"Scorpion body and claws visible.",seal:"Stylised \u842c.",clerical:"Traditional \u842c \u2014 3 strokes (same count).",modern:"\u4e07 \u2014 simplified cursive-derived form." } },
+    "\u4e3a": { oracle:"\u70ba",bronze:"\u70ba",seal:"\u70ba",clerical:"\u70ba",regular:"\u70ba",modern:"\u4e3a",
+      notes:{ oracle:"A hand leading an elephant \u2014 to do/make.",bronze:"Person + elephant compound.",seal:"Stylised \u70ba.",clerical:"Traditional \u70ba \u2014 9 strokes.",modern:"\u4e3a (4 strokes) \u2014 simplified." } },
+    "\u4e0e": { oracle:"\u8207",bronze:"\u8207",seal:"\u8207",clerical:"\u8207",regular:"\u8207",modern:"\u4e0e",
+      notes:{ oracle:"Two hands extending together \u2014 to give/and.",seal:"Hands-together compound \u8207.",clerical:"Traditional \u8207 \u2014 13 strokes.",modern:"\u4e0e (3 strokes) \u2014 simplified." } },
+    "\u4e1a": { oracle:"\u696d",bronze:"\u696d",seal:"\u696d",clerical:"\u696d",regular:"\u696d",modern:"\u4e1a",
+      notes:{ oracle:"A musical instrument frame \u2014 craft and profession.",seal:"Stylised craft/work symbol \u696d.",clerical:"Traditional \u696d \u2014 13 strokes.",modern:"\u4e1a (5 strokes) \u2014 simplified." } },
+    "\u4e2a": { oracle:"\u500b",bronze:"\u500b",seal:"\u500b",clerical:"\u500b",regular:"\u500b",modern:"\u4e2a",
+      notes:{ oracle:"Classifier for individual things.",clerical:"Traditional \u500b \u2014 10 strokes.",modern:"\u4e2a (3 strokes) \u2014 simplified." } },
+    "\u51fa": { oracle:"\u51fa",bronze:"\u51fa",seal:"\u51fa",clerical:"\u51fa",regular:"\u51fa",modern:"\u51fa",
+      notes:{ oracle:"A foot stepping out of an enclosure \u2014 to exit.",seal:"Foot + enclosure compound.",modern:"Unchanged across scripts." } },
+    "\u8fdb": { oracle:"\u9032",bronze:"\u9032",seal:"\u9032",clerical:"\u9032",regular:"\u9032",modern:"\u8fdb",
+      notes:{ oracle:"A bird (\u96bc) moving into a space \u2014 to advance.",seal:"Bird + movement compound \u9032.",clerical:"Traditional \u9032 \u2014 11 strokes.",modern:"\u8fdb (7 strokes) \u2014 simplified." } },
+    "\u8fd0": { oracle:"\u904b",bronze:"\u904b",seal:"\u904b",clerical:"\u904b",regular:"\u904b",modern:"\u8fd0",
+      notes:{ oracle:"A cart (\u8eca) moving along a road \u2014 transport.",seal:"Road + cart compound \u904b.",clerical:"Traditional \u904b \u2014 12 strokes.",modern:"\u8fd0 (7 strokes) \u2014 simplified." } },
+    "\u5173": { oracle:"\u95dc",bronze:"\u95dc",seal:"\u95dc",clerical:"\u95dc",regular:"\u95dc",modern:"\u5173",
+      notes:{ oracle:"Two hands sealing a door \u2014 to close/concern.",seal:"Door-sealing compound \u95dc.",clerical:"Traditional \u95dc \u2014 18 strokes!",modern:"\u5173 (6 strokes) \u2014 simplified." } },
+    "\u5c31": { oracle:"\u5c31",bronze:"\u5c31",seal:"\u5c31",clerical:"\u5c31",regular:"\u5c31",modern:"\u5c31",
+      notes:{ oracle:"A person near a high structure \u2014 to approach/accomplish.",modern:"Unchanged across scripts." } },
+    "\u8c03": { oracle:"\u8abf",bronze:"\u8abf",seal:"\u8abf",clerical:"\u8abf",regular:"\u8abf",modern:"\u8c03",
+      notes:{ oracle:"\u8a00 (speech) + \u5468 (all around) \u2014 to coordinate/tune.",clerical:"Traditional \u8abf \u2014 15 strokes.",modern:"\u8c03 (10 strokes) \u2014 simplified." } },
+    "\u60c5": { oracle:"\u60c5",bronze:"\u60c5",seal:"\u60c5",clerical:"\u60c5",regular:"\u60c5",modern:"\u60c5",
+      notes:{ oracle:"\u5fc3 (heart) + \u9752 (blue/pure) \u2014 feelings from the heart.",modern:"Unchanged across scripts." } },
+    "\u5bf9": { oracle:"\u5c0d",bronze:"\u5c0d",seal:"\u5c0d",clerical:"\u5c0d",regular:"\u5c0d",modern:"\u5bf9",
+      notes:{ oracle:"Two hands meeting \u2014 facing/correct.",seal:"Hands-meeting compound \u5c0d.",clerical:"Traditional \u5c0d \u2014 14 strokes.",modern:"\u5bf9 (5 strokes) \u2014 simplified." } },
+    "\u5f53": { oracle:"\u7576",bronze:"\u7576",seal:"\u7576",clerical:"\u7576",regular:"\u7576",modern:"\u5f53",
+      notes:{ oracle:"Granary (\u7530) + opposing forces \u2014 to serve/be.",clerical:"Traditional \u7576 \u2014 13 strokes.",modern:"\u5f53 (6 strokes) \u2014 simplified." } },
+    "\u70ed": { oracle:"\u71b1",bronze:"\u71b1",seal:"\u71b1",clerical:"\u71b1",regular:"\u71b1",modern:"\u70ed",
+      notes:{ oracle:"Fire (\u706b) heating something \u2014 hot.",seal:"Fire compound \u71b1.",clerical:"Traditional \u71b1 \u2014 15 strokes.",modern:"\u70ed (10 strokes) \u2014 simplified." } },
+    "\u5b9e": { oracle:"\u5be6",bronze:"\u5be6",seal:"\u5be6",clerical:"\u5be6",regular:"\u5be6",modern:"\u5b9e",
+      notes:{ oracle:"Roof (\u5b80) + goods (\u8ca1) \u2014 filled storehouse = real.",seal:"Storehouse of goods \u5be6.",clerical:"Traditional \u5be6 \u2014 14 strokes.",modern:"\u5b9e (8 strokes) \u2014 simplified." } },
+    "\u58f0": { oracle:"\u8072",bronze:"\u8072",seal:"\u8072",clerical:"\u8072",regular:"\u8072",modern:"\u58f0",
+      notes:{ oracle:"\u8033 (ear) + instrument \u2014 sound heard.",seal:"Sound + ear compound \u8072.",clerical:"Traditional \u8072 \u2014 17 strokes.",modern:"\u58f0 (7 strokes) \u2014 simplified." } },
+    "\u8ba4": { oracle:"\u8a8d",bronze:"\u8a8d",seal:"\u8a8d",clerical:"\u8a8d",regular:"\u8a8d",modern:"\u8ba4",
+      notes:{ oracle:"\u8a00 (speech) + \u5fcd (endure) \u2014 to acknowledge.",clerical:"Traditional \u8a8d \u2014 14 strokes.",modern:"\u8ba4 (5 strokes) \u2014 simplified." } },
+    "\u9009": { oracle:"\u9078",bronze:"\u9078",seal:"\u9078",clerical:"\u9078",regular:"\u9078",modern:"\u9009",
+      notes:{ oracle:"\u5df1 (self) + \u8fba (movement/road) \u2014 choose your path.",clerical:"Traditional \u9078 \u2014 15 strokes.",modern:"\u9009 (9 strokes) \u2014 simplified." } },
+  };
+
+  // Simplified \u2192 Traditional quick-lookup for characters not in full EVO_DATA.
+  // Provides the single most important historical difference: pre-reform form.
+  const SIMPLIFIED_TO_TRADITIONAL = {
+    "\u4e86":"\u4e86","\u4e0d":"\u4e0d","\u4e5f":"\u4e5f","\u548c":"\u548c","\u6709":"\u6709","\u6ca1":"\u6c92",
+    "\u8fd9":"\u9019","\u90a3":"\u90a3","\u4ec0":"\u4ec0","\u4e48":"\u9ebc","\u5403":"\u5403","\u559d":"\u559d",
+    "\u770b":"\u770b","\u53bb":"\u53bb","\u60f3":"\u60f3","\u4f1a":"\u6703","\u80fd":"\u80fd","\u8981":"\u8981",
+    "\u53ef":"\u53ef","\u4ee5":"\u4ee5","\u5e74":"\u5e74","\u53f7":"\u865f","\u4eca":"\u4eca","\u660e":"\u660e",
+    "\u6628":"\u6628","\u5929":"\u5929","\u661f":"\u661f","\u671f":"\u671f","\u4e0a":"\u4e0a","\u4e0b":"\u4e0b",
+    "\u5de6":"\u5de6","\u53f3":"\u53f3","\u524d":"\u524d","\u540e":"\u5f8c","\u91cc":"\u88e1","\u5916":"\u5916",
+    "\u591a":"\u591a","\u5c11":"\u5c11","\u597d":"\u597d","\u574f":"\u58de","\u51b7":"\u51b7","\u9ad8":"\u9ad8",
+    "\u4f4e":"\u4f4e","\u8fdc":"\u9060","\u8fd1":"\u8fd1","\u5feb":"\u5feb","\u6162":"\u6162","\u65e9":"\u65e9",
+    "\u665a":"\u665a","\u65b0":"\u65b0","\u65e7":"\u820a","\u5c0f":"\u5c0f","\u5730":"\u5730","\u5bb6":"\u5bb6",
+    "\u623f":"\u623f","\u8def":"\u8def","\u5e97":"\u5e97","\u996d":"\u98ef","\u7236":"\u7236","\u6bcd":"\u6bcd",
+    "\u5144":"\u5144","\u5f1f":"\u5f1f","\u59d0":"\u59d0","\u59b9":"\u59b9","\u513f":"\u5152","\u8001":"\u8001",
+    "\u5e08":"\u5e2b","\u670b":"\u670b","\u53cb":"\u53cb","\u4f60":"\u4f60","\u6211":"\u6211","\u4ed6":"\u4ed6",
+    "\u5979":"\u5979","\u5b83":"\u5b83","\u4eec":"\u5011","\u5728":"\u5728","\u4e0a":"\u4e0a","\u4e2a":"\u500b",
+    "\u751f":"\u751f","\u697c":"\u6a13","\u5c71":"\u5c71","\u5317":"\u5317","\u5357":"\u5357","\u897f":"\u897f",
+    "\u5927":"\u5927","\u9053":"\u9053","\u673a":"\u6a5f","\u9898":"\u984c","\u603b":"\u7e3d","\u7b2c":"\u7b2c",
+    "\u671f":"\u671f","\u5e02":"\u5e02","\u4ea4":"\u4ea4","\u901a":"\u901a","\u516c":"\u516c","\u5171":"\u5171",
+    "\u52a8":"\u52d5","\u73af":"\u74b0","\u5883":"\u5883","\u8ba1":"\u8a08","\u5212":"\u5283","\u5206":"\u5206",
+    "\u6cbb":"\u6cbb","\u7406":"\u7406","\u4ee3":"\u4ee3","\u8868":"\u8868","\u8003":"\u8003","\u8bc6":"\u8b58",
+    "\u5ea6":"\u5ea6","\u80dc":"\u52dd","\u4efb":"\u4efb","\u52a1":"\u52d9","\u5e9f":"\u5ee2","\u5c55":"\u5c55",
+    "\u5185":"\u5167","\u5916":"\u5916","\u5f39":"\u5f48","\u5355":"\u55ae","\u5171":"\u5171","\u56e2":"\u5718",
+    "\u5708":"\u5708","\u753b":"\u756b","\u5199":"\u5beb","\u62a5":"\u5831","\u7f51":"\u7db2","\u7ebf":"\u7dda",
+    "\u8fb9":"\u908a","\u53d1":"\u9aee","\u4e30":"\u8c50","\u4ea7":"\u7522","\u4ece":"\u5f9e","\u5c42":"\u5c64",
+    "\u8ba8":"\u8a0e","\u8bae":"\u8b70","\u8bba":"\u8ad6","\u8bc4":"\u8a55","\u8bfe":"\u8ab2","\u8bcd":"\u8a5e",
+    "\u8bef":"\u8aa4","\u8c01":"\u8ab0","\u8ba9":"\u8b93","\u8bed":"\u8a9e","\u8bf4":"\u8aaa","\u8bfb":"\u8b80",
+    "\u8d26":"\u8cec","\u8d27":"\u8ca8","\u8d39":"\u8cbb","\u8d70":"\u8d70","\u8d77":"\u8d77","\u8d34":"\u8cbc",
+    "\u5c40":"\u5c40","\u5c71":"\u5c71","\u573a":"\u5834","\u5899":"\u7246","\u5929":"\u5929","\u5730":"\u5730",
+  };
+
+  // Get the traditional (or best historical) form for a character.
+  // Returns the traditional char if different, otherwise null.
+  function getTraditionalForm(char) {
+    const trad = SIMPLIFIED_TO_TRADITIONAL[char];
+    return (trad && trad !== char) ? trad : null;
+  }
+
+  // Build all 6 stage objects for a character.
+  // For curated chars: use EVO_DATA.
+  // For others: derive what we can from the traditional form + mark unknowns.
+  function getEvoStages(char) {
+    const d = EVO_DATA[char];
+    if (d) {
+      return EVO_STAGES_META.map(s => ({
+        key: s.key, name: s.name, era: s.era,
+        glyph: d[s.key] || char,
+        note: (d.notes && d.notes[s.key]) || '',
+        placeholder: false
+      }));
+    }
+    // Derived fallback: use traditional form for regular/clerical, modern for rest
+    const trad = getTraditionalForm(char);
+    return EVO_STAGES_META.map(s => {
+      const isHistorical = s.key === 'regular' || s.key === 'clerical';
+      const glyph = (isHistorical && trad) ? trad : char;
+      const hasDiff = isHistorical && trad && trad !== char;
+      return {
+        key: s.key, name: s.name, era: s.era,
+        glyph,
+        note: hasDiff
+          ? `Traditional form ${trad} \u2014 used before the 1956 script simplification reform.`
+          : (s.key === 'modern' ? '' : 'Historical glyph not yet catalogued for this character.'),
+        placeholder: !hasDiff && s.key !== 'modern'
+      };
+    });
+  }
+
+  // ---- Evolution state ----
+  let evoFilters = { query: '', level: 'all' };
+  let evoPage = 0;
+  const EVO_PAGE_SIZE = 40;
+  let evoData = [];
+  let evoCurrentChar = null;
+
+  function buildEvoData() {
+    evoData = HANZI_DATA.filter(item => {
+      const lvNum = Number(item.h || item.l || 0);
+      if (evoFilters.level !== 'all' && String(lvNum) !== evoFilters.level) return false;
+      if (evoFilters.query) {
+        const q = evoFilters.query.toLowerCase();
+        if (!item.c.includes(q) && !(item.p || '').toLowerCase().includes(q) && !(item.m || '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderEvolutionTab() {
+    buildEvoData();
+    const grid = el('evolution-grid');
+    if (!grid) return;
+    const count = el('evolution-count');
+    if (count) count.textContent = evoData.length.toLocaleString() + ' characters';
+    const totalPages = Math.max(1, Math.ceil(evoData.length / EVO_PAGE_SIZE));
+    if (evoPage >= totalPages) evoPage = 0;
+    const pageItems = evoData.slice(evoPage * EVO_PAGE_SIZE, (evoPage + 1) * EVO_PAGE_SIZE);
+
+    grid.innerHTML = pageItems.map(item => {
+      const stages = getEvoStages(item.c);
+      const ribbonHtml = stages.map(s =>
+        `<div class="evo-ribbon-stage${s.placeholder ? ' placeholder' : ''}" title="${escHtml(s.name)}">`+
+        `<span class="evo-ribbon-glyph">${escHtml(s.glyph)}</span>`+
+        `<span class="evo-ribbon-label">${escHtml(s.name.split(' ')[0])}</span>`+
+        `</div>`
+      ).join('');
+      const hskLabel = item.h && Number(item.h) > 0 ? (Number(item.h) <= 6 ? 'HSK ' + item.h : 'HSK 7-9') : 'Beyond';
+      const meaning = formatDefinition(item.m || '');
+      return `<div class="evolution-card" data-evo-char="${escHtml(item.c)}" tabindex="0" role="button" aria-label="Explore evolution of ${escHtml(item.c)}">` +
+        `<div class="evolution-card-top">` +
+        `<span class="evolution-card-hanzi">${escHtml(item.c)}</span>` +
+        `<div class="evolution-card-meta">` +
+        `<span class="evolution-card-pinyin">${escHtml(item.p || '')}</span>` +
+        `<span class="evolution-card-hsk">${hskLabel}</span>` +
+        `</div></div>` +
+        `<div class="evolution-card-meaning">${escHtml(meaning.slice(0, 48))}</div>` +
+        `<div class="evolution-card-ribbon">${ribbonHtml}</div>` +
+        `</div>`;
+    }).join('');
+
+    // Pager
+    const ind = el('evolution-page-indicator');
+    if (ind) ind.textContent = (evoPage + 1) + ' / ' + totalPages;
+    if (el('evolution-prev-page')) el('evolution-prev-page').disabled = evoPage === 0;
+    if (el('evolution-next-page')) el('evolution-next-page').disabled = evoPage >= totalPages - 1;
+
+    // Card click
+    grid.querySelectorAll('.evolution-card').forEach(card => {
+      card.addEventListener('click', () => openEvolutionDetail(card.dataset.evoChar));
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEvolutionDetail(card.dataset.evoChar); } });
+    });
+  }
+
+  function openEvolutionDetail(char) {
+    evoCurrentChar = char;
+    const item = HANZI_BY_CHAR[char];
+    if (!item) return;
+
+    // Switch views
+    el('evolution-grid-view').classList.add('hidden');
+    el('evolution-detail-view').classList.remove('hidden');
+    el('evolution-detail-view').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Hero
+    el('evo-detail-char').textContent = char;
+    el('evo-detail-pinyin').textContent = item.p || '—';
+    el('evo-detail-meaning').textContent = formatDefinition(item.m || 'No recorded meaning.');
+    const hskLabel = item.h && Number(item.h) > 0 ? (Number(item.h) <= 6 ? 'HSK ' + item.h : 'HSK 7–9') : 'Beyond HSK';
+    el('evo-detail-level').textContent = hskLabel;
+    el('evo-detail-freq').textContent = item.f && item.f < 99999 ? 'Frequency #' + Number(item.f).toLocaleString() : '';
+
+    // Open drawer button
+    const drawerBtn = el('evo-open-drawer');
+    if (drawerBtn) {
+      drawerBtn.onclick = () => openDetail(char);
+    }
+
+    // Timeline
+    const stages = getEvoStages(char);
+    renderEvoTimeline(stages, char);
+
+    // Spotlight: activate first stage
+    if (stages.length > 0) activateEvoStage(stages[0], char);
+
+    // Components
+    renderEvoComponents(char, item);
+
+    // Etymology (async fetch)
+    fetchWiktionaryEtymology(char);
+
+    // Source links
+    renderEvoSources(char);
+  }
+
+  function renderEvoTimeline(stages, char) {
+    const timeline = el('evo-timeline');
+    if (!timeline) return;
+    timeline.innerHTML = stages.map((stage, idx) => {
+      return `<div class="evo-stage" data-stage-idx="${idx}">` +
+        `<div class="evo-stage-chip${idx === 0 ? ' active' : ''}${stage.placeholder ? ' placeholder' : ''}" tabindex="0" role="button" aria-label="${escHtml(stage.name)} form">` +
+        `<span class="evo-stage-glyph">${escHtml(stage.glyph)}</span>` +
+        `<span class="evo-stage-name">${escHtml(stage.name)}</span>` +
+        `<span class="evo-stage-era">${escHtml(stage.era.split(' ').slice(1).join(' '))}</span>` +
+        `</div></div>`;
+    }).join('');
+
+    // Wire clicks
+    timeline.querySelectorAll('.evo-stage-chip').forEach((chip, idx) => {
+      const stage = stages[idx];
+      chip.addEventListener('click', () => {
+        timeline.querySelectorAll('.evo-stage-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activateEvoStage(stage, char);
+      });
+      chip.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); }
+      });
+    });
+  }
+
+  function activateEvoStage(stage, char) {
+    const glyphEl = el('evo-spotlight-glyph');
+    const eraEl = el('evo-spotlight-era');
+    const periodEl = el('evo-spotlight-period');
+    const noteEl = el('evo-spotlight-note');
+    if (!glyphEl) return;
+
+    // Animate glyph change
+    glyphEl.style.opacity = '0';
+    glyphEl.style.transform = 'scale(0.8)';
+    setTimeout(() => {
+      glyphEl.textContent = stage.glyph;
+      glyphEl.style.opacity = '1';
+      glyphEl.style.transform = 'scale(1)';
+    }, 150);
+    glyphEl.style.transition = 'opacity .15s ease, transform .15s ease';
+
+    if (eraEl) eraEl.textContent = stage.name;
+    if (periodEl) periodEl.textContent = stage.era;
+    if (noteEl) {
+      const item = HANZI_BY_CHAR[char];
+      const defaultNote = `The ${stage.name} form of ${char} (${item ? (item.p || '') : ''}).`;
+      noteEl.textContent = stage.note || defaultNote;
+    }
+  }
+
+  function renderEvoComponents(char, item) {
+    const comp = el('evo-components');
+    if (!comp) return;
+    // Extract character components from the radical and the character itself
+    const components = [];
+    // Add radical if found
+    const radicals = (typeof RADICAL_DATA !== 'undefined' ? RADICAL_DATA : []);
+    const matchedRadical = radicals.find(r => r.base === char || r.char === char || (Array.from(char).length === 1 && r.examples && r.examples.includes(char)));
+    if (matchedRadical) {
+      components.push({ hanzi: matchedRadical.char || matchedRadical.base || char, label: 'Radical', meaning: matchedRadical.meaning || matchedRadical.name || '' });
+    }
+    // Add individual character strokes as sub-characters if multi-character
+    if (char.length > 1) {
+      Array.from(char).forEach(c => {
+        const sub = HANZI_BY_CHAR[c];
+        if (sub) components.push({ hanzi: c, label: 'Component', meaning: formatDefinition(sub.m || '') });
+      });
+    } else {
+      // For single chars, try to find characters whose radical matches this character
+      const entry = item;
+      // Show examples that use this char as a component
+      const examples = (entry.e || []).slice(0, 3).map(w => {
+        const first = HANZI_BY_CHAR[w[0]];
+        return { hanzi: w, label: 'Used in', meaning: first ? formatDefinition(first.m || '') : '' };
+      });
+      examples.forEach(ex => components.push(ex));
+    }
+
+    if (components.length === 0) {
+      comp.innerHTML = '<span style="color:var(--ink-soft);font-size:.9rem;">No component data available for this character.</span>';
+      return;
+    }
+
+    comp.innerHTML = components.map(c =>
+      `<button type="button" class="evo-component-chip" data-comp-char="${escHtml(c.hanzi)}">`+
+      `<span class="evo-component-hanzi">${escHtml(c.hanzi)}</span>`+
+      `<span class="evo-component-info">`+
+      `<span class="evo-component-label">${escHtml(c.label)}</span>`+
+      `<span class="evo-component-meaning">${escHtml((c.meaning || '').slice(0, 30))}</span>`+
+      `</span></button>`
+    ).join('');
+
+    comp.querySelectorAll('.evo-component-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = btn.dataset.compChar;
+        if (c && HANZI_BY_CHAR[c]) openDetail(c);
+      });
+    });
+  }
+
+  function renderEvoSources(char) {
+    const src = el('evo-sources');
+    if (!src) return;
+    const enc = encodeURIComponent(char);
+    src.innerHTML = [
+      { name: 'Wiktionary', desc: 'Full etymology, cognates, and historical usage notes', url: `https://en.wiktionary.org/wiki/${enc}#Chinese`, action: 'Open ↗' },
+      { name: 'CHISE', desc: 'Ideographic description sequences (IDS) and component analysis', url: `http://www.chise.org/est/view/character/${enc}`, action: 'Open ↗' },
+      { name: '小學堂', desc: 'Academia Sinica — oracle bone, bronze, and seal script images', url: `https://xiaoxue.iis.sinica.edu.tw/yanbian?kaiOrder=${enc}`, action: 'Open ↗' },
+      { name: 'YellowBridge', desc: 'Etymology, stroke order, and related characters', url: `https://www.yellowbridge.com/chinese/character-etymology.php?zi=${enc}`, action: 'Open ↗' },
+    ].map(s =>
+      `<a class="evo-source-card" href="${s.url}" target="_blank" rel="noopener">`+
+      `<span class="evo-source-name">${escHtml(s.name)}</span>`+
+      `<span class="evo-source-desc">${escHtml(s.desc)}</span>`+
+      `<span class="evo-source-action">${s.action}</span>`+
+      `</a>`
+    ).join('');
+  }
+
+  async function fetchWiktionaryEtymology(char) {
+    const story = el('evo-story');
+    if (!story) return;
+    story.innerHTML = '<div class="evo-story-loading">Loading etymology…</div>';
+    try {
+      const enc = encodeURIComponent(char);
+      const url = `https://en.wiktionary.org/api/rest_v1/page/summary/${enc}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!res.ok) throw new Error('Not found');
+      const data = await res.json();
+      const extract = data.extract || '';
+      if (extract && extract.length > 20) {
+        story.innerHTML =
+          `<p>${escHtml(extract)}</p>`+
+          `<blockquote>Source: Wiktionary · <a href="https://en.wiktionary.org/wiki/${enc}#Chinese" target="_blank" rel="noopener" style="color:var(--gold-dark);">Open full entry ↗</a></blockquote>`;
+      } else {
+        throw new Error('No extract');
+      }
+    } catch {
+      // Fallback: construct a minimal story from our own data
+      const item = HANZI_BY_CHAR[evoCurrentChar || char];
+      const m = item ? formatDefinition(item.m || '') : '';
+      const fallbackText = m
+        ? `<p>The character <strong>${escHtml(char)}</strong> means <em>${escHtml(m)}</em>. `+
+          `Its evolution can be traced through the script stages shown above, from ancient pictographic or ideographic forms to the modern standardised character used in contemporary Chinese.</p>`+
+          `<blockquote>For a full etymology, open the <a href="https://en.wiktionary.org/wiki/${encodeURIComponent(char)}#Chinese" target="_blank" rel="noopener" style="color:var(--gold-dark);">Wiktionary entry ↗</a></blockquote>`
+        : `<p>Etymology data not available offline. Open the source links below for detailed etymology information.</p>`;
+      story.innerHTML = fallbackText;
+    }
+  }
+
+  function initEvolution() {
+    // Search
+    const search = el('evolution-search');
+    if (search) {
+      let debounce = null;
+      search.addEventListener('input', () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          evoFilters.query = search.value.trim();
+          evoPage = 0;
+          renderEvolutionTab();
+        }, 220);
+      });
+    }
+
+    // Level chips
+    const levelChips = el('evolution-level-chips');
+    if (levelChips) {
+      levelChips.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          levelChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          evoFilters.level = chip.dataset.evoLevel || 'all';
+          evoPage = 0;
+          renderEvolutionTab();
+        });
+      });
+    }
+
+    // Pager
+    const prev = el('evolution-prev-page');
+    const next = el('evolution-next-page');
+    if (prev) prev.addEventListener('click', () => { if (evoPage > 0) { evoPage--; renderEvolutionTab(); el('evolution-grid').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+    if (next) next.addEventListener('click', () => { evoPage++; renderEvolutionTab(); el('evolution-grid').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+
+    // Back button
+    const backBtn = el('evolution-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        el('evolution-detail-view').classList.add('hidden');
+        el('evolution-grid-view').classList.remove('hidden');
+        evoCurrentChar = null;
+      });
+    }
+  }
+  /* ============================================================
+   END EVOLUTION MODULE
+   ============================================================ */
 
   init();
 })();
