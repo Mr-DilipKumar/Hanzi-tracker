@@ -511,14 +511,33 @@
 
         <div class="sentence-toolbar">
           <input id="sentence-search" type="text" placeholder="Search Chinese or English sentences…" aria-label="Search sentences">
+          <button type="button" class="sentence-voice-btn" id="sentence-voice-btn" title="Voice search">🎙️</button>
+          <button type="button" id="sentence-shuffle" class="sentence-export-btn" title="Shuffle results">🔀 Shuffle</button>
+          <button type="button" id="sentence-export-csv" class="sentence-export-btn" title="Export filtered sentences to CSV">⬇️ CSV</button>
           <span class="results-meta" id="sentence-count"></span>
+        </div>
+
+        <!-- Bulk selection bar (Feature 2) -->
+        <div class="sentence-selection-bar" id="sentence-selection-bar">
+          <span class="sentence-selection-label">Select</span>
+          <div class="sentence-selection-modes">
+            <button type="button" data-sentence-sel="off" class="active">View</button>
+            <button type="button" data-sentence-sel="single">Single</button>
+            <button type="button" data-sentence-sel="multi">Multi</button>
+          </div>
+          <span class="sentence-selection-count" id="sentence-sel-count">0 selected</span>
+          <div class="sentence-selection-actions">
+            <button type="button" class="sentence-selection-action learning" id="sentence-bulk-learning">📚 Learning</button>
+            <button type="button" class="sentence-selection-action mastered" id="sentence-bulk-mastered">✔ Mastered</button>
+            <button type="button" class="sentence-selection-action" id="sentence-bulk-clear">Clear</button>
+          </div>
         </div>
 
         <div class="sentence-filter-row">
           <div class="sentence-filter-wrap"><span class="sentence-filter-label">HSK Level</span><select id="sentence-hsk-filter" class="sentence-filter"><option value="all">All</option><option value="1">HSK 1</option><option value="2">HSK 2</option><option value="3">HSK 3</option><option value="4">HSK 4</option><option value="5">HSK 5</option><option value="6">HSK 6</option><option value="adv">HSK 7–9+</option></select></div>
           <div class="sentence-filter-wrap"><span class="sentence-filter-label">SRS Stage</span><select id="sentence-srs-filter" class="sentence-filter"><option value="all">All</option><option value="new">New</option><option value="learning">Learning</option><option value="due">Due now</option><option value="known">Mastered</option></select></div>
           <div class="sentence-filter-wrap"><span class="sentence-filter-label">Difficulty</span><select id="sentence-difficulty-filter" class="sentence-filter"><option value="all">All</option><option value="easy">Beginner</option><option value="medium">Intermediate</option><option value="hard">Advanced</option></select></div>
-          <div class="sentence-filter-wrap"><span class="sentence-filter-label">Sort by</span><select id="sentence-sort" class="sentence-filter"><option value="order">Sentence order</option><option value="due">Due first</option><option value="new">Newest first</option><option value="length">Shortest first</option></select></div>
+          <div class="sentence-filter-wrap"><span class="sentence-filter-label">Sort by</span><select id="sentence-sort" class="sentence-filter"><option value="order">Sentence order</option><option value="due">Due first</option><option value="new">Newest first</option><option value="length">Shortest first</option><option value="length-desc">Longest first</option></select></div>
         </div>
         <p class="sentence-focus-note">Tip: click a Chinese character to open its character details. Use 🔊 to hear the sentence.</p>
 
@@ -551,6 +570,26 @@
           <button id="sentence-prev-page" aria-label="Previous sentence page">←</button>
           <span id="sentence-page-indicator">1 / 1</span>
           <button id="sentence-next-page" aria-label="Next sentence page">→</button>
+        </div>
+
+        <!-- Inline quick-study modal (Feature 5) -->
+        <div class="sentence-quick-modal" id="sentence-quick-modal" role="dialog" aria-modal="true" aria-label="Quick study" aria-hidden="true">
+          <div class="sentence-quick-box">
+            <button type="button" class="sentence-quick-close" id="sentence-quick-close" aria-label="Close">×</button>
+            <div class="sentence-quick-zh" id="sentence-quick-zh"></div>
+            <div class="sentence-quick-reveal-row">
+              <button type="button" class="sentence-quick-reveal-btn" id="sentence-quick-show-pinyin">Show Pinyin</button>
+              <button type="button" class="sentence-quick-reveal-btn" id="sentence-quick-show-en">Show English</button>
+            </div>
+            <div class="sentence-quick-pinyin" id="sentence-quick-pinyin" hidden></div>
+            <div class="sentence-quick-en" id="sentence-quick-en" hidden></div>
+            <div style="text-align:center" id="sentence-quick-personal-wrap"></div>
+            <div class="sentence-quick-actions">
+              <button type="button" class="sentence-quick-rate new" data-quick-rate="new">🗑 Again</button>
+              <button type="button" class="sentence-quick-rate learning" data-quick-rate="learning">📚 Learning</button>
+              <button type="button" class="sentence-quick-rate known" data-quick-rate="known">✓ Mastered</button>
+            </div>
+          </div>
         </div>
       </section>
 

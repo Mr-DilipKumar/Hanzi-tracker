@@ -720,8 +720,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let browseShowPinyin = true;
   let browseShowEnglish = false;
   const flippedBrowseChars = new Set();
-  let sentenceShowPinyin = false;
-  let sentenceShowEnglish = false;
+  let sentenceShowPinyin = localStorage.getItem("hanziSentenceShowPinyin") === "1";
+  let sentenceShowEnglish = localStorage.getItem("hanziSentenceShowEnglish") === "1";
+  let sentenceShuffled = false;   // Feature 7: shuffle state
+  let sentenceShuffleOrder = []; // shuffled sentence id order
 
   function tileHTML(item) {
     const status = getStatus(item.c);
@@ -934,6 +936,21 @@ document.addEventListener("DOMContentLoaded", () => {
     return max || 0;
   }
   function sentenceHskLabel(item) { const h = sentenceHskLevel(item); return h <= 6 && h > 0 ? "HSK " + h : "HSK 7–9+"; }
+  // Feature 6: personal difficulty based on % of chars the user already knows
+  function sentencePersonalDifficulty(item) {
+    const chars = Array.from(item.z || "").filter(ch => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(ch) && HANZI_BY_CHAR[ch]);
+    if (!chars.length) return "medium";
+    const knownCount = chars.filter(ch => getStatus(ch) === "known").length;
+    const ratio = knownCount / chars.length;
+    if (ratio >= 0.8) return "easy";
+    if (ratio >= 0.4) return "medium";
+    return "hard";
+  }
+  function sentencePersonalLabel(item) {
+    const d = sentencePersonalDifficulty(item);
+    return d === "easy" ? "Personal: Easy" : d === "medium" ? "Personal: Medium" : "Personal: Hard";
+  }
+
   function sentenceDifficulty(item) {
     const len = Array.from(item.z || "").filter(ch => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(ch)).length;
     const h = sentenceHskLevel(item);
@@ -988,46 +1005,88 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return true;
     });
-    if (sentenceFilters.sort === "due") data.sort((a, b) => (getSentenceEntry(a.i)?.due || Infinity) - (getSentenceEntry(b.i)?.due || Infinity));
+  if (sentenceFilters.sort === "due") data.sort((a, b) => (getSentenceEntry(a.i)?.due || Infinity) - (getSentenceEntry(b.i)?.due || Infinity));
     else if (sentenceFilters.sort === "new") data.sort((a, b) => Number(b.i) - Number(a.i));
     else if (sentenceFilters.sort === "length") data.sort((a, b) => Array.from(a.z).length - Array.from(b.z).length);
+    else if (sentenceFilters.sort === "length-desc") data.sort((a, b) => Array.from(b.z).length - Array.from(a.z).length); // Feature 8: longest first
+    // Feature 7: apply shuffle order
+    if (sentenceShuffled && sentenceFilters.sort === "order") {
+      if (!sentenceShuffleOrder.length) sentenceShuffleOrder = shuffle(data.map(x => x.i));
+      const idxMap = {}; sentenceShuffleOrder.forEach((id, i) => { idxMap[id] = i; });
+      data.sort((a, b) => (idxMap[a.i] ?? 9999) - (idxMap[b.i] ?? 9999));
+    }
     return data;
   }
 
+  // Feature 1: per-char pinyin tooltips via data-pinyin attribute
   function sentenceCharsHTML(zh) {
-    return Array.from(zh).map(ch => HANZI_BY_CHAR[ch]
-      ? '<span class="sentence-char" data-sentence-char="' + escHtml(ch) + '" title="Open ' + escHtml(ch) + ' details">' + escHtml(ch) + '</span>'
-      : escHtml(ch)).join("");
+    return Array.from(zh).map(ch => {
+      const hd = HANZI_BY_CHAR[ch];
+      if (hd) {
+        const py = escHtml(hd.p || "");
+        return '<span class="sentence-char" data-sentence-char="' + escHtml(ch) + '" data-pinyin="' + py + '" title="Open ' + escHtml(ch) + ' details">' + escHtml(ch) + '</span>';
+      }
+      return escHtml(ch);
+    }).join("");
   }
 
   function sentenceCardHTML(item) {
     const status = sentenceStatusLabel(item);
     const statusClass = sentenceStatusClass(item);
-    const statusIcon = statusClass === "known" ? "✓" : statusClass === "learning" ? "📖" : "🆕";
     const due = getSentenceEntry(item.i)?.due;
-    const wordListHTML = Array.from(new Set(Array.from(item.z).filter(ch => HANZI_BY_CHAR[ch]))).map(ch => '<button type="button" class="sentence-word-chip" data-sentence-char="' + escHtml(ch) + '">' + escHtml(ch) + ' ' + escHtml(HANZI_BY_CHAR[ch].p || "") + '</button>').join("");
-    return '<article class="sentence-card status-' + escHtml(statusClass) + '" data-sentence-id="' + escHtml(item.i) + '">' +
-      '<div class="sentence-card-inner">' +
-      '<div class="sentence-card-face front">' +
-      '<div class="sentence-card-top"><div class="sentence-badges">' +
-      '<span class="sentence-badge">' + escHtml(sentenceHskLabel(item)) + '</span>' +
-      '<span class="sentence-badge">' + escHtml(sentenceDifficultyLabel(item)) + '</span>' +
-      '<span class="sentence-badge sentence-badge-status ' + (status === "Due" ? 'due' : '') + '"><span class="sentence-status-icon">' + escHtml(statusIcon) + '</span> ' + escHtml(status) + '</span>' +
-      '</div><button type="button" class="sentence-audio" data-speak-sentence="' + escHtml(item.i) + '" title="Listen">🔊</button></div>' +
-      '<div class="sentence-zh">' + sentenceCharsHTML(item.z) + '</div>' +
-      (sentenceShowPinyin ? '<div class="sentence-pinyin" style="margin-top: 8px;">' + escHtml(sentencePinyin(item)) + '</div>' : '') +
-      (sentenceShowEnglish ? '<div class="sentence-en" style="margin-top: 8px;">' + escHtml(item.t) + '</div>' : '') +
-      '<div class="sentence-meta"><span>' + escHtml(due && status === "Learning" ? "Next review: " + new Date(due).toLocaleDateString() : "Click to reveal") + '</span></div>' +
+    const isDue = status === "Due";
+    const charCount = Array.from(item.z).filter(ch => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(ch)).length;
+    const pd = sentencePersonalDifficulty(item);
+    const pdLabel = sentencePersonalLabel(item);
+
+    // Status badge config — consistent amber/jade/slate/red
+    const dotClass = isDue ? "sc-dot-due" : "sc-dot-" + statusClass;
+    const statusLabel = isDue ? "Due now" : statusClass === "known" ? "Mastered" : statusClass === "learning" ? "Learning" : "New";
+    const dueText = due && status === "Learning" ? "Review " + new Date(due).toLocaleDateString() : "";
+
+    // Global reveal state — respect the Show Pinyin / Show English toggles
+    const pOpen = sentenceShowPinyin ? " open" : "";
+    const eOpen = sentenceShowEnglish ? " open" : "";
+
+    return '<article class="sentence-card sc-card status-' + escHtml(statusClass) + (isDue ? " status-due" : "") + '" data-sentence-id="' + escHtml(item.i) + '">' +
+      '<div class="sc-strip"></div>' +
+      '<div class="sc-body">' +
+
+      // ── Top bar ──────────────────────────────────────────
+      '<div class="sc-top">' +
+      '<div class="sc-badges">' +
+      '<span class="sc-hsk-badge">' + escHtml(sentenceHskLabel(item)) + '</span>' +
+      '<span class="sc-diff-badge">' + escHtml(sentenceDifficultyLabel(item)) + '</span>' +
+      '<span class="sc-status-badge ' + escHtml(dotClass) + '">' + escHtml(statusLabel) + '</span>' +
       '</div>' +
-      '<div class="sentence-card-face back">' +
-      '<div class="sentence-hidden-detail open" data-pinyin-panel="' + escHtml(item.i) + '"><div class="sentence-pinyin">' + escHtml(sentencePinyin(item)) + '</div></div>' +
-      '<div class="sentence-hidden-detail open" data-english-panel="' + escHtml(item.i) + '"><div class="sentence-en">' + escHtml(item.t) + '</div></div>' +
-      '<div class="sentence-word-list" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">' + wordListHTML + '</div>' +
-      '<div class="sentence-meta" style="margin-top: auto;">' +
-      '<div class="sentence-meta-actions"><button type="button" class="sentence-review-btn" data-review-sentence="' + escHtml(item.i) + '">Study</button></div>' +
+      '<button type="button" class="sc-audio" data-speak-sentence="' + escHtml(item.i) + '" title="Listen">🔊</button>' +
+      '</div>' +
+
+      // ── Chinese hero text ─────────────────────────────────
+      '<div class="sc-zh">' + sentenceCharsHTML(item.z) + '</div>' +
+
+      // ── Reveal buttons ────────────────────────────────────
+      '<div class="sc-reveal-row">' +
+      '<button type="button" class="sc-reveal-btn sc-reveal-pinyin' + pOpen + '" data-reveal-panel="sc-pinyin-' + escHtml(item.i) + '">拼 Pinyin</button>' +
+      '<button type="button" class="sc-reveal-btn sc-reveal-en' + eOpen + '" data-reveal-panel="sc-en-' + escHtml(item.i) + '">A English</button>' +
+      '</div>' +
+
+      // ── Collapsible panels ────────────────────────────────
+      '<div class="sc-pinyin-panel' + pOpen + '" id="sc-pinyin-' + escHtml(item.i) + '">' + escHtml(sentencePinyin(item)) + '</div>' +
+      '<div class="sc-en-panel' + eOpen + '" id="sc-en-' + escHtml(item.i) + '">' + escHtml(item.t) + '</div>' +
+
+      // ── Footer ────────────────────────────────────────────
+      '<div class="sc-footer">' +
+      '<span class="sc-chars-badge">' + charCount + ' chars</span>' +
+      (dueText ? '<span class="sc-due-text">' + escHtml(dueText) + '</span>' : '') +
+      '<span class="sc-pd-badge ' + escHtml(pd) + '">' + escHtml(pdLabel) + '</span>' +
+      '<div class="sc-actions">' +
+      '<button type="button" class="sc-quick-btn" data-quick-study-sentence="' + escHtml(item.i) + '" title="Quick study">⚡</button>' +
+      '<button type="button" class="sc-study-btn" data-review-sentence="' + escHtml(item.i) + '">Study →</button>' +
       '</div>' +
       '</div>' +
-      '</div>' +
+
+      '</div>' + // .sc-body
       '</article>';
   }
 
@@ -2436,6 +2495,31 @@ document.addEventListener("DOMContentLoaded", () => {
     setReviewModeUI();
   }
 
+  // ---- Quick-study modal logic (Feature 5) ----
+  let quickStudyCurrentId = null;
+  function openQuickStudy(id) {
+    const item = SENTENCE_DATA.find(x => String(x.i) === String(id)); if (!item) return;
+    quickStudyCurrentId = id;
+    el("sentence-quick-zh").textContent = item.z;
+    el("sentence-quick-pinyin").textContent = sentencePinyin(item);
+    el("sentence-quick-pinyin").hidden = true;
+    el("sentence-quick-en").textContent = item.t;
+    el("sentence-quick-en").hidden = true;
+    el("sentence-quick-show-pinyin").textContent = "Show Pinyin";
+    el("sentence-quick-show-en").textContent = "Show English";
+    const pd = sentencePersonalDifficulty(item);
+    el("sentence-quick-personal-wrap").innerHTML = '<span class="sentence-quick-personal-badge ' + pd + '">' + escHtml(sentencePersonalLabel(item)) + '</span>';
+    el("sentence-quick-modal").classList.add("open");
+    el("sentence-quick-modal").setAttribute("aria-hidden", "false");
+  }
+  function closeQuickStudy() { el("sentence-quick-modal").classList.remove("open"); el("sentence-quick-modal").setAttribute("aria-hidden", "true"); quickStudyCurrentId = null; }
+
+  // ---- Bulk selection (Feature 2) ----
+  let sentenceSelMode = "off";
+  const selectedSentences = new Set();
+  function updateSentenceSelCount() { el("sentence-sel-count").textContent = selectedSentences.size + " selected"; }
+  function clearSentenceSelection() { selectedSentences.clear(); document.querySelectorAll(".sentence-card.sentence-selected").forEach(c => c.classList.remove("sentence-selected")); updateSentenceSelCount(); }
+
   function wireSentences() {
     let timeout;
     el("sentence-search").addEventListener("input", e => { clearTimeout(timeout); sentencePage = 0; timeout = setTimeout(() => { sentenceFilters.query = e.target.value; renderSentences(); }, 120); });
@@ -2444,8 +2528,109 @@ document.addEventListener("DOMContentLoaded", () => {
     el("sentence-next-page").addEventListener("click", () => { sentencePage++; renderSentences(); });
     const sentencePinyinBtn = el("sentence-show-pinyin");
     const sentenceEnglishBtn = el("sentence-show-english");
-    sentencePinyinBtn?.addEventListener("click", () => { sentenceShowPinyin = !sentenceShowPinyin; sentencePinyinBtn.classList.toggle("active", sentenceShowPinyin); renderSentences(); });
-    sentenceEnglishBtn?.addEventListener("click", () => { sentenceShowEnglish = !sentenceShowEnglish; sentenceEnglishBtn.classList.toggle("active", sentenceShowEnglish); renderSentences(); });
+    // Feature 4: persist toggle state, restore on load
+    if (sentencePinyinBtn) sentencePinyinBtn.classList.toggle("active", sentenceShowPinyin);
+    if (sentenceEnglishBtn) sentenceEnglishBtn.classList.toggle("active", sentenceShowEnglish);
+    sentencePinyinBtn?.addEventListener("click", () => {
+      sentenceShowPinyin = !sentenceShowPinyin;
+      localStorage.setItem("hanziSentenceShowPinyin", sentenceShowPinyin ? "1" : "0");
+      sentencePinyinBtn.classList.toggle("active", sentenceShowPinyin);
+      renderSentences();
+    });
+    sentenceEnglishBtn?.addEventListener("click", () => {
+      sentenceShowEnglish = !sentenceShowEnglish;
+      localStorage.setItem("hanziSentenceShowEnglish", sentenceShowEnglish ? "1" : "0");
+      sentenceEnglishBtn.classList.toggle("active", sentenceShowEnglish);
+      renderSentences();
+    });
+
+    // Feature 7: Shuffle button
+    el("sentence-shuffle")?.addEventListener("click", () => {
+      sentenceShuffled = !sentenceShuffled;
+      sentenceShuffleOrder = [];
+      el("sentence-shuffle").classList.toggle("active", sentenceShuffled);
+      sentencePage = 0;
+      renderSentences();
+      showToast(sentenceShuffled ? "Shuffled! \uD83D\uDD00" : "Shuffle off");
+    });
+
+    // Feature 9: Voice search
+    el("sentence-voice-btn")?.addEventListener("click", () => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showToast("Voice search not supported in this browser.", true); return; }
+      const rec = new SR();
+      rec.lang = "zh-CN"; rec.interimResults = false; rec.maxAlternatives = 1;
+      const btn = el("sentence-voice-btn");
+      btn.classList.add("recording"); btn.title = "Listening\u2026";
+      rec.start();
+      rec.onresult = e => {
+        const t = e.results[0][0].transcript;
+        el("sentence-search").value = t;
+        sentenceFilters.query = t;
+        sentencePage = 0;
+        renderSentences();
+      };
+      rec.onerror = () => showToast("Voice recognition error.", true);
+      rec.onend = () => { btn.classList.remove("recording"); btn.title = "Voice search"; };
+    });
+
+    // Feature 10: Export CSV
+    el("sentence-export-csv")?.addEventListener("click", () => {
+      const data = getFilteredSentences();
+      if (!data.length) { showToast("No sentences to export.", true); return; }
+      const rows = [["ID","Chinese","Pinyin","English","HSK","Difficulty","Status"]];
+      data.forEach(item => rows.push([item.i, item.z, sentencePinyin(item), item.t, sentenceHskLabel(item), sentenceDifficultyLabel(item), sentenceStatusLabel(item)]));
+      const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "hanzi-sentences.csv"; a.click();
+      URL.revokeObjectURL(url);
+      showToast("Exported " + data.length + " sentences \u2713");
+    });
+
+    // Feature 2: Bulk selection modes
+    document.querySelectorAll("[data-sentence-sel]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        sentenceSelMode = btn.dataset.sentenceSel;
+        document.querySelectorAll("[data-sentence-sel]").forEach(b => b.classList.toggle("active", b === btn));
+        if (sentenceSelMode === "off") clearSentenceSelection();
+      });
+    });
+    el("sentence-bulk-learning")?.addEventListener("click", () => {
+      if (!selectedSentences.size) { showToast("No sentences selected.", true); return; }
+      selectedSentences.forEach(id => setSentenceStatus(id, "learning"));
+      showToast(selectedSentences.size + " set to Learning \uD83D\uDCDA");
+      clearSentenceSelection(); syncUI();
+    });
+    el("sentence-bulk-mastered")?.addEventListener("click", () => {
+      if (!selectedSentences.size) { showToast("No sentences selected.", true); return; }
+      selectedSentences.forEach(id => setSentenceStatus(id, "known"));
+      showToast(selectedSentences.size + " set to Mastered \u2714");
+      clearSentenceSelection(); syncUI();
+    });
+    el("sentence-bulk-clear")?.addEventListener("click", clearSentenceSelection);
+
+    // Feature 5: Quick-study modal wiring
+    el("sentence-quick-close")?.addEventListener("click", closeQuickStudy);
+    el("sentence-quick-modal")?.addEventListener("click", e => { if (e.target === el("sentence-quick-modal")) closeQuickStudy(); });
+    el("sentence-quick-show-pinyin")?.addEventListener("click", () => {
+      const p = el("sentence-quick-pinyin"); p.hidden = !p.hidden;
+      el("sentence-quick-show-pinyin").textContent = p.hidden ? "Show Pinyin" : "Hide Pinyin";
+    });
+    el("sentence-quick-show-en")?.addEventListener("click", () => {
+      const p = el("sentence-quick-en"); p.hidden = !p.hidden;
+      el("sentence-quick-show-en").textContent = p.hidden ? "Show English" : "Hide English";
+    });
+    document.querySelectorAll("[data-quick-rate]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!quickStudyCurrentId) return;
+        const status = btn.dataset.quickRate;
+        const wasKnown = getSentenceStatus(quickStudyCurrentId) === "known";
+        setSentenceStatus(quickStudyCurrentId, status);
+        if (status === "known" && !wasKnown) { triggerStampFX(btn); spawnConfetti(btn); }
+        closeQuickStudy(); syncUI();
+      });
+    });
 
     // Sentence layout controls
     document.querySelectorAll("[data-sentence-cols]").forEach(btn => {
@@ -2486,10 +2671,29 @@ document.addEventListener("DOMContentLoaded", () => {
         speakSentence(item);
         return;
       }
+      // Reveal panel toggle (new flat-card design)
+      const reveal = e.target.closest("[data-reveal-panel]");
+      if (reveal) {
+        e.stopPropagation();
+        const panelId = reveal.dataset.revealPanel;
+        const panel = document.getElementById(panelId);
+        if (panel) {
+          const isOpen = panel.classList.toggle("open");
+          reveal.classList.toggle("open", isOpen);
+        }
+        return;
+      }
       const detail = e.target.closest("[data-detail-sentence]");
       if (detail) {
         e.stopPropagation();
         openSentenceDetails(detail.dataset.detailSentence);
+        return;
+      }
+      // Feature 5: Quick-study button
+      const quickStudy = e.target.closest("[data-quick-study-sentence]");
+      if (quickStudy) {
+        e.stopPropagation();
+        openQuickStudy(quickStudy.dataset.quickStudySentence);
         return;
       }
       const review = e.target.closest("[data-review-sentence]");
@@ -2500,7 +2704,21 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const card = e.target.closest(".sentence-card");
       if (card && !e.target.closest("button,a,input,select")) {
-        card.classList.toggle("flipped");
+        // Feature 2: bulk selection mode
+        if (sentenceSelMode === "single" || sentenceSelMode === "multi") {
+          const id = card.dataset.sentenceId;
+          if (sentenceSelMode === "single") {
+            const alreadySel = selectedSentences.has(id);
+            clearSentenceSelection();
+            if (!alreadySel) { selectedSentences.add(id); card.classList.add("sentence-selected"); }
+          } else {
+            if (selectedSentences.has(id)) { selectedSentences.delete(id); card.classList.remove("sentence-selected"); }
+            else { selectedSentences.add(id); card.classList.add("sentence-selected"); }
+          }
+          updateSentenceSelCount();
+          return;
+        }
+        // New flat card — no flip needed
       }
     });
     el("sentence-study-due").addEventListener("click", () => startSentencePool("due"));
