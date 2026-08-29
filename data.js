@@ -278,3 +278,1621 @@ const ACHIEVEMENTS = [
     { id:"sentence-sage", icon:"💬",  name:"Sentence Sage",   cat:"Explorer",   desc:"50 sentences Known" },
     { id:"daily-devotee", icon:"🗓️",  name:"Daily Devotee",   cat:"Explorer",   desc:"Study on 7 unique days" },
   ];
+
+const PICTOGRAPH_DATA = [
+  {
+    "c": "日",
+    "p": "rì",
+    "m": "sun · day",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "☉",
+    "seal": "𡆤",
+    "story": "Originally an exact circle with a center spot representing the radiant sun and its solar flare. Over centuries of brush writing on bamboo slips, the curved circle was squared into the modern box 日.",
+    "cues": [
+      "Outer rectangular box = the blazing solar disk",
+      "Middle horizontal line = the sun's central spot and radiance",
+      "Represents 'day' because the sun marks the daily cycle"
+    ],
+    "derivatives": [
+      "太阳 (tài yáng - the sun)",
+      "今日 (jīn rì - today)",
+      "明天 (míng tiān - tomorrow)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"46\" r=\"28\" fill=\"#FFA000\" stroke=\"#FFD54F\" stroke-width=\"4\"/><circle cx=\"50\" cy=\"46\" r=\"6\" fill=\"#D32F2F\"/><line x1=\"50\" y1=\"8\" x2=\"50\" y2=\"15\" stroke=\"#FFB300\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"77\" x2=\"50\" y2=\"84\" stroke=\"#FFB300\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"12\" y1=\"46\" x2=\"19\" y2=\"46\" stroke=\"#FFB300\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"81\" y1=\"46\" x2=\"88\" y2=\"46\" stroke=\"#FFB300\" stroke-width=\"3\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "月",
+    "p": "yuè",
+    "m": "moon · month",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "☽",
+    "seal": "⾪",
+    "story": "A delicate crescent moon hanging in the evening sky. The inner horizontal strokes represent surface shadows and lunar craters. One lunar cycle gave birth to the concept of a month.",
+    "cues": [
+      "Curved outer stroke = waxing crescent moon",
+      "Inner horizontal strokes = moon shadows and evening clouds",
+      "Also serves as the flesh radical (肉) in body parts"
+    ],
+    "derivatives": [
+      "月亮 (yuè liang - the moon)",
+      "月份 (yuè fèn - month)",
+      "明月 (míng yuè - bright moon)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 62 14 C 36 24 28 52 42 78 C 48 88 60 90 68 88 C 44 78 40 44 68 20 Z\" fill=\"#FFE082\" stroke=\"#FFB300\" stroke-width=\"3\"/><line x1=\"42\" y1=\"44\" x2=\"60\" y2=\"44\" stroke=\"#FFA000\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><line x1=\"44\" y1=\"58\" x2=\"62\" y2=\"58\" stroke=\"#FFA000\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "山",
+    "p": "shān",
+    "m": "mountain · peak",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "⛰",
+    "seal": "山",
+    "story": "Three prominent mountain peaks rising side-by-side above the earth, with the central summit towering highest.",
+    "cues": [
+      "Center vertical line = highest main mountain summit",
+      "Side vertical lines = flanking mountain peaks",
+      "Bottom horizontal baseline = connected mountain range ridge"
+    ],
+    "derivatives": [
+      "高山 (gāo shān - high mountain)",
+      "山水 (shān shuǐ - landscape)",
+      "火山 (huǒ shān - volcano)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"50,16 68,76 32,76\" fill=\"#81C784\" stroke=\"#388E3C\" stroke-width=\"3.5\"/><polygon points=\"24,36 40,76 8,76\" fill=\"#A5D6A7\" stroke=\"#388E3C\" stroke-width=\"3\"/><polygon points=\"76,36 92,76 60,76\" fill=\"#A5D6A7\" stroke=\"#388E3C\" stroke-width=\"3\"/><line x1=\"8\" y1=\"76\" x2=\"92\" y2=\"76\" stroke=\"#2E7D32\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "水",
+    "p": "shuǐ",
+    "m": "water · liquid · river",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "💧",
+    "seal": "水",
+    "story": "A meandering central river current flowing downward, flanked by splashing water droplets on both banks.",
+    "cues": [
+      "Center vertical winding line = main river stream",
+      "Left and right slants = splashing droplets and ripples",
+      "The primary radical for all liquids and waterways"
+    ],
+    "derivatives": [
+      "喝水 (hē shuǐ - drink water)",
+      "水果 (shuǐ guǒ - fruit)",
+      "河水 (hé shuǐ - river water)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 12 Q 44 35 52 55 Q 58 75 50 88\" fill=\"none\" stroke=\"#29B6F6\" stroke-width=\"6\" stroke-linecap=\"round\"/><circle cx=\"28\" cy=\"40\" r=\"5\" fill=\"#0288D1\"/><circle cx=\"24\" cy=\"65\" r=\"4.5\" fill=\"#0288D1\"/><circle cx=\"72\" cy=\"40\" r=\"5\" fill=\"#0288D1\"/><circle cx=\"76\" cy=\"65\" r=\"4.5\" fill=\"#0288D1\"/></svg>"
+  },
+  {
+    "c": "火",
+    "p": "huǒ",
+    "m": "fire · flame · passion",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🔥",
+    "seal": "火",
+    "story": "Leaping tongues of flame ascending upward from burning base coals, crackling with radiant heat.",
+    "cues": [
+      "Center peaking stroke = tall main licking flame",
+      "Left and right slashes = flying sparks and embers",
+      "Bottom split = base wood coals feeding the fire"
+    ],
+    "derivatives": [
+      "火车 (huǒ chē - train)",
+      "大火 (dà huǒ - blaze)",
+      "热情 (rè qíng - passion / warmth)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 14 C 42 34 32 46 32 64 C 32 78 40 88 50 88 C 60 88 68 78 68 64 C 68 46 58 34 50 14 Z\" fill=\"#FF7043\" stroke=\"#D84315\" stroke-width=\"3\"/><path d=\"M 50 36 C 46 48 42 56 42 66 C 42 74 46 80 50 80 C 54 80 58 74 58 66 C 58 56 54 48 50 36 Z\" fill=\"#FFEB3B\"/><circle cx=\"22\" cy=\"52\" r=\"4.5\" fill=\"#FF9800\"/><circle cx=\"78\" cy=\"52\" r=\"4.5\" fill=\"#FF9800\"/></svg>"
+  },
+  {
+    "c": "木",
+    "p": "mù",
+    "m": "wood · tree · timber",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌳",
+    "seal": "木",
+    "story": "A complete tree with spreading upper canopy branches, a solid central trunk, and deep subterranean root anchors.",
+    "cues": [
+      "Top horizontal & diagonal lines = growing canopy branches",
+      "Center vertical = upright wooden trunk",
+      "Bottom diagonals = roots anchoring into soil"
+    ],
+    "derivatives": [
+      "树木 (shù mù - trees)",
+      "木头 (mù tou - timber / wood)",
+      "木工 (mù gōng - carpentry)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"50\" y1=\"16\" x2=\"50\" y2=\"84\" stroke=\"#6D4C41\" stroke-width=\"6\" stroke-linecap=\"round\"/><path d=\"M 20 38 Q 50 42 80 38\" fill=\"none\" stroke=\"#4CAF50\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"46\" x2=\"22\" y2=\"28\" stroke=\"#4CAF50\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"46\" x2=\"78\" y2=\"28\" stroke=\"#4CAF50\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"62\" x2=\"20\" y2=\"86\" stroke=\"#8D6E63\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"62\" x2=\"80\" y2=\"86\" stroke=\"#8D6E63\" stroke-width=\"4.5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "林",
+    "p": "lín",
+    "m": "woods · grove",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌲🌲",
+    "seal": "林",
+    "story": "Two trees (木 + 木) standing side-by-side, forming a lush grove or small woodland.",
+    "cues": [
+      "Left 木 = first standing tree",
+      "Right 木 = second standing tree",
+      "Two trees together represent a grove"
+    ],
+    "derivatives": [
+      "森林 (sēn lín - forest)",
+      "树林 (shù lín - woods)",
+      "林业 (lín yè - forestry)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><g transform=\"translate(-14, 0) scale(0.8)\"><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"80\" stroke=\"#6D4C41\" stroke-width=\"5\"/><line x1=\"26\" y1=\"40\" x2=\"74\" y2=\"40\" stroke=\"#4CAF50\" stroke-width=\"4\"/><line x1=\"50\" y1=\"40\" x2=\"26\" y2=\"76\" stroke=\"#8D6E63\" stroke-width=\"4\"/><line x1=\"50\" y1=\"40\" x2=\"74\" y2=\"76\" stroke=\"#8D6E63\" stroke-width=\"4\"/></g><g transform=\"translate(24, 0) scale(0.8)\"><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"80\" stroke=\"#6D4C41\" stroke-width=\"5\"/><line x1=\"26\" y1=\"40\" x2=\"74\" y2=\"40\" stroke=\"#4CAF50\" stroke-width=\"4\"/><line x1=\"50\" y1=\"40\" x2=\"26\" y2=\"76\" stroke=\"#8D6E63\" stroke-width=\"4\"/><line x1=\"50\" y1=\"40\" x2=\"74\" y2=\"76\" stroke=\"#8D6E63\" stroke-width=\"4\"/></g></svg>"
+  },
+  {
+    "c": "森",
+    "p": "sēn",
+    "m": "forest · dense",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "🌲🌲🌲",
+    "seal": "森",
+    "story": "Three trees (木+木+木) clustered together, creating an immense, dense, and shadowy primeval forest.",
+    "cues": [
+      "Top 木 = canopy tree",
+      "Bottom two 木 = sprawling understory trees",
+      "Symbolizes vastness, density, and natural ecology"
+    ],
+    "derivatives": [
+      "森林 (sēn lín - primeval forest)",
+      "阴森 (yīn sēn - eerie / gloomy woods)",
+      "森严 (sēn yán - strictly guarded)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"30\" r=\"16\" fill=\"#2E7D32\"/><circle cx=\"30\" cy=\"68\" r=\"16\" fill=\"#388E3C\"/><circle cx=\"70\" cy=\"68\" r=\"16\" fill=\"#388E3C\"/><line x1=\"50\" y1=\"28\" x2=\"50\" y2=\"48\" stroke=\"#5D4037\" stroke-width=\"4\"/><line x1=\"30\" y1=\"64\" x2=\"30\" y2=\"84\" stroke=\"#5D4037\" stroke-width=\"4\"/><line x1=\"70\" y1=\"64\" x2=\"70\" y2=\"84\" stroke=\"#5D4037\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "田",
+    "p": "tián",
+    "m": "field · farmland · rice paddy",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "⊞",
+    "seal": "田",
+    "story": "A bird's-eye view of an agricultural rice paddy, divided by intersecting irrigation dikes into four tidy plots.",
+    "cues": [
+      "Outer square border = surrounding boundary dike",
+      "Inner cross = intersecting irrigation walkways",
+      "The ancient foundation of agrarian wealth"
+    ],
+    "derivatives": [
+      "田地 (tián dì - farmland)",
+      "稻田 (dào tián - rice paddy)",
+      "油田 (yóu tián - oilfield)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"18\" y=\"18\" width=\"64\" height=\"64\" rx=\"4\" fill=\"#C8E6C9\" stroke=\"#2E7D32\" stroke-width=\"5\"/><line x1=\"18\" y1=\"50\" x2=\"82\" y2=\"50\" stroke=\"#2E7D32\" stroke-width=\"4.5\"/><line x1=\"50\" y1=\"18\" x2=\"50\" y2=\"82\" stroke=\"#2E7D32\" stroke-width=\"4.5\"/></svg>"
+  },
+  {
+    "c": "雨",
+    "p": "yǔ",
+    "m": "rain",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌧",
+    "seal": "雨",
+    "story": "Rain clouds hanging high in the sky (一 and 冂) with water droplets falling steadily to the ground below.",
+    "cues": [
+      "Top bar 一 = the vault of heaven",
+      "Frame 冂 = atmospheric rain cloud",
+      "Four dots = falling raindrops"
+    ],
+    "derivatives": [
+      "下雨 (xià yǔ - to rain)",
+      "雨水 (yǔ shuǐ - rainwater)",
+      "暴风雨 (bào fēng yǔ - rainstorm)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 22 36 Q 30 20 50 20 Q 70 20 78 36 Z\" fill=\"#90CAF9\" stroke=\"#1976D2\" stroke-width=\"3\"/><line x1=\"16\" y1=\"36\" x2=\"84\" y2=\"36\" stroke=\"#1976D2\" stroke-width=\"4\"/><line x1=\"50\" y1=\"36\" x2=\"50\" y2=\"82\" stroke=\"#1976D2\" stroke-width=\"3.5\"/><circle cx=\"34\" cy=\"52\" r=\"3.5\" fill=\"#0288D1\"/><circle cx=\"34\" cy=\"70\" r=\"3.5\" fill=\"#0288D1\"/><circle cx=\"66\" cy=\"52\" r=\"3.5\" fill=\"#0288D1\"/><circle cx=\"66\" cy=\"70\" r=\"3.5\" fill=\"#0288D1\"/></svg>"
+  },
+  {
+    "c": "石",
+    "p": "shí",
+    "m": "stone · rock · mineral",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🪨",
+    "seal": "石",
+    "story": "A heavy chunk of rock or mineral boulder (口) fallen and resting directly beneath a mountain cliff (厂).",
+    "cues": [
+      "Top 厂 = mountain cliff overhang",
+      "Bottom 口 = fallen rectangular boulder rock",
+      "Radical for minerals, rocks, and hard materials"
+    ],
+    "derivatives": [
+      "石头 (shí tou - stone / rock)",
+      "石油 (shí yóu - petroleum)",
+      "钻石 (zuàn shí - diamond)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 18 24 L 82 24 M 28 24 L 18 78\" stroke=\"#546E7A\" stroke-width=\"5\" stroke-linecap=\"round\"/><polygon points=\"36,44 74,38 82,76 42,82\" fill=\"#B0BEC5\" stroke=\"#37474F\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "土",
+    "p": "tǔ",
+    "m": "soil · earth · clay",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🪴",
+    "seal": "土",
+    "story": "A sacred earthen fertility mound standing tall on the flat baseline of the ground.",
+    "cues": [
+      "Top vertical line = emerging mound of fertile soil",
+      "Upper horizontal = top crest of earth",
+      "Bottom longer horizontal = solid ground bedrock"
+    ],
+    "derivatives": [
+      "土地 (tǔ dì - land / soil)",
+      "土豆 (tǔ dòu - potato)",
+      "泥土 (ní tǔ - mud / clay)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"78\" stroke=\"#795548\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"30\" y1=\"44\" x2=\"70\" y2=\"44\" stroke=\"#8D6E63\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"14\" y1=\"78\" x2=\"86\" y2=\"78\" stroke=\"#5D4037\" stroke-width=\"7\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "川",
+    "p": "chuān",
+    "m": "river · waterway · stream",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "〰️",
+    "seal": "巛",
+    "story": "Three parallel vertical lines depicting water currents flowing freely between riverbanks.",
+    "cues": [
+      "Left and right lines = riverbanks",
+      "Center line = rushing main water current",
+      "Found in 四川 (Sichuan - Four Rivers) and 山川"
+    ],
+    "derivatives": [
+      "四川 (sì chuān - Sichuan Province)",
+      "山川 (shān chuān - mountains and rivers)",
+      "川流不息 (chuān liú bù xī - endless flow)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 26 16 Q 22 50 26 84\" stroke=\"#0288D1\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 50 16 Q 48 50 50 84\" stroke=\"#03A9F4\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 74 16 Q 78 50 74 84\" stroke=\"#0288D1\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "泉",
+    "p": "quán",
+    "m": "spring · fountainhead",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "⛲",
+    "seal": "泉",
+    "story": "Crystal clear water (水) gushing pure and white (白) from a subterranean rock cavity.",
+    "cues": [
+      "Top 白 = white, pure origin hole",
+      "Bottom 水 = bubbling fresh spring water",
+      "Symbolizes purity and the origin of rivers"
+    ],
+    "derivatives": [
+      "泉水 (quán shuǐ - spring water)",
+      "温泉 (wēn quán - hot spring)",
+      "源泉 (yuán quán - fountainhead)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><ellipse cx=\"50\" cy=\"32\" rx=\"18\" ry=\"12\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"3.5\"/><path d=\"M 50 44 Q 44 65 50 86 M 34 50 Q 30 68 34 82 M 66 50 Q 70 68 66 82\" stroke=\"#29B6F6\" stroke-width=\"4\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "雷",
+    "p": "léi",
+    "m": "thunder · mine",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "⚡",
+    "seal": "靁",
+    "story": "Rolling thunder rumbling through storm clouds (雨) across the open agricultural fields (田).",
+    "cues": [
+      "Top 雨 = storm clouds and rain",
+      "Bottom 田 = rolling thunder over fields / lightning drums",
+      "Represents thunderclaps and explosive power"
+    ],
+    "derivatives": [
+      "雷雨 (léi yǔ - thunderstorm)",
+      "打雷 (dǎ léi - thunderclap)",
+      "雷达 (léi dá - radar)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 22 28 Q 50 14 78 28 Z\" fill=\"#90CAF9\" stroke=\"#1976D2\" stroke-width=\"3\"/><rect x=\"26\" y=\"44\" width=\"48\" height=\"40\" rx=\"3\" fill=\"#FFE082\" stroke=\"#F57F17\" stroke-width=\"3.5\"/><line x1=\"26\" y1=\"64\" x2=\"74\" y2=\"64\" stroke=\"#F57F17\" stroke-width=\"2.5\"/><line x1=\"50\" y1=\"44\" x2=\"50\" y2=\"84\" stroke=\"#F57F17\" stroke-width=\"2.5\"/></svg>"
+  },
+  {
+    "c": "电",
+    "p": "diàn",
+    "m": "lightning · electricity",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "⚡",
+    "seal": "電",
+    "story": "A zigzag lightning bolt flashing dynamically from storm clouds straight down into the earth.",
+    "cues": [
+      "Top square box = charged storm cloud",
+      "Bottom curling lightning tail = ground-striking bolt",
+      "Core radical for all electrical modern technology"
+    ],
+    "derivatives": [
+      "电视 (diàn shì - television)",
+      "电话 (diàn huà - telephone)",
+      "电脑 (diàn nǎo - computer)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"28\" y=\"18\" width=\"44\" height=\"38\" rx=\"4\" fill=\"#FFF9C4\" stroke=\"#FBC02D\" stroke-width=\"3.5\"/><line x1=\"28\" y1=\"37\" x2=\"72\" y2=\"37\" stroke=\"#FBC02D\" stroke-width=\"2.5\"/><line x1=\"50\" y1=\"18\" x2=\"50\" y2=\"56\" stroke=\"#FBC02D\" stroke-width=\"2.5\"/><path d=\"M 50 56 L 50 82 Q 50 90 66 84\" fill=\"none\" stroke=\"#F57F17\" stroke-width=\"4.5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "冰",
+    "p": "bīng",
+    "m": "ice · freeze",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🧊",
+    "seal": "仌",
+    "story": "Water (水) with jagged crystalline frost spikes on the left (冫), forming solid frozen ice.",
+    "cues": [
+      "Left 冫 = twin crystal ice shards",
+      "Right 水 = liquid water frozen solid",
+      "Means ice, coldness, or freezing"
+    ],
+    "derivatives": [
+      "冰箱 (bīng xiāng - refrigerator)",
+      "冰水 (bīng shuǐ - ice water)",
+      "结冰 (jié bīng - freeze over)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"30,22 42,42 22,42\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"2.5\"/><polygon points=\"26,56 38,76 18,76\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"2.5\"/><path d=\"M 68 18 L 68 82 M 48 50 L 88 50\" stroke=\"#03A9F4\" stroke-width=\"4\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "气",
+    "p": "qì",
+    "m": "air · gas · breath · spirit",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "💨",
+    "seal": "气",
+    "story": "Three undulating horizontal layers of rising atmospheric vapour, steam, and vital life breath.",
+    "cues": [
+      "Three curving layers = rising atmospheric mist and breath",
+      "Bottom hooked curve = expanding air flow",
+      "Key concept of vital cosmic energy (Qi)"
+    ],
+    "derivatives": [
+      "空气 (kōng qì - air)",
+      "生气 (shēng qì - angry / alive)",
+      "天气 (tiān qì - weather)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 30 26 Q 50 18 70 26\" stroke=\"#80DEEA\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 24 46 Q 50 38 76 46\" stroke=\"#4DD0E1\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 22 66 Q 50 58 74 66 L 74 80 Q 74 88 84 84\" stroke=\"#00ACC1\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "星",
+    "p": "xīng",
+    "m": "star · celestial body",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "⭐",
+    "seal": "曐",
+    "story": "Radiant celestial lights born (生) from the fire of the sun (日) twinkling across the night sky.",
+    "cues": [
+      "Top 日 = sun-like radiant light orb",
+      "Bottom 生 = sprouting luminous points of light",
+      "Found in 星期 (week) and 星星 (star)"
+    ],
+    "derivatives": [
+      "星期 (xīng qī - week)",
+      "星星 (xīng xing - star)",
+      "星空 (xīng kōng - starry sky)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"50,12 61,35 86,38 68,56 72,82 50,70 28,82 32,56 14,38 39,35\" fill=\"#FFE082\" stroke=\"#FFB300\" stroke-width=\"3\"/><circle cx=\"50\" cy=\"48\" r=\"8\" fill=\"#FF8F00\"/></svg>"
+  },
+  {
+    "c": "光",
+    "p": "guāng",
+    "m": "light · ray · glory",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "💡",
+    "seal": "光",
+    "story": "A bright flaming torch (火/⺌) held high upon the shoulders of a walking person (儿), illuminating the dark.",
+    "cues": [
+      "Top ⺌ = radiating torch flame sparks",
+      "Bottom 儿 = person carrying the torch forward",
+      "Found in 阳光 (sunlight) and 月光 (moonlight)"
+    ],
+    "derivatives": [
+      "阳光 (yáng guāng - sunlight)",
+      "月光 (yuè guāng - moonlight)",
+      "观光 (guān guāng - sightseeing)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"50\" y1=\"12\" x2=\"50\" y2=\"40\" stroke=\"#FFD54F\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"28\" y1=\"20\" x2=\"38\" y2=\"40\" stroke=\"#FFD54F\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"72\" y1=\"20\" x2=\"62\" y2=\"40\" stroke=\"#FFD54F\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"20\" y1=\"46\" x2=\"80\" y2=\"46\" stroke=\"#FFA000\" stroke-width=\"4\"/><path d=\"M 40 46 L 32 84 M 60 46 L 68 84 Q 68 90 78 88\" stroke=\"#FF8F00\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "草",
+    "p": "cǎo",
+    "m": "grass · straw · plant",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌱",
+    "seal": "艸",
+    "story": "Green vegetative flora shoots (艹) greeting the early morning sunshine (早) from the earth.",
+    "cues": [
+      "Top 艹 = twin green sprouts",
+      "Bottom 早 = early morning sun rising above horizon",
+      "General term for grass, herbs, and greenery"
+    ],
+    "derivatives": [
+      "草地 (cǎo dì - lawn / meadow)",
+      "草原 (cǎo yuán - grasslands)",
+      "干草 (gān cǎo - hay)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 30 84 Q 30 38 18 20 Q 38 32 36 84\" fill=\"#81C784\" stroke=\"#2E7D32\" stroke-width=\"2.5\"/><path d=\"M 50 84 Q 50 28 50 14 Q 58 28 56 84\" fill=\"#81C784\" stroke=\"#2E7D32\" stroke-width=\"2.5\"/><path d=\"M 70 84 Q 70 38 82 20 Q 62 32 64 84\" fill=\"#81C784\" stroke=\"#2E7D32\" stroke-width=\"2.5\"/><line x1=\"12\" y1=\"84\" x2=\"88\" y2=\"84\" stroke=\"#388E3C\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "花",
+    "p": "huā",
+    "m": "flower · blossom · spend",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌸",
+    "seal": "華",
+    "story": "Vegetation (艹) undergoing a wondrous transformation (化) into a colorful fragrant blossom.",
+    "cues": [
+      "Top 艹 = green plant radical",
+      "Bottom 化 = transformation of a bud into a flower",
+      "Means floral blossom or spending money/time"
+    ],
+    "derivatives": [
+      "花朵 (huā duǒ - flower)",
+      "花园 (huā yuán - garden)",
+      "开花 (kāi huā - bloom)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"38\" r=\"8\" fill=\"#FFCA28\"/><circle cx=\"50\" cy=\"22\" r=\"10\" fill=\"#F48FB1\" opacity=\"0.9\"/><circle cx=\"50\" cy=\"54\" r=\"10\" fill=\"#F48FB1\" opacity=\"0.9\"/><circle cx=\"34\" cy=\"38\" r=\"10\" fill=\"#F48FB1\" opacity=\"0.9\"/><circle cx=\"66\" cy=\"38\" r=\"10\" fill=\"#F48FB1\" opacity=\"0.9\"/><path d=\"M 50 54 L 50 88\" stroke=\"#4CAF50\" stroke-width=\"4.5\"/></svg>"
+  },
+  {
+    "c": "禾",
+    "p": "hé",
+    "m": "grain · standing crop",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "🌾",
+    "seal": "禾",
+    "story": "A standing cereal grain stalk with drooping ripe ear of grain at the top, leaves, and roots.",
+    "cues": [
+      "Top slash = heavy drooping head of grain",
+      "Middle horizontal and vertical = stem and leaves",
+      "Bottom slants = roots"
+    ],
+    "derivatives": [
+      "禾苗 (hé miáo - grain seedling)",
+      "农禾 (nóng hé - farm crops)",
+      "禾谷 (hé gǔ - cereal grains)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 30 Q 30 16 22 24 Q 28 32 46 36\" fill=\"#FBC02D\" stroke=\"#F57F17\" stroke-width=\"2.5\"/><line x1=\"50\" y1=\"30\" x2=\"50\" y2=\"86\" stroke=\"#8D6E63\" stroke-width=\"5\"/><line x1=\"20\" y1=\"52\" x2=\"80\" y2=\"52\" stroke=\"#689F38\" stroke-width=\"4\"/><line x1=\"50\" y1=\"52\" x2=\"24\" y2=\"86\" stroke=\"#8D6E63\" stroke-width=\"4\"/><line x1=\"50\" y1=\"52\" x2=\"76\" y2=\"86\" stroke=\"#8D6E63\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "米",
+    "p": "mǐ",
+    "m": "rice · meter",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🍚",
+    "seal": "米",
+    "story": "Individual husked cereal grains scattered after threshing, shown surrounding a central cross.",
+    "cues": [
+      "Top two dots = flying grain seeds",
+      "Crossbar = threshing screen",
+      "Bottom two dots = threshed grains of white rice"
+    ],
+    "derivatives": [
+      "米饭 (mǐ fàn - cooked rice)",
+      "大米 (dà mǐ - raw rice grains)",
+      "玉米 (yù mǐ - corn)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"20\" y1=\"50\" x2=\"80\" y2=\"50\" stroke=\"#FFB74D\" stroke-width=\"4.5\"/><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"80\" stroke=\"#FFB74D\" stroke-width=\"4.5\"/><ellipse cx=\"32\" cy=\"32\" rx=\"4\" ry=\"7\" transform=\"rotate(-45 32 32)\" fill=\"#FFF9C4\" stroke=\"#F57F17\" stroke-width=\"2\"/><ellipse cx=\"68\" cy=\"32\" rx=\"4\" ry=\"7\" transform=\"rotate(45 68 32)\" fill=\"#FFF9C4\" stroke=\"#F57F17\" stroke-width=\"2\"/><ellipse cx=\"32\" cy=\"68\" rx=\"4\" ry=\"7\" transform=\"rotate(45 32 68)\" fill=\"#FFF9C4\" stroke=\"#F57F17\" stroke-width=\"2\"/><ellipse cx=\"68\" cy=\"68\" rx=\"4\" ry=\"7\" transform=\"rotate(-45 68 68)\" fill=\"#FFF9C4\" stroke=\"#F57F17\" stroke-width=\"2\"/></svg>"
+  },
+  {
+    "c": "果",
+    "p": "guǒ",
+    "m": "fruit · result · outcome",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🍎",
+    "seal": "果",
+    "story": "A round ripe fruit (田/口) hanging prominently upon the top branches of a fruit tree (木).",
+    "cues": [
+      "Top 田/圆 = round ripe hanging fruit",
+      "Bottom 木 = fruit tree trunk and roots",
+      "Means orchard fruit or natural result (结果)"
+    ],
+    "derivatives": [
+      "水果 (shuǐ guǒ - fruit)",
+      "苹果 (píng guǒ - apple)",
+      "如果 (rú guǒ - if / suppose)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"36\" r=\"20\" fill=\"#E53935\" stroke=\"#C62828\" stroke-width=\"3\"/><path d=\"M 50 16 Q 58 8 62 14\" stroke=\"#2E7D32\" stroke-width=\"3\" fill=\"none\"/><line x1=\"50\" y1=\"56\" x2=\"50\" y2=\"88\" stroke=\"#5D4037\" stroke-width=\"5\"/><line x1=\"26\" y1=\"72\" x2=\"74\" y2=\"72\" stroke=\"#5D4037\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "竹",
+    "p": "zhú",
+    "m": "bamboo",
+    "cat": "nature",
+    "h": 2,
+    "oracle": "🎋",
+    "seal": "竹",
+    "story": "Two jointed bamboo stalks with downward-pointing slender evergreen leaves hanging in pairs.",
+    "cues": [
+      "Left 𠂉/丨 = left bamboo stalk and leaf",
+      "Right 𠂉/丨 = matching right bamboo stalk and leaf",
+      "The famous material for ancient writing slips and flutes"
+    ],
+    "derivatives": [
+      "竹子 (zhú zi - bamboo)",
+      "竹竿 (zhú gān - bamboo pole)",
+      "竹林 (zhú lín - bamboo grove)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><g transform=\"translate(-14, 0)\"><line x1=\"42\" y1=\"18\" x2=\"42\" y2=\"82\" stroke=\"#4CAF50\" stroke-width=\"4.5\"/><path d=\"M 42 34 L 24 52\" stroke=\"#2E7D32\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M 42 54 L 26 70\" stroke=\"#2E7D32\" stroke-width=\"4\" stroke-linecap=\"round\"/></g><g transform=\"translate(18, 0)\"><line x1=\"42\" y1=\"18\" x2=\"42\" y2=\"82\" stroke=\"#4CAF50\" stroke-width=\"4.5\"/><path d=\"M 42 34 L 24 52\" stroke=\"#2E7D32\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M 42 54 L 26 70\" stroke=\"#2E7D32\" stroke-width=\"4\" stroke-linecap=\"round\"/></g></svg>"
+  },
+  {
+    "c": "天",
+    "p": "tiān",
+    "m": "sky · heaven · day",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "⛅",
+    "seal": "𡗗",
+    "story": "A person with arms spread wide under a prominent overhead circle representing the vast sky dome above humanity.",
+    "cues": [
+      "Top horizontal line = the vault of heaven",
+      "Lower 大 = great person standing under the sky",
+      "Means sky, weather, and day"
+    ],
+    "derivatives": [
+      "天气 (tiān qì - weather)",
+      "今天 (jīn tiān - today)",
+      "天空 (tiān kōng - sky)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"16\" y1=\"22\" x2=\"84\" y2=\"22\" stroke=\"#0288D1\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"24\" y1=\"44\" x2=\"76\" y2=\"44\" stroke=\"#03A9F4\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"22\" x2=\"50\" y2=\"84\" stroke=\"#0288D1\" stroke-width=\"5\"/><path d=\"M 50 44 L 22 84 M 50 44 L 78 84\" stroke=\"#0288D1\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "地",
+    "p": "dì",
+    "m": "earth · ground · land",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "🌍",
+    "seal": "坔",
+    "story": "Earth soil (土) combined with a winding serpent river (也) depicting fertile continental terrain.",
+    "cues": [
+      "Left 土 = soil and earth",
+      "Right 也 = winding contours of land and waterways",
+      "Forms 地球 (earth) and 地方 (place)"
+    ],
+    "derivatives": [
+      "地方 (dì fang - place)",
+      "地图 (dì tú - map)",
+      "地球 (dì qiú - the Earth)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"34\" fill=\"#81C784\" stroke=\"#2E7D32\" stroke-width=\"4\"/><path d=\"M 24 46 Q 40 30 60 40 Q 76 50 64 74 Q 40 82 24 60 Z\" fill=\"#4CAF50\"/><path d=\"M 38 20 Q 52 14 66 22\" stroke=\"#2E7D32\" stroke-width=\"3\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "风",
+    "p": "fēng",
+    "m": "wind · breeze · style",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "💨",
+    "seal": "風",
+    "story": "Wind filling a curved ship's sail (几/凡) carrying swirling insect drafts (虫/乂) across the land.",
+    "cues": [
+      "Outer frame = cloth sail bellied out by wind",
+      "Interior strokes = swirling breeze eddies",
+      "Found in 大风 (strong wind) and 风景 (scenery)"
+    ],
+    "derivatives": [
+      "刮风 (guā fēng - windy)",
+      "风景 (fēng jǐng - scenery)",
+      "东风 (dōng fēng - east wind)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 22 24 Q 50 16 78 24 L 78 78 Q 50 86 22 78 Z\" fill=\"#E0F7FA\" stroke=\"#00ACC1\" stroke-width=\"4\"/><path d=\"M 36 42 Q 50 34 64 42 M 36 58 Q 50 50 64 58\" stroke=\"#0097A7\" stroke-width=\"3.5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "云",
+    "p": "yún",
+    "m": "cloud · say",
+    "cat": "nature",
+    "h": 1,
+    "oracle": "☁️",
+    "seal": "雲",
+    "story": "Billowing atmospheric cloud vapours swirling and curling in the high stratosphere.",
+    "cues": [
+      "Top two horizontal lines = high sky strata",
+      "Bottom curling swirl = rolling atmospheric cloud mass",
+      "Found in 白云 (white clouds) and 云彩"
+    ],
+    "derivatives": [
+      "白云 (bái yún - white cloud)",
+      "多云 (duō yún - cloudy)",
+      "云彩 (yún cai - cloud)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 26 62 Q 18 62 18 52 Q 18 42 28 42 Q 32 26 48 26 Q 64 26 68 40 Q 82 40 82 52 Q 82 62 70 62 Z\" fill=\"#ECEFF1\" stroke=\"#78909C\" stroke-width=\"4\"/><line x1=\"28\" y1=\"20\" x2=\"72\" y2=\"20\" stroke=\"#90A4AE\" stroke-width=\"3.5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "马",
+    "p": "mǎ",
+    "m": "horse · steed",
+    "cat": "animal",
+    "h": 1,
+    "oracle": "🐎",
+    "seal": "馬",
+    "story": "A magnificent galloping horse with windblown mane bristles along its neck, sharp eyes, galloping legs, and a flowing tail.",
+    "cues": [
+      "Top horizontal and mane lines = windblown mane along neck",
+      "Middle box = horse head with alert eye",
+      "Bottom stroke = galloping legs and flowing tail"
+    ],
+    "derivatives": [
+      "马上 (mǎ shàng - immediately / on horseback)",
+      "马路 (mǎ lù - street / road)",
+      "斑马 (bān mǎ - zebra)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 34 22 Q 46 14 58 22 Q 62 34 50 44 L 54 78 M 50 44 L 28 60 L 24 82 M 54 60 L 74 82\" stroke=\"#8D6E63\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 52 18 Q 70 24 64 42\" stroke=\"#D7CCC8\" stroke-width=\"4\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "鸟",
+    "p": "niǎo",
+    "m": "bird · fowl",
+    "cat": "animal",
+    "h": 1,
+    "oracle": "🐦",
+    "seal": "鳥",
+    "story": "A perched bird with a sharp pointed beak, alert round eye dot, curved breast, folded wings, and tail feathers.",
+    "cues": [
+      "Top stroke = curved crown and pointed beak",
+      "Middle dot 丶 = alert bird eye",
+      "Bottom line and sweep = tail feathers and perching claw"
+    ],
+    "derivatives": [
+      "小鸟 (xiǎo niǎo - little bird)",
+      "鸟类 (niǎo lèi - avian species)",
+      "飞鸟 (fēi niǎo - flying bird)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 40 22 Q 48 14 58 20 Q 64 30 58 42 L 66 60 Q 68 76 54 82 Q 38 78 40 60 Z\" fill=\"#81D4FA\" stroke=\"#0288D1\" stroke-width=\"3.5\"/><circle cx=\"50\" cy=\"28\" r=\"3\" fill=\"#01579B\"/><polygon points=\"58,24 72,28 58,32\" fill=\"#FFA000\"/><path d=\"M 54 82 L 46 92 M 58 82 L 62 92\" stroke=\"#0288D1\" stroke-width=\"3\"/></svg>"
+  },
+  {
+    "c": "鱼",
+    "p": "yú",
+    "m": "fish · aquatic life",
+    "cat": "animal",
+    "h": 1,
+    "oracle": "🐟",
+    "seal": "魚",
+    "story": "A swimming fish showing its pointed head (⺈), scaly body crosshatch torso (田), and four-finned swimming tail (一/灬).",
+    "cues": [
+      "Top ⺈ = pointed fish snout and gills",
+      "Middle 田 = crisscrossed scaly fish torso",
+      "Bottom line/dots = swimming tail fin propulsion"
+    ],
+    "derivatives": [
+      "金鱼 (jīn yú - goldfish)",
+      "钓鱼 (diào yú - go fishing)",
+      "鲜鱼 (xiān yú - fresh fish)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"50,14 66,34 34,34\" fill=\"#80CBC4\" stroke=\"#00897B\" stroke-width=\"3\"/><rect x=\"34\" y=\"34\" width=\"32\" height=\"34\" rx=\"3\" fill=\"#B2DFDB\" stroke=\"#00897B\" stroke-width=\"3\"/><line x1=\"34\" y1=\"51\" x2=\"66\" y2=\"51\" stroke=\"#00897B\" stroke-width=\"2.5\"/><line x1=\"50\" y1=\"34\" x2=\"50\" y2=\"68\" stroke=\"#00897B\" stroke-width=\"2.5\"/><polygon points=\"50,68 68,88 32,88\" fill=\"#80CBC4\" stroke=\"#00897B\" stroke-width=\"3\"/></svg>"
+  },
+  {
+    "c": "牛",
+    "p": "niú",
+    "m": "ox · cow · bull · awesome",
+    "cat": "animal",
+    "h": 1,
+    "oracle": "🐂",
+    "seal": "牛",
+    "story": "A front view of an ox head with two prominent outward-curving horns, ears, and strong central muzzle snout.",
+    "cues": [
+      "Top slanted horns = strong curved bull horns",
+      "Middle horizontal = ears extending on sides",
+      "Vertical center line = straight nose ridge and muzzle"
+    ],
+    "derivatives": [
+      "牛肉 (niú ròu - beef)",
+      "牛奶 (niú nǎi - cow milk)",
+      "真牛 (zhēn niú - truly awesome!)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 22 26 Q 34 40 50 36 Q 66 40 78 26\" stroke=\"#8D6E63\" stroke-width=\"6\" fill=\"none\" stroke-linecap=\"round\"/><line x1=\"20\" y1=\"50\" x2=\"80\" y2=\"50\" stroke=\"#6D4C41\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"86\" stroke=\"#5D4037\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "羊",
+    "p": "yáng",
+    "m": "sheep · goat · ram",
+    "cat": "animal",
+    "h": 1,
+    "oracle": "🐏",
+    "seal": "羊",
+    "story": "A front portrait of a ram's head with two gentle downward-curling horns (丷), horizontal brow, and nose lines.",
+    "cues": [
+      "Top 丷 = two curved ram horns",
+      "Three horizontal bars = brow, nose bridge, and mouth",
+      "Center vertical = straight facial axis"
+    ],
+    "derivatives": [
+      "羊肉 (yáng ròu - mutton / lamb)",
+      "山羊 (shān yáng - mountain goat)",
+      "绵羊 (mián yáng - sheep)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 32 18 Q 22 26 28 34 M 68 18 Q 78 26 72 34\" stroke=\"#FFA726\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><line x1=\"26\" y1=\"42\" x2=\"74\" y2=\"42\" stroke=\"#FF9800\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"30\" y1=\"58\" x2=\"70\" y2=\"58\" stroke=\"#FF9800\" stroke-width=\"4\" stroke-linecap=\"round\"/><line x1=\"22\" y1=\"74\" x2=\"78\" y2=\"74\" stroke=\"#FF9800\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"34\" x2=\"50\" y2=\"88\" stroke=\"#F57C00\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "象",
+    "p": "xiàng",
+    "m": "elephant · shape · image",
+    "cat": "animal",
+    "h": 2,
+    "oracle": "🐘",
+    "seal": "象",
+    "story": "A massive elephant shown with its long flexible curved trunk, large flapping ears, bulky body, and four sturdy pillar legs.",
+    "cues": [
+      "Top ⺈ = long prehensile curved trunk",
+      "Middle 口+月 = wide head and massive torso",
+      "Bottom slants = four heavy pillar legs and tail"
+    ],
+    "derivatives": [
+      "大象 (dà xiàng - elephant)",
+      "形象 (xíng xiàng - image / appearance)",
+      "现象 (xiàn xiàng - phenomenon)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 38 18 Q 24 14 18 28 Q 14 42 26 44\" stroke=\"#78909C\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><ellipse cx=\"56\" cy=\"48\" rx=\"26\" ry=\"20\" fill=\"#CFD8DC\" stroke=\"#607D8B\" stroke-width=\"3.5\"/><path d=\"M 38 64 L 36 86 M 50 66 L 50 86 M 66 66 L 66 86 M 78 64 L 80 86\" stroke=\"#607D8B\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "虎",
+    "p": "hǔ",
+    "m": "tiger · fierce",
+    "cat": "animal",
+    "h": 2,
+    "oracle": "🐅",
+    "seal": "虎",
+    "story": "A fierce striped predator tiger with gaping jaws showing fangs (虍), striped pelt coat, and pouncing claw legs (几/匕).",
+    "cues": [
+      "Top 虍 = open roaring jaws and striped tiger head",
+      "Middle 七 = predatory front paw",
+      "Bottom 几 = crouching hind legs ready to spring"
+    ],
+    "derivatives": [
+      "老虎 (lǎo hǔ - tiger)",
+      "东北虎 (dōng běi hǔ - Siberian tiger)",
+      "虎口 (hǔ kǒu - tiger's jaws / danger)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 34 22 L 68 22 L 68 40 L 40 40 Z\" fill=\"#FFE082\" stroke=\"#E65100\" stroke-width=\"3\"/><line x1=\"48\" y1=\"22\" x2=\"48\" y2=\"40\" stroke=\"#E65100\" stroke-width=\"3\"/><path d=\"M 34 40 L 30 78 Q 30 86 44 86 M 68 40 L 68 84\" stroke=\"#E65100\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "犬",
+    "p": "quǎn",
+    "m": "dog · hound · canine",
+    "cat": "animal",
+    "h": 2,
+    "oracle": "🐕",
+    "seal": "犬",
+    "story": "An alert hunting hound (大) showing its perked ears, slender lean torso, and curled tail dot (丶) held high.",
+    "cues": [
+      "Big frame 大 = four legs and agile body of the canine",
+      "Top right dot 丶 = curled tail held high in the air",
+      "Appears as the 犭 radical on the left of animal characters"
+    ],
+    "derivatives": [
+      "猎犬 (liè quǎn - hound / hunting dog)",
+      "军犬 (jūn quǎn - military working dog)",
+      "警犬 (jǐng quǎn - police dog)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"20\" y1=\"36\" x2=\"80\" y2=\"36\" stroke=\"#8D6E63\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"18\" x2=\"34\" y2=\"82\" stroke=\"#6D4C41\" stroke-width=\"5.5\" stroke-linecap=\"round\"/><path d=\"M 50 36 Q 66 60 76 82\" stroke=\"#6D4C41\" stroke-width=\"5.5\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"70\" cy=\"22\" r=\"4.5\" fill=\"#D84315\"/></svg>"
+  },
+  {
+    "c": "人",
+    "p": "rén",
+    "m": "person · human",
+    "cat": "person",
+    "h": 1,
+    "oracle": "🚶",
+    "seal": "人",
+    "story": "A side-profile silhouette of a human standing and walking on two legs with arms forward.",
+    "cues": [
+      "Left downward slash = torso and front leg",
+      "Right supporting stroke = back stride leg",
+      "The foundational radical for all human relationships"
+    ],
+    "derivatives": [
+      "人们 (rén men - people)",
+      "工人 (gōng rén - worker)",
+      "人类 (rén lèi - humanity)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"22\" r=\"10\" fill=\"#2196F3\"/><path d=\"M 50 32 L 32 82 M 50 46 L 68 82\" stroke=\"#1976D2\" stroke-width=\"6.5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "大",
+    "p": "dà",
+    "m": "big · great · adult",
+    "cat": "person",
+    "h": 1,
+    "oracle": "🧍",
+    "seal": "大",
+    "story": "A grown adult standing proudly facing forward with arms and legs outstretched to maximum span.",
+    "cues": [
+      "Top horizontal = outstretched arms",
+      "Central vertical slash = head and torso",
+      "Bottom spread legs = wide stable stance"
+    ],
+    "derivatives": [
+      "大家 (dà jiā - everyone)",
+      "大人 (dà ren - adult)",
+      "大小 (dà xiǎo - size)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"18\" r=\"9\" fill=\"#1565C0\"/><line x1=\"16\" y1=\"42\" x2=\"84\" y2=\"42\" stroke=\"#1E88E5\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"26\" x2=\"50\" y2=\"60\" stroke=\"#1E88E5\" stroke-width=\"6\"/><path d=\"M 50 60 L 26 86 M 50 60 L 74 86\" stroke=\"#1E88E5\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "女",
+    "p": "nǚ",
+    "m": "woman · female · daughter",
+    "cat": "person",
+    "h": 1,
+    "oracle": "👩",
+    "seal": "女",
+    "story": "A woman sitting gracefully with crossed arms and gentle posture, nursing and tending the home.",
+    "cues": [
+      "Top crossing stroke = arms held gracefully",
+      "Central vertical sweep = slender waist and body",
+      "Bottom line = resting knees"
+    ],
+    "derivatives": [
+      "女儿 (nǚ ér - daughter)",
+      "女人 (nǚ rén - woman)",
+      "女士 (nǚ shì - lady / madam)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"20\" r=\"9\" fill=\"#E91E63\"/><path d=\"M 50 28 L 36 60 L 64 60 M 36 60 L 62 84 M 18 52 L 82 52\" stroke=\"#D81B60\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "子",
+    "p": "zǐ",
+    "m": "child · son · seed",
+    "cat": "person",
+    "h": 1,
+    "oracle": "👶",
+    "seal": "子",
+    "story": "A cute newborn baby with a prominent round head, outstretched arms, and swaddled legs.",
+    "cues": [
+      "Top horizontal curve = round baby head",
+      "Middle horizontal bar = tiny reaching baby arms",
+      "Bottom curved tail = swaddled lower body"
+    ],
+    "derivatives": [
+      "孩子 (hái zi - child)",
+      "儿子 (ér zi - son)",
+      "桌子 (zhuō zi - table)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"26\" r=\"13\" fill=\"#FFE082\" stroke=\"#FFA000\" stroke-width=\"3\"/><line x1=\"20\" y1=\"52\" x2=\"80\" y2=\"52\" stroke=\"#FFA000\" stroke-width=\"5.5\" stroke-linecap=\"round\"/><path d=\"M 50 39 L 50 72 Q 50 84 38 80\" stroke=\"#FFA000\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "口",
+    "p": "kǒu",
+    "m": "mouth · opening · entrance",
+    "cat": "person",
+    "h": 1,
+    "oracle": "👄",
+    "seal": "口",
+    "story": "A direct pictograph of an open human mouth ready to speak, eat, or breathe.",
+    "cues": [
+      "Square outline = open lips and oral cavity",
+      "Radical for all words regarding speech, eating, and tasting",
+      "Measure word for family members (四口人)"
+    ],
+    "derivatives": [
+      "门口 (mén kǒu - doorway)",
+      "人口 (rén kǒu - population)",
+      "口语 (kǒu yǔ - spoken language)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"22\" y=\"24\" width=\"56\" height=\"52\" rx=\"6\" fill=\"#FFCDD2\" stroke=\"#E53935\" stroke-width=\"6\"/><ellipse cx=\"50\" cy=\"50\" rx=\"16\" ry=\"10\" fill=\"#B71C1C\"/></svg>"
+  },
+  {
+    "c": "目",
+    "p": "mù",
+    "m": "eye · look · item",
+    "cat": "person",
+    "h": 2,
+    "oracle": "👁️",
+    "seal": "目",
+    "story": "A realistic human eye turned vertically, with eyelids outside and the iris and pupil in the center.",
+    "cues": [
+      "Outer rectangular box = upper and lower eyelids",
+      "Two inner horizontal lines = iris boundaries and pupil",
+      "Radical for sight, glasses, and observation"
+    ],
+    "derivatives": [
+      "目标 (mù biāo - target / goal)",
+      "目前 (mù qián - currently)",
+      "目睹 (mù dǔ - witness with eyes)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"30\" y=\"18\" width=\"40\" height=\"64\" rx=\"6\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"5\"/><circle cx=\"50\" cy=\"50\" r=\"10\" fill=\"#01579B\"/><circle cx=\"52\" cy=\"48\" r=\"3\" fill=\"#FFF\"/><line x1=\"30\" y1=\"39\" x2=\"70\" y2=\"39\" stroke=\"#0288D1\" stroke-width=\"3.5\"/><line x1=\"30\" y1=\"61\" x2=\"70\" y2=\"61\" stroke=\"#0288D1\" stroke-width=\"3.5\"/></svg>"
+  },
+  {
+    "c": "耳",
+    "p": "ěr",
+    "m": "ear · handle",
+    "cat": "person",
+    "h": 2,
+    "oracle": "👂",
+    "seal": "耳",
+    "story": "A direct drawing of a human ear showing the outer earlobe and inner auditory canal curves.",
+    "cues": [
+      "Outer frame = outer cartilage rim",
+      "Two inner horizontal strokes = auditory canal curves",
+      "Long left stem = earlobe hanging down"
+    ],
+    "derivatives": [
+      "耳朵 (ěr duo - ear)",
+      "耳机 (ěr jī - earphones)",
+      "木耳 (mù ěr - wood ear mushroom)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 32 20 Q 72 16 72 44 Q 72 68 54 74 L 46 84\" stroke=\"#FF7043\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><line x1=\"32\" y1=\"20\" x2=\"32\" y2=\"84\" stroke=\"#D84315\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"32\" y1=\"38\" x2=\"64\" y2=\"38\" stroke=\"#FF7043\" stroke-width=\"3.5\"/><line x1=\"32\" y1=\"56\" x2=\"58\" y2=\"56\" stroke=\"#FF7043\" stroke-width=\"3.5\"/></svg>"
+  },
+  {
+    "c": "手",
+    "p": "shǒu",
+    "m": "hand · skill · master",
+    "cat": "person",
+    "h": 1,
+    "oracle": "✋",
+    "seal": "手",
+    "story": "A human hand with five extended fingers, palm lines, and the wrist joint.",
+    "cues": [
+      "Top curving stroke = thumb",
+      "Middle horizontal lines = open fingers and palm creases",
+      "Bottom hook = wrist bone"
+    ],
+    "derivatives": [
+      "手机 (shǒu jī - mobile phone)",
+      "右手 (yòu shǒu - right hand)",
+      "手指 (shǒu zhǐ - finger)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"20\" y1=\"36\" x2=\"80\" y2=\"36\" stroke=\"#42A5F5\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"24\" y1=\"52\" x2=\"76\" y2=\"52\" stroke=\"#42A5F5\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><path d=\"M 28 22 Q 50 28 72 22\" stroke=\"#42A5F5\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/><path d=\"M 50 18 L 50 76 Q 50 86 36 82\" stroke=\"#1976D2\" stroke-width=\"6\" fill=\"none\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "足",
+    "p": "zú",
+    "m": "foot · leg · sufficient",
+    "cat": "person",
+    "h": 2,
+    "oracle": "🦶",
+    "seal": "足",
+    "story": "A human knee joint (口) resting upon the calf, ankle, and solid walking foot (止).",
+    "cues": [
+      "Top 口 = knee kneecap",
+      "Bottom 止 = ankle and forward-pointing foot toes",
+      "Means physical foot or being fully satisfied/sufficient"
+    ],
+    "derivatives": [
+      "足球 (zú qiú - soccer)",
+      "足够 (zú gòu - sufficient / enough)",
+      "满足 (mǎn zú - satisfied)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"30\" r=\"14\" fill=\"#FFE082\" stroke=\"#FFA000\" stroke-width=\"3.5\"/><line x1=\"50\" y1=\"44\" x2=\"50\" y2=\"76\" stroke=\"#FFA000\" stroke-width=\"5\"/><line x1=\"30\" y1=\"62\" x2=\"50\" y2=\"62\" stroke=\"#FFA000\" stroke-width=\"4\"/><line x1=\"24\" y1=\"76\" x2=\"78\" y2=\"76\" stroke=\"#FF8F00\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "心",
+    "p": "xīn",
+    "m": "heart · mind · core",
+    "cat": "person",
+    "h": 1,
+    "oracle": "❤️",
+    "seal": "心",
+    "story": "A human heart with four chambers, muscular aorta curves, and lifeblood droplets.",
+    "cues": [
+      "Central basin curve = bottom ventricles of heart",
+      "Three dots = atria and aorta blood droplets",
+      "Seat of emotions, thoughts, and core intentions"
+    ],
+    "derivatives": [
+      "心情 (xīn qíng - mood)",
+      "小心 (xiǎo xīn - careful)",
+      "爱心 (ài xīn - compassion)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 24 50 Q 30 78 54 78 Q 78 78 82 54\" stroke=\"#E53935\" stroke-width=\"5.5\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"22\" cy=\"40\" r=\"4.5\" fill=\"#D32F2F\"/><circle cx=\"50\" cy=\"46\" r=\"4.5\" fill=\"#D32F2F\"/><circle cx=\"78\" cy=\"36\" r=\"4.5\" fill=\"#D32F2F\"/></svg>"
+  },
+  {
+    "c": "门",
+    "p": "mén",
+    "m": "door · gate · entrance",
+    "cat": "object",
+    "h": 1,
+    "oracle": "🚪",
+    "seal": "門",
+    "story": "A traditional two-panel hinged wooden gate swung open at a building entrance.",
+    "cues": [
+      "Left vertical post = left door jamb",
+      "Top bar = overhead lintel beam",
+      "Right vertical hook = right swinging door leaf"
+    ],
+    "derivatives": [
+      "开门 (kāi mén - open door)",
+      "门口 (mén kǒu - entrance)",
+      "热门 (rè mén - popular / hot topic)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"24\" y1=\"18\" x2=\"24\" y2=\"82\" stroke=\"#8D6E63\" stroke-width=\"6\" stroke-linecap=\"round\"/><path d=\"M 24 24 L 76 24 L 76 82\" stroke=\"#8D6E63\" stroke-width=\"6\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"68\" cy=\"54\" r=\"3.5\" fill=\"#FFA000\"/></svg>"
+  },
+  {
+    "c": "车",
+    "p": "chē",
+    "m": "car · vehicle · chariot",
+    "cat": "object",
+    "h": 1,
+    "oracle": "🚗",
+    "seal": "車",
+    "story": "A top-down bird's-eye view of a chariot with two rotating wheels, axle line, and passenger cab.",
+    "cues": [
+      "Top and bottom horizontal strokes = two wheels",
+      "Middle box = passenger cab carriage",
+      "Central vertical line = connecting axle"
+    ],
+    "derivatives": [
+      "汽车 (qì chē - automobile)",
+      "车站 (chē zhàn - bus/train station)",
+      "自行车 (zì xíng chē - bicycle)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"20\" y1=\"26\" x2=\"80\" y2=\"26\" stroke=\"#546E7A\" stroke-width=\"6\" stroke-linecap=\"round\"/><rect x=\"28\" y=\"38\" width=\"44\" height=\"26\" rx=\"4\" fill=\"#90A4AE\" stroke=\"#455A64\" stroke-width=\"4\"/><line x1=\"20\" y1=\"74\" x2=\"80\" y2=\"74\" stroke=\"#546E7A\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"14\" x2=\"50\" y2=\"86\" stroke=\"#37474F\" stroke-width=\"5\"/></svg>"
+  },
+  {
+    "c": "舟",
+    "p": "zhōu",
+    "m": "boat · canoe · craft",
+    "cat": "object",
+    "h": 2,
+    "oracle": "🛶",
+    "seal": "舟",
+    "story": "A hollowed wooden dugout canoe with curved bow, stern, and wooden rowing crossbeams.",
+    "cues": [
+      "Outer curved hull = canoe sides",
+      "Two horizontal lines = wooden seat thwarts",
+      "Center dot = oarsman sitting in the boat"
+    ],
+    "derivatives": [
+      "舟山 (zhōu shān - Zhoushan islands)",
+      "龙舟 (lóng zhōu - dragon boat)",
+      "轻舟 (qīng zhōu - light skiff)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 30 14 L 30 76 Q 30 86 50 86 Q 70 86 70 76 L 70 14\" stroke=\"#8D6E63\" stroke-width=\"5\" fill=\"none\"/><line x1=\"30\" y1=\"36\" x2=\"70\" y2=\"36\" stroke=\"#8D6E63\" stroke-width=\"4\"/><line x1=\"30\" y1=\"56\" x2=\"70\" y2=\"56\" stroke=\"#8D6E63\" stroke-width=\"4\"/><circle cx=\"50\" cy=\"46\" r=\"3.5\" fill=\"#5D4037\"/></svg>"
+  },
+  {
+    "c": "弓",
+    "p": "gōng",
+    "m": "bow · curve · bend",
+    "cat": "object",
+    "h": 2,
+    "oracle": "🏹",
+    "seal": "弓",
+    "story": "A tensioned wooden hunting bow with curved upper and lower limbs and a taut center handle.",
+    "cues": [
+      "Top curve = upper bow stave limb",
+      "Middle hook = center hand grip",
+      "Bottom curve = lower bow limb for arrow release"
+    ],
+    "derivatives": [
+      "弓箭 (gōng jiàn - bow and arrow)",
+      "弹弓 (dàn gōng - slingshot)",
+      "弯弓 (wān gōng - draw a bow)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 36 18 L 68 18 L 44 46 L 68 46 L 68 76 Q 68 84 36 84\" stroke=\"#8D6E63\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/><line x1=\"36\" y1=\"18\" x2=\"36\" y2=\"84\" stroke=\"#B0BEC5\" stroke-width=\"2\" stroke-dasharray=\"3 3\"/></svg>"
+  },
+  {
+    "c": "刀",
+    "p": "dāo",
+    "m": "knife · blade · sword",
+    "cat": "object",
+    "h": 1,
+    "oracle": "🔪",
+    "seal": "刀",
+    "story": "A single-edged cutting blade with a curved steel tip, cutting edge, and handle tang.",
+    "cues": [
+      "Right curved blade = sharp steel edge",
+      "Left top handle = grip tang",
+      "The key radical for cutting, slicing, and dividing"
+    ],
+    "derivatives": [
+      "小刀 (xiǎo dāo - pocket knife)",
+      "菜刀 (cài dāo - kitchen cleaver)",
+      "刀叉 (dāo chā - knife and fork)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 36 18 L 68 18 L 68 72 Q 68 84 48 82 L 40 50 L 36 50 Z\" fill=\"#CFD8DC\" stroke=\"#455A64\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "伞",
+    "p": "sǎn",
+    "m": "umbrella · parachute",
+    "cat": "object",
+    "h": 2,
+    "oracle": "☂️",
+    "seal": "傘",
+    "story": "A direct pictograph of an umbrella canopy with ribs, cloth cover, central pole, and small people sheltered beneath.",
+    "cues": [
+      "Top roof curve = umbrella fabric canopy",
+      "Inner marks = folding steel ribs and people underneath",
+      "Central vertical line = handle shaft"
+    ],
+    "derivatives": [
+      "雨伞 (yǔ sǎn - rain umbrella)",
+      "阳伞 (yáng sǎn - parasol)",
+      "降落伞 (jiàng luò sǎn - parachute)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 16 Q 84 28 80 52 L 20 52 Q 16 28 50 16 Z\" fill=\"#FF8A80\" stroke=\"#D50000\" stroke-width=\"3.5\"/><line x1=\"50\" y1=\"16\" x2=\"50\" y2=\"82\" stroke=\"#424242\" stroke-width=\"4.5\"/><path d=\"M 50 82 Q 50 88 42 88\" stroke=\"#424242\" stroke-width=\"4.5\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "册",
+    "p": "cè",
+    "m": "book · volume · scroll",
+    "cat": "object",
+    "h": 2,
+    "oracle": "📜",
+    "seal": "冊",
+    "story": "Vertical bamboo slips inscribed with ancient characters tied together with leather cords.",
+    "cues": [
+      "Vertical lines = individual bamboo slats",
+      "Connecting horizontal belt = binding cord holding volume together",
+      "Measure word for volumes of books"
+    ],
+    "derivatives": [
+      "手册 (shǒu cè - handbook)",
+      "画册 (huà cè - picture album)",
+      "注册 (zhù cè - register / enroll)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"24\" y1=\"20\" x2=\"24\" y2=\"80\" stroke=\"#A1887F\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"42\" y1=\"20\" x2=\"42\" y2=\"80\" stroke=\"#A1887F\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"58\" y1=\"20\" x2=\"58\" y2=\"80\" stroke=\"#A1887F\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"76\" y1=\"20\" x2=\"76\" y2=\"80\" stroke=\"#A1887F\" stroke-width=\"6\" stroke-linecap=\"round\"/><path d=\"M 18 50 L 82 50\" stroke=\"#D7CCC8\" stroke-width=\"4\"/></svg>"
+  },
+  {
+    "c": "鼎",
+    "p": "dǐng",
+    "m": "cauldron · tripod vessel",
+    "cat": "object",
+    "h": 4,
+    "oracle": "🍲",
+    "seal": "鼎",
+    "story": "A magnificent three-legged ancient bronze cauldron with twin carrying handles and relief motifs, symbolizing state authority.",
+    "cues": [
+      "Top 目 = square cauldron belly",
+      "Twin ears on sides = carrying handles",
+      "Bottom legs = sturdy bronze tripod feet"
+    ],
+    "derivatives": [
+      "鼎力 (dǐng lì - with all one's might)",
+      "一言九鼎 (yì yán jiǔ dǐng - solemn promise)",
+      "问鼎 (wèn dǐng - compete for championship)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"26\" y=\"28\" width=\"48\" height=\"34\" rx=\"4\" fill=\"#80CBC4\" stroke=\"#004D40\" stroke-width=\"4\"/><line x1=\"26\" y1=\"20\" x2=\"26\" y2=\"28\" stroke=\"#004D40\" stroke-width=\"4.5\"/><line x1=\"74\" y1=\"20\" x2=\"74\" y2=\"28\" stroke=\"#004D40\" stroke-width=\"4.5\"/><line x1=\"36\" y1=\"62\" x2=\"32\" y2=\"86\" stroke=\"#004D40\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"64\" y1=\"62\" x2=\"68\" y2=\"86\" stroke=\"#004D40\" stroke-width=\"5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"62\" x2=\"50\" y2=\"86\" stroke=\"#004D40\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "矢",
+    "p": "shǐ",
+    "m": "arrow · dart",
+    "cat": "object",
+    "h": 3,
+    "oracle": "🏹",
+    "seal": "矢",
+    "story": "An ancient pointed arrow showing the sharp triangular arrowhead, long shaft, and tail feathers.",
+    "cues": [
+      "Top arrowhead = pointed metal dart tip",
+      "Center vertical = straight wooden arrow shaft",
+      "Bottom cross / slants = fletching stabilizer feathers"
+    ],
+    "derivatives": [
+      "有的放矢 (yǒu dì fàng shǐ - have a clear target)",
+      "弓矢 (gōng shǐ - bow and arrow)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"50,14 62,34 38,34\" fill=\"#90A4AE\" stroke=\"#455A64\" stroke-width=\"2.5\"/><line x1=\"50\" y1=\"34\" x2=\"50\" y2=\"84\" stroke=\"#8D6E63\" stroke-width=\"4.5\"/><path d=\"M 34 72 L 50 84 L 66 72\" stroke=\"#B0BEC5\" stroke-width=\"3\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "衣",
+    "p": "yī",
+    "m": "clothes · garment · jacket",
+    "cat": "object",
+    "h": 1,
+    "oracle": "👘",
+    "seal": "衣",
+    "story": "A folded cross-collar traditional silk robe with sleeves hanging down on both sides.",
+    "cues": [
+      "Top dot and slash = folded cross collar",
+      "Two side sweeps = hanging silk sleeves",
+      "Bottom folds = lower hem skirt"
+    ],
+    "derivatives": [
+      "衣服 (yī fu - clothing)",
+      "大衣 (dà yī - overcoat)",
+      "毛衣 (máo yī - sweater)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 16 L 36 34 L 50 44 L 64 34 Z\" fill=\"#E1BEE7\" stroke=\"#8E24AA\" stroke-width=\"3\"/><path d=\"M 36 34 L 18 52 L 28 60 L 38 46 L 38 84 L 62 84 L 62 46 L 72 60 L 82 52 L 64 34\" fill=\"#CE93D8\" stroke=\"#8E24AA\" stroke-width=\"3\"/></svg>"
+  },
+  {
+    "c": "休",
+    "p": "xiū",
+    "m": "rest · cease · stop",
+    "cat": "action",
+    "h": 1,
+    "oracle": "🌳",
+    "seal": "休",
+    "story": "A tired working person (亻) leaning peacefully against the trunk of a shady tree (木) to catch their breath.",
+    "cues": [
+      "Left 亻 = human person",
+      "Right 木 = shady wood tree",
+      "Universal visual metaphor for restful relaxation"
+    ],
+    "derivatives": [
+      "休息 (xiū xi - to rest)",
+      "休假 (xiū jià - take vacation)",
+      "休闲 (xiū xián - leisure)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"30\" cy=\"30\" r=\"7\" fill=\"#42A5F5\"/><line x1=\"30\" y1=\"38\" x2=\"30\" y2=\"76\" stroke=\"#1976D2\" stroke-width=\"4.5\"/><line x1=\"30\" y1=\"50\" x2=\"52\" y2=\"46\" stroke=\"#1976D2\" stroke-width=\"4\"/><line x1=\"68\" y1=\"18\" x2=\"68\" y2=\"82\" stroke=\"#6D4C41\" stroke-width=\"5.5\"/><circle cx=\"68\" cy=\"32\" r=\"14\" fill=\"#81C784\"/></svg>"
+  },
+  {
+    "c": "看",
+    "p": "kàn",
+    "m": "look · watch · see",
+    "cat": "action",
+    "h": 1,
+    "oracle": "👀",
+    "seal": "看",
+    "story": "A person placing their hand (手) over their eyes (目) to shield against the glare and look into the distance.",
+    "cues": [
+      "Top 手/𠂇 = shielding hand over brow",
+      "Bottom 目 = observant eye gazing ahead",
+      "Found in 看见 (see) and 看书 (read)"
+    ],
+    "derivatives": [
+      "看见 (kàn jiàn - to see)",
+      "好看 (hǎo kàn - good-looking)",
+      "看法 (kàn fǎ - viewpoint)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 22 28 Q 50 34 78 24 M 32 38 Q 50 44 68 36\" stroke=\"#FFA726\" stroke-width=\"4.5\" fill=\"none\" stroke-linecap=\"round\"/><rect x=\"34\" y=\"46\" width=\"32\" height=\"40\" rx=\"4\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"3.5\"/><circle cx=\"50\" cy=\"66\" r=\"6\" fill=\"#01579B\"/></svg>"
+  },
+  {
+    "c": "见",
+    "p": "jiàn",
+    "m": "see · meet · perceive",
+    "cat": "action",
+    "h": 1,
+    "oracle": "👁️",
+    "seal": "見",
+    "story": "A prominent wide-open eye (目) walking atop human legs (儿), emphasizing active visual perception.",
+    "cues": [
+      "Top 目 = visual eye",
+      "Bottom 儿 = human legs walking to meet someone",
+      "Found in 再见 (goodbye) and 见面 (meet)"
+    ],
+    "derivatives": [
+      "再见 (zài jiàn - goodbye)",
+      "见面 (jiàn miàn - meet)",
+      "意见 (yì jiàn - opinion / view)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"30\" y=\"16\" width=\"40\" height=\"42\" rx=\"4\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"4\"/><circle cx=\"50\" cy=\"37\" r=\"7\" fill=\"#01579B\"/><path d=\"M 40 58 L 28 86 M 60 58 L 72 86\" stroke=\"#0288D1\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "采",
+    "p": "cǎi",
+    "m": "pluck · gather · harvest",
+    "cat": "action",
+    "h": 2,
+    "oracle": "🧺",
+    "seal": "採",
+    "story": "A nimble hand (爫/爪) reaching down to pluck ripe fruit and flowers from a tree (木).",
+    "cues": [
+      "Top 爫 = downward reaching fingers",
+      "Bottom 木 = fruit tree branches",
+      "Means picking tea, gathering harvest, or adopting ideas"
+    ],
+    "derivatives": [
+      "采茶 (cǎi chá - pick tea leaves)",
+      "采取 (cǎi qǔ - adopt measure)",
+      "采访 (cǎi fǎng - interview / gather news)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 50 14 L 50 36 M 34 22 L 48 36 M 66 22 L 52 36\" stroke=\"#FF9800\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"20\" y1=\"56\" x2=\"80\" y2=\"56\" stroke=\"#4CAF50\" stroke-width=\"4.5\"/><line x1=\"50\" y1=\"42\" x2=\"50\" y2=\"86\" stroke=\"#6D4C41\" stroke-width=\"5\"/><circle cx=\"34\" cy=\"50\" r=\"5\" fill=\"#E53935\"/><circle cx=\"66\" cy=\"50\" r=\"5\" fill=\"#E53935\"/></svg>"
+  },
+  {
+    "c": "走",
+    "p": "zǒu",
+    "m": "walk · stride · leave",
+    "cat": "action",
+    "h": 1,
+    "oracle": "🏃",
+    "seal": "走",
+    "story": "A person with swinging arms (土/夭) running briskly atop stepping feet (止/足).",
+    "cues": [
+      "Top 土 = swinging upper body and arms",
+      "Bottom 疋/止 = stepping foot and toes",
+      "Found in 走路 (walk) and 走开 (go away)"
+    ],
+    "derivatives": [
+      "走路 (zǒu lù - walk)",
+      "走开 (zǒu kāi - leave)",
+      "逃走 (táo zǒu - escape)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"18\" r=\"8\" fill=\"#42A5F5\"/><line x1=\"30\" y1=\"36\" x2=\"70\" y2=\"36\" stroke=\"#1976D2\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"26\" x2=\"50\" y2=\"60\" stroke=\"#1976D2\" stroke-width=\"5\"/><path d=\"M 50 60 L 30 84 M 50 60 L 74 84\" stroke=\"#1976D2\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "鸣",
+    "p": "míng",
+    "m": "chirp · animal cry",
+    "cat": "action",
+    "h": 3,
+    "oracle": "🐤",
+    "seal": "鳴",
+    "story": "An open mouth (口) positioned alongside a bird (鸟), depicting a bird singing or crowing aloud.",
+    "cues": [
+      "Left 口 = singing calling mouth",
+      "Right 鸟 = calling songbird",
+      "Means bird chirp, ringing sound, or fame (一鸣惊人)"
+    ],
+    "derivatives": [
+      "共鸣 (gòng míng - resonance / empathy)",
+      "雷鸣 (léi míng - thunderclap)",
+      "一鸣惊人 (yì míng jīng rén - instant hit)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"18\" y=\"38\" width=\"24\" height=\"24\" rx=\"3\" fill=\"#FFCDD2\" stroke=\"#E53935\" stroke-width=\"3\"/><path d=\"M 52 26 Q 66 18 78 26 L 82 72 Q 68 82 52 72 Z\" fill=\"#81D4FA\" stroke=\"#0288D1\" stroke-width=\"3\"/><path d=\"M 38 34 Q 48 30 48 20\" stroke=\"#FF9800\" stroke-width=\"3\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "从",
+    "p": "cóng",
+    "m": "follow · from",
+    "cat": "action",
+    "h": 1,
+    "oracle": "👥",
+    "seal": "从",
+    "story": "One person (人) walking closely behind another person (人), following their footsteps along the trail.",
+    "cues": [
+      "Left 人 = front leading person",
+      "Right 人 = follower walking in single file",
+      "Means to follow, comply with, or 'from' (从来)"
+    ],
+    "derivatives": [
+      "从前 (cóng qián - previously)",
+      "服从 (fú cóng - obey)",
+      "跟从 (gēn cóng - follow)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><g transform=\"translate(-14, 0) scale(0.8)\"><circle cx=\"50\" cy=\"24\" r=\"8\" fill=\"#FFA726\"/><path d=\"M 50 32 L 36 78 M 50 44 L 64 78\" stroke=\"#FB8C00\" stroke-width=\"5\" stroke-linecap=\"round\"/></g><g transform=\"translate(20, 0) scale(0.8)\"><circle cx=\"50\" cy=\"24\" r=\"8\" fill=\"#FFA726\"/><path d=\"M 50 32 L 36 78 M 50 44 L 64 78\" stroke=\"#FB8C00\" stroke-width=\"5\" stroke-linecap=\"round\"/></g></svg>"
+  },
+  {
+    "c": "比",
+    "p": "bǐ",
+    "m": "compare · compete · ratio",
+    "cat": "action",
+    "h": 2,
+    "oracle": "⚖️",
+    "seal": "比",
+    "story": "Two people standing closely side-by-side shoulder to shoulder to compare who is taller and stronger.",
+    "cues": [
+      "Left person standing in profile",
+      "Right person standing next to compare",
+      "Means to compare, compete, or ratio (比赛)"
+    ],
+    "derivatives": [
+      "比赛 (bǐ sài - competition)",
+      "比较 (bǐ jiào - comparatively)",
+      "比如 (bǐ rú - for instance)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 28 26 L 28 74 Q 28 82 42 82 M 20 48 L 44 48\" stroke=\"#1E88E5\" stroke-width=\"5\" stroke-linecap=\"round\" fill=\"none\"/><path d=\"M 68 26 L 68 74 Q 68 82 82 82 M 60 48 L 84 48\" stroke=\"#43A047\" stroke-width=\"5\" stroke-linecap=\"round\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "上",
+    "p": "shàng",
+    "m": "above · up · go up",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "⬆️",
+    "seal": "丄",
+    "story": "A long reference baseline with an indicator mark placed directly above it pointing skyward.",
+    "cues": [
+      "Bottom horizontal baseline = ground level",
+      "Vertical stem = upward indicator",
+      "Short horizontal bar = higher elevation"
+    ],
+    "derivatives": [
+      "上班 (shàng bān - go to work)",
+      "上面 (shàng mian - above)",
+      "上学 (shàng xué - attend school)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"14\" y1=\"78\" x2=\"86\" y2=\"78\" stroke=\"#00838F\" stroke-width=\"7\" stroke-linecap=\"round\"/><line x1=\"42\" y1=\"20\" x2=\"42\" y2=\"78\" stroke=\"#00ACC1\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"42\" y1=\"46\" x2=\"74\" y2=\"46\" stroke=\"#26C6DA\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "下",
+    "p": "xià",
+    "m": "below · down · get off",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "⬇️",
+    "seal": "丅",
+    "story": "A long ceiling reference baseline with an indicator mark positioned directly beneath it pointing downward.",
+    "cues": [
+      "Top horizontal baseline = sky/ceiling reference",
+      "Vertical stem = downward drop",
+      "Short horizontal dot = lower subterranean realm"
+    ],
+    "derivatives": [
+      "下班 (xià bān - get off work)",
+      "下午 (xià wǔ - afternoon)",
+      "下面 (xià mian - below)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"14\" y1=\"22\" x2=\"86\" y2=\"22\" stroke=\"#00838F\" stroke-width=\"7\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"22\" x2=\"50\" y2=\"80\" stroke=\"#00ACC1\" stroke-width=\"6\" stroke-linecap=\"round\"/><line x1=\"50\" y1=\"52\" x2=\"78\" y2=\"66\" stroke=\"#26C6DA\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "中",
+    "p": "zhōng",
+    "m": "middle · center · China",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "🎯",
+    "seal": "中",
+    "story": "An archery target drum with an arrow piercing straight through the bullseye center.",
+    "cues": [
+      "Center square = target arena",
+      "Vertical piercing line = arrow hitting exact center dead-on",
+      "The centerpiece of 中国 (China - The Central Realm)"
+    ],
+    "derivatives": [
+      "中国 (zhōng guó - China)",
+      "中间 (zhōng jiān - in the middle)",
+      "中文 (zhōng wén - Chinese language)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"24\" y=\"32\" width=\"52\" height=\"36\" rx=\"4\" fill=\"#FFE082\" stroke=\"#FF8F00\" stroke-width=\"5\"/><line x1=\"50\" y1=\"12\" x2=\"50\" y2=\"88\" stroke=\"#D84315\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "尖",
+    "p": "jiān",
+    "m": "sharp · pointed · tip",
+    "cat": "concept",
+    "h": 2,
+    "oracle": "🗡",
+    "seal": "尖",
+    "story": "Something that is small (小) at the very top resting upon something big (大) at the bottom, creating a sharp needle point.",
+    "cues": [
+      "Top 小 = small / narrow tip",
+      "Bottom 大 = big / broad base",
+      "Depicts tapered sharp points, cones, and needles"
+    ],
+    "derivatives": [
+      "笔尖 (bǐ jiān - pen tip)",
+      "尖叫 (jiān jiào - scream)",
+      "顶尖 (dǐng jiān - top-notch)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"50,14 74,78 26,78\" fill=\"#FFF176\" stroke=\"#FBC02D\" stroke-width=\"4\"/><line x1=\"50\" y1=\"14\" x2=\"50\" y2=\"78\" stroke=\"#F57F17\" stroke-width=\"3\"/></svg>"
+  },
+  {
+    "c": "歪",
+    "p": "wāi",
+    "m": "crooked · askew · slanting",
+    "cat": "concept",
+    "h": 3,
+    "oracle": "📐",
+    "seal": "歪",
+    "story": "Something that is not (不) upright and straight (正), slanting or leaning crookedly off center.",
+    "cues": [
+      "Top 不 = not",
+      "Bottom 正 = straight / correct",
+      "Means crooked, askew, or devious"
+    ],
+    "derivatives": [
+      "歪曲 (wāi qū - distort)",
+      "歪斜 (wāi xié - slanted / crooked)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><g transform=\"rotate(15 50 50)\"><rect x=\"30\" y=\"24\" width=\"40\" height=\"52\" rx=\"3\" fill=\"#FFE082\" stroke=\"#E65100\" stroke-width=\"4.5\"/></g></svg>"
+  },
+  {
+    "c": "卡",
+    "p": "kǎ",
+    "m": "stuck · wedge · card",
+    "cat": "concept",
+    "h": 2,
+    "oracle": "🪤",
+    "seal": "卡",
+    "story": "Wedged tight between going up (上) and going down (下), trapped in the middle without moving.",
+    "cues": [
+      "Top 上 = going up",
+      "Bottom 下 = going down",
+      "Also used phonetically for 'card' (卡片)"
+    ],
+    "derivatives": [
+      "卡片 (kǎ piàn - card)",
+      "卡住 (kǎ zhù - get stuck)",
+      "信用卡 (xìn yòng kǎ - credit card)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"20\" y=\"22\" width=\"60\" height=\"14\" rx=\"3\" fill=\"#78909C\"/><rect x=\"20\" y=\"64\" width=\"60\" height=\"14\" rx=\"3\" fill=\"#78909C\"/><circle cx=\"50\" cy=\"50\" r=\"14\" fill=\"#E53935\"/></svg>"
+  },
+  {
+    "c": "友",
+    "p": "yǒu",
+    "m": "friend · companion",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "🤝",
+    "seal": "友",
+    "story": "Two right hands (又 + 又) reaching out and clasping together in mutual support and warm friendship.",
+    "cues": [
+      "Twin hands clasping",
+      "Symbolizes companionship, loyalty, and alliance",
+      "Found in 朋友 (friend) and 友好 (friendly)"
+    ],
+    "derivatives": [
+      "朋友 (péng you - friend)",
+      "友好 (yǒu hǎo - friendly)",
+      "友情 (yǒu qíng - friendship)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M26 42 Q50 32 64 48 L74 42\" stroke=\"#FF7043\" stroke-width=\"5.5\" stroke-linecap=\"round\" fill=\"none\"/><path d=\"M74 58 Q50 68 36 52 L26 58\" stroke=\"#1E88E5\" stroke-width=\"5.5\" stroke-linecap=\"round\" fill=\"none\"/></svg>"
+  },
+  {
+    "c": "初",
+    "p": "chū",
+    "m": "beginning · initial · first",
+    "cat": "concept",
+    "h": 3,
+    "oracle": "✂️",
+    "seal": "初",
+    "story": "A sharp scissors/knife (刀) cutting the first incision into raw cloth (衣) to begin tailoring a garment.",
+    "cues": [
+      "Left 衤 = fabric cloth",
+      "Right 刀 = cutting blade",
+      "Means the beginning, initial step, or first time"
+    ],
+    "derivatives": [
+      "初中 (chū zhōng - middle school)",
+      "初心 (chū xīn - original intention)",
+      "初次 (chū cì - first time)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"18\" y=\"24\" width=\"34\" height=\"52\" rx=\"3\" fill=\"#E1BEE7\" stroke=\"#8E24AA\" stroke-width=\"3.5\"/><path d=\"M60 22 L76 46 L60 70 M76 22 L60 46 L76 70\" stroke=\"#E53935\" stroke-width=\"4\" stroke-linecap=\"round\"/></svg>"
+  },
+  {
+    "c": "信",
+    "p": "xìn",
+    "m": "trust · letter · faith",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "✉️",
+    "seal": "信",
+    "story": "A person (人/亻) standing firmly by the words and promises that they speak (言), representing trustworthiness.",
+    "cues": [
+      "Left 亻 = upright human person",
+      "Right 言 = spoken speech words",
+      "Means honesty, belief, faith, or a letter"
+    ],
+    "derivatives": [
+      "相信 (xiāng xìn - believe)",
+      "信用 (xìn yòng - credit)",
+      "信封 (xìn fēng - envelope)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"28\" y1=\"20\" x2=\"28\" y2=\"82\" stroke=\"#1565C0\" stroke-width=\"6\" stroke-linecap=\"round\"/><path d=\"M28 36 L16 56\" stroke=\"#1565C0\" stroke-width=\"5\" stroke-linecap=\"round\"/><rect x=\"46\" y=\"24\" width=\"40\" height=\"54\" rx=\"4\" fill=\"#FFE082\" stroke=\"#F57F17\" stroke-width=\"3.5\"/><line x1=\"54\" y1=\"38\" x2=\"78\" y2=\"38\" stroke=\"#F57F17\" stroke-width=\"3\"/><line x1=\"54\" y1=\"52\" x2=\"78\" y2=\"52\" stroke=\"#F57F17\" stroke-width=\"3\"/><line x1=\"54\" y1=\"66\" x2=\"78\" y2=\"66\" stroke=\"#F57F17\" stroke-width=\"3\"/></svg>"
+  },
+  {
+    "c": "回",
+    "p": "huí",
+    "m": "return · circle · revolve",
+    "cat": "concept",
+    "h": 1,
+    "oracle": "🔄",
+    "seal": "回",
+    "story": "A swirling circular eddy of water or spiral maze returning back inwardly towards its original starting point.",
+    "cues": [
+      "Outer box 囗 = outer boundary orbit",
+      "Inner box 口 = inner core destination",
+      "Means to return, go back, answer, or circle"
+    ],
+    "derivatives": [
+      "回家 (huí jiā - return home)",
+      "回来 (huí lái - come back)",
+      "回答 (huí dá - to answer)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"18\" y=\"18\" width=\"64\" height=\"64\" rx=\"8\" fill=\"#E1F5FE\" stroke=\"#0288D1\" stroke-width=\"6\"/><rect x=\"36\" y=\"36\" width=\"28\" height=\"28\" rx=\"4\" fill=\"#B3E5FC\" stroke=\"#01579B\" stroke-width=\"5\"/></svg>"
+  },
+  {
+    "c": "囚",
+    "p": "qiú",
+    "m": "prisoner · confine",
+    "cat": "concept",
+    "h": 3,
+    "oracle": "⛓️",
+    "seal": "囚",
+    "story": "A human person (人) trapped inside the four enclosing walls of a prison cell (囗).",
+    "cues": [
+      "Outer 囗 = four walls of prison cell",
+      "Inner 人 = human captive trapped inside",
+      "Means prisoner, convict, or confinement"
+    ],
+    "derivatives": [
+      "死囚 (sǐ qiú - death row convict)",
+      "囚禁 (qiú jìn - imprison / confine)",
+      "阶下囚 (jiē xià qiú - captive prisoner)"
+    ],
+    "svg": "<svg viewBox=\"0 0 100 100\" class=\"picto-svg\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"16\" y=\"16\" width=\"68\" height=\"68\" rx=\"6\" fill=\"#ECEFF1\" stroke=\"#37474F\" stroke-width=\"6\"/><circle cx=\"50\" cy=\"38\" r=\"8\" fill=\"#78909C\"/><path d=\"M 50 46 L 36 74 M 50 56 L 64 74\" stroke=\"#546E7A\" stroke-width=\"4.5\" stroke-linecap=\"round\"/></svg>"
+  }
+];

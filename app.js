@@ -155,12 +155,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveState() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
+      state.updatedAt = new Date().toISOString();
       const payload = JSON.stringify(state);
 
       try {
         if (window.storage && typeof window.storage.set === "function") {
           await window.storage.set(STORAGE_KEY, payload, false);
-          return;
         }
       } catch (e) { console.warn("[HanziTracker]", e); }
 
@@ -392,7 +392,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function getEntry(char) { return state.progress[char] || null; }
   function getStatus(char) { const e = getEntry(char); return e ? e.status : "new"; }
 
-  function getWordEntry(word) { return state.wordProgress[word] || null; }
+  function getSentenceEntry(id) { return state.sentenceProgress[String(id)] || null; }
+  function getSentenceStatus(id) { const e = getSentenceEntry(id); return e ? e.status : "new"; }
+
+  function getWordKey(word) { return String(word || ""); }
+  function getWordEntry(word) { return state.wordProgress[getWordKey(word)] || null; }
   function getWordStatus(word) { const e = getWordEntry(word); return e ? e.status : "new"; }
 
   function writeWordEntry(word, opts) {
@@ -455,16 +459,191 @@ document.addEventListener("DOMContentLoaded", () => {
     state.streak.last = today;
   }
 
+  
+  /* ==========================================================================
+     FSRS (FREE SPACED REPETITION SCHEDULER) ALGORITHM ENGINE (v4.5)
+     ========================================================================== */
+  const FSRS_DEFAULT_WEIGHTS = [
+    0.40255, 1.18385, 3.173, 15.69105, // S0: Initial stability for Again, Hard, Good, Easy
+    7.1949, 0.5345,                     // D0: Initial difficulty parameters
+    1.4604, 0.0046,                     // Next difficulty & mean reversion
+    1.54575, 0.1192, 1.01925,           // Stability after recall (Good/Hard/Easy)
+    1.9395, 0.11, 0.29605, 0.22695,     // Stability after lapse (Again)
+    0.56995, 2.85775,                   // Hard penalty, Easy bonus
+    0.4795, 0.278                       // Decay factor & retrievability effect
+  ];
+
+  const FSRS_DECAY = -0.5;
+  const FSRS_FACTOR = Math.pow(0.9, 1 / FSRS_DECAY) - 1; // 19/81 ≈ 0.2345679
+  const FSRS_TARGET_RETENTION = 0.90; // Default 90% target retention
+
+  function clamp(val, min, max) {
+    return Math.max(min, Math.min(max, val));
+  }
+
+  function fsrsRetrievability(elapsedDays, stability) {
+    if (!stability || stability <= 0) return 0;
+    if (!elapsedDays || elapsedDays <= 0) return 1.0;
+    return Math.pow(1 + FSRS_FACTOR * (elapsedDays / stability), FSRS_DECAY);
+  }
+
+  function fsrsInitialStability(grade) {
+    return Math.max(0.1, FSRS_DEFAULT_WEIGHTS[grade - 1] || 1.0);
+  }
+
+  function fsrsInitialDifficulty(grade) {
+    const d0 = FSRS_DEFAULT_WEIGHTS[4] - Math.exp(FSRS_DEFAULT_WEIGHTS[5] * (grade - 1)) + 1;
+    return clamp(d0, 1.0, 10.0);
+  }
+
+  function fsrsNextDifficulty(d, grade) {
+    const deltaD = -FSRS_DEFAULT_WEIGHTS[6] * (grade - 3);
+    const rawD = (d || 5.0) + deltaD;
+    const initD3 = fsrsInitialDifficulty(3);
+    const nextD = FSRS_DEFAULT_WEIGHTS[7] * initD3 + (1 - FSRS_DEFAULT_WEIGHTS[7]) * rawD;
+    return clamp(nextD, 1.0, 10.0);
+  }
+
+  function fsrsNextStabilityRecall(d, s, r, grade) {
+    const hardPenalty = grade === 2 ? FSRS_DEFAULT_WEIGHTS[15] : 1.0;
+    const easyBonus = grade === 4 ? FSRS_DEFAULT_WEIGHTS[16] : 1.0;
+    const retrievabilityEffect = Math.exp(FSRS_DEFAULT_WEIGHTS[8]) *
+      (11 - d) *
+      Math.pow(s, -FSRS_DEFAULT_WEIGHTS[9]) *
+      (Math.exp(FSRS_DEFAULT_WEIGHTS[10] * (1 - r)) - 1);
+    const nextS = s * (1 + retrievabilityEffect * hardPenalty * easyBonus);
+    return Math.max(0.1, nextS);
+  }
+
+  function fsrsNextStabilityLapse(d, s, r) {
+    const nextS = FSRS_DEFAULT_WEIGHTS[11] *
+      Math.pow(d, -FSRS_DEFAULT_WEIGHTS[12]) *
+      (Math.pow(s + 1, FSRS_DEFAULT_WEIGHTS[13]) - 1) *
+      Math.exp(FSRS_DEFAULT_WEIGHTS[14] * (1 - r));
+    return Math.max(0.1, Math.min(s, nextS));
+  }
+
+  function fsrsNextInterval(stability, targetRetention = FSRS_TARGET_RETENTION) {
+    const interval = (stability / FSRS_FACTOR) * (Math.pow(targetRetention, 1 / FSRS_DECAY) - 1);
+    return Math.max(1, Math.round(interval));
+  }
+
+  function formatFSRSInterval(days) {
+    if (days < 1 / 24) return "< 10m";
+    if (days < 1) return Math.round(days * 24) + "h";
+    if (days < 30) return Math.round(days) + "d";
+    if (days < 365) return (days / 30).toFixed(1).replace('.0', '') + "mo";
+    return (days / 365).toFixed(1).replace('.0', '') + "y";
+  }
+
+  function normalizeRatingGrade(rating) {
+    if (typeof rating === "number" && rating >= 1 && rating <= 4) return rating;
+    const map = {
+      "again": 1, "new": 1, "1": 1,
+      "hard": 2, "learning": 2, "2": 2,
+      "good": 3, "3": 3,
+      "easy": 4, "known": 4, "4": 4
+    };
+    return map[String(rating).toLowerCase()] || 3;
+  }
+
+  function scheduleFSRS(card, rawRating, now = Date.now()) {
+    const grade = normalizeRatingGrade(rawRating);
+    let { s = 0, d = 0, reps = 0, lapses = 0, state: cardState = 0, last_review = null, interval = 0 } = card || {};
+    
+    // Auto-migrate legacy cards
+    if (card?.interval && !s) {
+      s = Math.max(0.4, Number(card.interval));
+      d = 5.0;
+      cardState = card.status === "known" ? 2 : (card.status === "learning" ? 1 : 0);
+    }
+
+    let elapsedDays = 0;
+    if (last_review) {
+      elapsedDays = Math.max(0, (now - last_review) / MS_PER_DAY);
+    } else if (card?.stampedAt) {
+      elapsedDays = Math.max(0, (now - card.stampedAt) / MS_PER_DAY);
+    }
+
+    const r = (cardState === 0 || !s) ? 1.0 : fsrsRetrievability(elapsedDays, s);
+    let nextS = s;
+    let nextD = d || 5.0;
+    let nextState = cardState;
+
+    if (cardState === 0 || reps === 0 || !s) { // New card
+      nextS = fsrsInitialStability(grade);
+      nextD = fsrsInitialDifficulty(grade);
+      nextState = (grade === 1) ? 1 : 2;
+    } else if (cardState === 1 || cardState === 3) { // Learning or Relearning
+      if (grade === 1) { // Again
+        nextS = Math.min(s, fsrsInitialStability(1));
+        nextD = fsrsNextDifficulty(nextD, grade);
+        nextState = cardState;
+      } else { // Hard, Good, Easy
+        nextS = fsrsNextStabilityRecall(nextD, s, r, grade);
+        nextD = fsrsNextDifficulty(nextD, grade);
+        nextState = 2; // Promoted to Review
+      }
+    } else { // Review state
+      if (grade === 1) { // Lapse
+        nextS = fsrsNextStabilityLapse(nextD, s, r);
+        nextD = fsrsNextDifficulty(nextD, grade);
+        lapses = (lapses || 0) + 1;
+        nextState = 3; // Relearning
+      } else { // Recall
+        nextS = fsrsNextStabilityRecall(nextD, s, r, grade);
+        nextD = fsrsNextDifficulty(nextD, grade);
+        nextState = 2; // Review
+      }
+    }
+
+    const nextIntervalDays = (grade === 1) ? 1 : fsrsNextInterval(nextS);
+    const nextDue = now + nextIntervalDays * MS_PER_DAY;
+    reps = (reps || 0) + 1;
+
+    // Harmonize status with user's collection goals
+    const userStatus = (nextIntervalDays >= 21 || (nextState === 2 && reps >= 3 && grade >= 3)) ? "known" : "learning";
+
+    return {
+      s: Number(nextS.toFixed(4)),
+      d: Number(nextD.toFixed(2)),
+      r: Number((r * 100).toFixed(1)),
+      reps,
+      lapses,
+      state: nextState,
+      interval: nextIntervalDays,
+      last_review: now,
+      due: nextDue,
+      status: userStatus
+    };
+  }
+
+  function previewFSRSIntervals(card, now = Date.now()) {
+    const grades = [1, 2, 3, 4];
+    const previews = {};
+    grades.forEach(g => {
+      const scheduled = scheduleFSRS(card, g, now);
+      previews[g] = formatFSRSInterval(scheduled.interval);
+    });
+    return previews;
+  }
+
   function writeEntry(char, opts) {
     const now = Date.now();
-    const prev = state.progress[char] || { status: "new", interval: 0, reviews: 0, due: now, stampedAt: null };
+    const prev = state.progress[char] || { status: "new", interval: 0, reviews: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0, due: now, stampedAt: null, last_review: null };
     let stampedAt = prev.stampedAt || null;
     if (opts.status === "known" && !stampedAt) stampedAt = now;
     if (opts.status !== "known") stampedAt = null;
-    const due = now + (opts.interval || 0) * MS_PER_DAY;
+    const due = opts.due != null ? opts.due : (now + (opts.interval || 0) * MS_PER_DAY);
     state.progress[char] = {
       status: opts.status,
       interval: opts.interval || 0,
+      s: opts.s != null ? opts.s : prev.s || 0,
+      d: opts.d != null ? opts.d : prev.d || 0,
+      reps: opts.reps != null ? opts.reps : ((prev.reps || 0) + (opts.incrementReviews ? 1 : 0)),
+      lapses: opts.lapses != null ? opts.lapses : (prev.lapses || 0),
+      state: opts.state != null ? opts.state : (prev.state || 0),
+      last_review: opts.last_review || (opts.incrementReviews ? now : prev.last_review),
       reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0),
       due, stampedAt
     };
@@ -474,30 +653,32 @@ document.addEventListener("DOMContentLoaded", () => {
     return state.progress[char];
   }
 
-  function calculateRating(prev, rating) {
-    let interval = prev.interval || 0;
-    let status = prev.status === "new" ? "learning" : prev.status;
-    if (rating === "again" || rating === "new") { interval = 0; status = "learning"; }
-    else if (rating === "hard" || rating === "learning") { interval = Math.min(3, interval ? Math.max(.5, interval * 1.2) : .5); status = "learning"; }
-    else if (rating === "good") { interval = Math.min(90, interval ? interval * 2 : 2); status = interval >= 21 ? "known" : "learning"; }
-    else if (rating === "easy" || rating === "known") { interval = Math.min(180, Math.max(30, interval ? interval * 3 : 30)); status = "known"; }
-    return { status, interval };
+    function calculateRating(prev, rating) {
+    return scheduleFSRS(prev, rating);
   }
 
   function rateCard(char, rating) {
-    const prev = state.progress[char] || { status: "new", interval: 0 };
-    const next = calculateRating(prev, rating);
-    return writeEntry(char, { status: next.status, interval: next.interval, incrementReviews: true });
+    const prev = state.progress[char] || { status: "new", interval: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0 };
+    const next = scheduleFSRS(prev, rating);
+    return writeEntry(char, { ...next, incrementReviews: true });
   }
 
   function writeSentenceEntry(id, opts) {
     const now = Date.now();
     const key = String(id);
-    const prev = state.sentenceProgress[key] || { status: "new", interval: 0, reviews: 0, due: now };
-    const due = now + (opts.interval || 0) * MS_PER_DAY;
+    const prev = state.sentenceProgress[key] || { status: "new", interval: 0, reviews: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0, due: now, last_review: null };
+    const due = opts.due != null ? opts.due : (now + (opts.interval || 0) * MS_PER_DAY);
     state.sentenceProgress[key] = {
-      status: opts.status, interval: opts.interval || 0,
-      reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0), due
+      status: opts.status,
+      interval: opts.interval || 0,
+      s: opts.s != null ? opts.s : prev.s || 0,
+      d: opts.d != null ? opts.d : prev.d || 0,
+      reps: opts.reps != null ? opts.reps : ((prev.reps || 0) + (opts.incrementReviews ? 1 : 0)),
+      lapses: opts.lapses != null ? opts.lapses : (prev.lapses || 0),
+      state: opts.state != null ? opts.state : (prev.state || 0),
+      last_review: opts.last_review || (opts.incrementReviews ? now : prev.last_review),
+      reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0),
+      due
     };
     bumpStreak();
     if (opts.incrementReviews) recordActivity("sentence");
@@ -505,38 +686,36 @@ document.addEventListener("DOMContentLoaded", () => {
     return state.sentenceProgress[key];
   }
 
-  function getSentenceEntry(id) { return state.sentenceProgress[String(id)] || null; }
-  function getSentenceStatus(id) { const e = getSentenceEntry(id); return e ? e.status : "new"; }
-
-  // Words use the same SRS model as character/sentence cards so Word Review
-  // does not become a dead-end mode with no persisted scheduling.
-  if (!state.wordProgress || typeof state.wordProgress !== "object") state.wordProgress = {};
-  function getWordKey(word) { return String(word || ""); }
-  function getWordEntry(word) { return state.wordProgress[getWordKey(word)] || null; }
-  function getWordStatus(word) { const e = getWordEntry(word); return e ? e.status : "new"; }
   function writeWordEntry(word, opts) {
     const now = Date.now(); const key = getWordKey(word);
-    const prev = state.wordProgress[key] || { status: "new", interval: 0, reviews: 0, due: now };
-    const due = now + (opts.interval || 0) * MS_PER_DAY;
-    state.wordProgress[key] = { status: opts.status, interval: opts.interval || 0, reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0), due };
+    const prev = state.wordProgress[key] || { status: "new", interval: 0, reviews: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0, due: now, last_review: null };
+    const due = opts.due != null ? opts.due : (now + (opts.interval || 0) * MS_PER_DAY);
+    state.wordProgress[key] = {
+      status: opts.status,
+      interval: opts.interval || 0,
+      s: opts.s != null ? opts.s : prev.s || 0,
+      d: opts.d != null ? opts.d : prev.d || 0,
+      reps: opts.reps != null ? opts.reps : ((prev.reps || 0) + (opts.incrementReviews ? 1 : 0)),
+      lapses: opts.lapses != null ? opts.lapses : (prev.lapses || 0),
+      state: opts.state != null ? opts.state : (prev.state || 0),
+      last_review: opts.last_review || (opts.incrementReviews ? now : prev.last_review),
+      reviews: (prev.reviews || 0) + (opts.incrementReviews ? 1 : 0),
+      due
+    };
     bumpStreak(); if (opts.incrementReviews) recordActivity("word"); saveState();
     return state.wordProgress[key];
   }
-  function rateWord(word, rating) {
-    const prev = getWordEntry(word) || { status: "new", interval: 0 };
-    const next = calculateRating(prev, rating);
-    return writeWordEntry(word, { status: next.status, interval: next.interval, incrementReviews: true });
-  }
 
-  function getWordDueCount() {
-    const now = Date.now();
-    return buildWordData().filter(w => { const e = getWordEntry(w.word); return e && e.status !== "new" && Number(e.due || 0) <= now; }).length;
+  function rateWord(word, rating) {
+    const prev = getWordEntry(word) || { status: "new", interval: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0 };
+    const next = scheduleFSRS(prev, rating);
+    return writeWordEntry(word, { ...next, incrementReviews: true });
   }
 
   function rateSentence(id, rating) {
-    const prev = getSentenceEntry(id) || { status: "new", interval: 0 };
-    const next = calculateRating(prev, rating);
-    return writeSentenceEntry(id, { status: next.status, interval: next.interval, incrementReviews: true });
+    const prev = getSentenceEntry(id) || { status: "new", interval: 0, s: 0, d: 0, reps: 0, lapses: 0, state: 0 };
+    const next = scheduleFSRS(prev, rating);
+    return writeSentenceEntry(id, { ...next, incrementReviews: true });
   }
 
   function setSentenceStatus(id, status) {
@@ -576,7 +755,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     return getScopeData(reviewFilters.levels).filter(item => {
       const e = getEntry(item.c);
-      return e && e.status !== "new" && Number(e.due || 0) <= now;
+      return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
+    }).length;
+  }
+
+  function getWordDueCount() {
+    const now = Date.now();
+    return buildWordData().filter(w => {
+      const e = getWordEntry(w.word);
+      return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
     }).length;
   }
 
@@ -622,6 +809,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el("tab-sentences").classList.contains("active")) renderSentences();
     if (el("tab-words") && el("tab-words").classList.contains("active")) renderWords();
     if (el("tab-radicals").classList.contains("active")) renderRadicals();
+    if (el("tab-pictographs") && el("tab-pictographs").classList.contains("active")) renderPictographsTab();
   }
 
   /* ---------- BROWSE ---------- */
@@ -729,7 +917,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = getStatus(item.c);
     const selected = selectedBrowseChars.has(item.c);
     const flipped = flippedBrowseChars.has(item.c);
-    const meaning = formatDefinition(item.m || 'No English meaning recorded.');
+    const meaning = formatDefinition(item.m || 'No English meaning recorded.', item.c);
     return '<div class="tile selectable status-' + status + (selected ? ' selected' : '') + (flipped ? ' flipped' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '" tabindex="0" role="button" aria-label="' + escHtml(item.c + ' card') + '">' +
       '<div class="tile-inner">' +
       '<div class="tile-face front">' +
@@ -760,10 +948,167 @@ document.addEventListener("DOMContentLoaded", () => {
     updateBrowseSelectionUI();
   }
 
-  // Format dictionary definitions for clean display: replace slash-separated
-  // alternatives with comma-separated definitions while preserving the source data.
-  function formatDefinition(value) {
-    return String(value == null ? "" : value).replace(/\s*\/\s*/g, ", ");
+  // Curated high-frequency English meaning rankings for common characters
+  const TOP_CURATED_MEANINGS = {
+    '的': 'of, possessive particle, target/aim, clear',
+    '一': 'one, single, a(n), whole',
+    '是': 'is, am, are, to be, yes, correct',
+    '不': 'not, no, non-',
+    '了': 'completed action marker, modal particle',
+    '在': 'at, in, on, exist, located',
+    '人': 'person, people, human',
+    '有': 'have, possess, there is, exist',
+    '我': 'I, me, my, myself',
+    '他': 'he, him, his',
+    '这': 'this, these',
+    '个': 'individual, measure word for general items',
+    '们': 'plural marker for pronouns and people',
+    '中': 'middle, center, in, within, China, Chinese',
+    '来': 'come, arrive, return',
+    '上': 'up, above, top, on, go up, previous',
+    '大': 'big, large, great, huge',
+    '为': 'for, because of, serve as, act as',
+    '和': 'and, with, harmonious, peace',
+    '国': 'country, nation, state, kingdom',
+    '地': 'earth, ground, land, field, place, -ly (adverbial particle)',
+    '到': 'arrive, reach, go to, until',
+    '以': 'with, by means of, in order to, according to',
+    '说': 'speak, say, talk, explain',
+    '时': 'time, hour, period, season, when',
+    '要': 'want, need, will, require, important',
+    '就': 'then, at once, right away, only, with regard to',
+    '出': 'go out, come out, produce, exceed',
+    '会': 'can, able to, meet, assembly, meeting, association',
+    '可': 'can, may, able to, feasible, but',
+    '也': 'also, too, as well, either',
+    '你': 'you (singular)',
+    '对': 'correct, right, facing, toward, pair, opposite',
+    '生': 'born, give birth, life, grow, raw, student',
+    '能': 'can, able to, capable, energy, ability',
+    '而': 'and, as well as, but, yet',
+    '子': 'child, son, small thing, seed, suffix for nouns',
+    '那': 'that, those, then',
+    '得': 'obtain, get, gain, allow, suitable, particle expressing degree',
+    '于': 'in, at, to, from, than',
+    '着': 'aspect particle indicating ongoing action',
+    '下': 'down, below, under, lower, next, descend',
+    '自': 'self, oneself, from, since',
+    '之': 'possessive particle, of, it, him, her, go to',
+    '年': 'year, age, annual',
+    '过': 'pass, cross, go over, spend time, experienced action marker',
+    '发': 'send out, issue, emit, develop, hair',
+    '后': 'back, behind, after, later, queen',
+    '作': 'make, do, compose, write, act as',
+    '里': 'inside, interior, neighborhood, Chinese mile (0.5 km)',
+    '用': 'use, employ, apply, with, usefulness',
+    '道': 'way, path, road, direction, method, Tao/principle, speak',
+    '行': 'walk, go, travel, all right/capable, profession, row/line',
+    '所': 'place, location, office, measure word for houses/schools, that which',
+    '家': 'home, family, household, specialist (-ist/-er)',
+    '种': 'kind, type, seed, species, to plant, to grow',
+    '事': 'matter, thing, affair, business, event, trouble',
+    '成': 'become, succeed, finish, accomplish, into',
+    '方': 'direction, side, square, region, party, method',
+    '多': 'many, much, more, multiple, excessive',
+    '经': 'pass through, undergo, experience, classic text, economy',
+    '么': 'interrogative suffix (什么, 怎么)',
+    '去': 'go, leave, depart, remove',
+    '法': 'law, method, way, France, French',
+    '学': 'learn, study, science, school',
+    '如': 'as, like, if, according to',
+    '都': 'all, both, entirely, capital city (dū)',
+    '同': 'same, similar, together, with',
+    '现': 'appear, present, current, now, reveal',
+    '当': 'be, act as, when, during, ought to, proper',
+    '没': 'not have, there is not, not, drown/sink (mò)',
+    '动': 'move, act, action, change, stir',
+    '面': 'face, surface, side, aspect, noodles',
+    '起': 'rise, get up, start, raise, initiate',
+    '看': 'look, see, watch, read, visit, look after (kān)',
+    '定': 'fix, settle, determine, stable, definite',
+    '天': 'sky, heaven, day, weather, nature',
+    '分': 'divide, part, minute, point, fraction, share',
+    '打': 'hit, beat, strike, play (ball/games), make, dial, dozen',
+    '老': 'old, aged, venerable, experienced, prefix for familiar names',
+    '长': 'long, length, forever, grow (zhǎng), chief/elder',
+    '重': 'heavy, serious, important, repeat (chóng), double, layer',
+    '给': 'give, grant, to, for, let',
+    '被': 'by (passive marker), quilt, cover, receive',
+    '把': 'hold, grasp, handle, measure word for objects with handle, direct object marker',
+    '还': 'still, yet, also, in addition, return (huán), repay',
+    '便': 'convenient, handy, then, ordinary, plain, cheap (pián)'
+  };
+
+  // Smart definition formatting and frequency-first rearrangement:
+  // Sorts multiple English meanings by most common everyday usage first,
+  // pushing grammatical notes, surnames, and rare/archaic meanings to the back.
+  function formatDefinition(value, char) {
+    if (value == null || value === '') return 'No recorded meaning.';
+    if (char && TOP_CURATED_MEANINGS[char]) {
+      return TOP_CURATED_MEANINGS[char];
+    }
+
+    // Split by slashes, commas, and semicolons
+    const rawParts = String(value).split(/[\/;,]+/).map(s => s.trim()).filter(Boolean);
+    if (!rawParts.length) return String(value);
+
+    const seen = new Set();
+    const scored = [];
+
+    for (const part of rawParts) {
+      let clean = part.replace(/\s+/g, ' ');
+      const lower = clean.toLowerCase();
+      
+      // Skip duplicates
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+
+      let score = 100; // Base score
+
+      // Penalty for long verbose explanations
+      if (clean.length > 35) score -= 40;
+      else if (clean.length > 20) score -= 15;
+
+      // Penalty for parenthetical grammatical notes
+      if (/^\([^)]+\)$/.test(clean)) {
+        score -= 50;
+      } else if (clean.startsWith('(')) {
+        score -= 30;
+      }
+
+      // Heavy penalty for archaic/variant/surname/rare markers
+      if (/^surname\b/i.test(clean)) score -= 80;
+      if (/^variant of\b/i.test(clean)) score -= 90;
+      if (/^also written\b/i.test(clean)) score -= 80;
+      if (/^also pr\.\b/i.test(clean)) score -= 80;
+      if (/^abbr\.\b/i.test(clean)) score -= 60;
+      if (/^ancient\b/i.test(clean)) score -= 70;
+      if (/^archaic\b/i.test(clean)) score -= 75;
+      if (/^unit of\b/i.test(clean)) score -= 40;
+      if (/^measure word\b/i.test(clean)) score -= 35;
+      if (/^particle\b/i.test(clean)) score -= 30;
+
+      // Bonus for concise, common everyday words (1-2 words)
+      const wordCount = clean.split(' ').length;
+      if (wordCount === 1 && score > 50) score += 20;
+      if (wordCount === 2 && score > 50) score += 10;
+
+      // If part is like '(located) at', transform to 'at (located)'
+      if (/^\([a-z\s]+\)\s+([a-z\s]+)$/i.test(clean)) {
+        const match = clean.match(/^\(([a-z\s]+)\)\s+([a-z\s]+)$/i);
+        if (match) {
+          clean = match[2] + ' (' + match[1] + ')';
+          score += 15;
+        }
+      }
+
+      scored.push({ text: clean, score, originalIdx: scored.length });
+    }
+
+    // Sort by score descending, preserving natural order for ties
+    scored.sort((a, b) => b.score - a.score || a.originalIdx - b.originalIdx);
+
+    return scored.map(s => s.text).join(', ');
   }
 
   /* ---------- DRAWER ---------- */
@@ -782,7 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (q("drawer-stat-unicode") && __c) q("drawer-stat-unicode").textContent = "U+" + __c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
       if (q("drawer-stat-frequency")) q("drawer-stat-frequency").textContent = __item?.f != null ? "#" + Number(__item.f).toLocaleString() : "—";
       if (q("drawer-stat-status")) q("drawer-stat-status").textContent = __item?.status || __item?.s || "—";
-      if (q("drawer-meaning-expanded")) q("drawer-meaning-expanded").textContent = formatDefinition(__item?.m || "No recorded meaning.");
+      if (q("drawer-meaning-expanded")) q("drawer-meaning-expanded").textContent = formatDefinition(__item?.m || "No recorded meaning.", __c);
     } catch (__e) { console.warn("[HanziTracker]", __e); }
 
     const item = HANZI_BY_CHAR[char];
@@ -799,7 +1144,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     el("drawer-pinyin").textContent = item.p || "—";
     el("drawer-level").textContent = levelLabel(item.h);
-    el("drawer-meaning").textContent = formatDefinition(item.m || "No recorded meaning for this character.");
+    el("drawer-meaning").textContent = formatDefinition(item.m || "No recorded meaning for this character.", char);
     el("drawer-freq").textContent = item.f < 99999 ? ("Frequency rank #" + item.f.toLocaleString()) : "Frequency rank unavailable";
     
     // Load mnemonic if exists
@@ -1158,14 +1503,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let reviewQueue = [];
   let reviewIndex = 0;
   let reviewRevealed = false;
-  let sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, mistakes: [], skipped: 0, flagged: 0 };
+  let sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
   let reviewDifficulty = "all";
   let reviewFocusWeak = false;
   let reviewFocusMode = false;
   let reviewStartedAt = null;
-  // Sentence reveal preferences persist across cards and sessions.
+  // Per-card reveal preferences (reset on each new card, informed by setup checkboxes)
   let reviewShowPinyin = localStorage.getItem("hanziReviewShowPinyin") !== "false";
   let reviewShowEnglish = localStorage.getItem("hanziReviewShowEnglish") !== "false";
+  // Track flagged items across sessions in state
+  if (!state.flaggedItems) state.flaggedItems = [];
 
   function getScopeData(levelSet) {
     return HANZI_DATA.filter(item => levelSetMatches(item, levelSet));
@@ -1173,7 +1520,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getSentenceDueCount() {
     const now = Date.now();
-    return SENTENCE_DATA.filter(item => { const e = getSentenceEntry(item.i); return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now; }).length;
+    return SENTENCE_DATA.filter(item => {
+      const e = getSentenceEntry(item.i);
+      return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
+    }).length;
   }
 
   function shuffle(arr) {
@@ -1190,104 +1540,243 @@ document.addEventListener("DOMContentLoaded", () => {
     const chars = reviewMode === "characters";
     const sentences = reviewMode === "sentences";
     const mixed = reviewMode === "mixed";
+    // Level chips only make sense for characters/mixed
     el("review-level-chips").style.display = (chars || mixed) ? "flex" : "none";
     el("review-scope-hint").textContent = chars ? "Tap multiple chips to combine levels" : sentences ? "Sentence review uses the sentence collection." : mixed ? "Smart Review will mix your highest-priority characters and sentences." : "Word review uses your generated word collection.";
     el("new-pool-label").textContent = chars ? "characters" : sentences ? "sentences" : mixed ? "items" : "words";
-    document.querySelectorAll('input[name="pool"]').forEach(r => { r.checked = r.value === "smart"; });
-    refreshDueCount(); updateReviewEstimate();
+    // Difficulty only applies to characters/sentences — hide for words
+    const diffRow = el("review-difficulty")?.closest(".review-focus-row");
+    if (diffRow) diffRow.style.opacity = reviewMode === "words" ? "0.4" : "1";
+    refreshDueCount();
+    updateReviewEstimate();
   }
 
   function reviewDifficultyMatch(item, mode) {
     if (reviewDifficulty === "all") return true;
     if (mode === "sentences") return sentenceDifficulty(item) === reviewDifficulty;
     if (mode === "characters") {
-      const h = Number(item.h || 0); return reviewDifficulty === "easy" ? h <= 2 : reviewDifficulty === "medium" ? h <= 4 : h >= 5;
+      const h = Number(item.h || 0);
+      return reviewDifficulty === "easy" ? h <= 2 : reviewDifficulty === "medium" ? (h >= 3 && h <= 4) : h >= 5;
+    }
+    if (mode === "words") {
+      // Filter words by corpus frequency as a difficulty proxy
+      const count = Number(item.corpusCount || 0);
+      return reviewDifficulty === "easy" ? count >= 50 : reviewDifficulty === "medium" ? (count >= 10 && count < 50) : count < 10;
     }
     return true;
   }
 
+  function isWeakItem(entry) {
+    if (!entry) return false;
+    // Weak: has lapses, or difficulty >= 6, or low interval after multiple reviews
+    const lapses = Number(entry.lapses || 0);
+    const d = Number(entry.d || 5);
+    const reviews = Number(entry.reviews || 0);
+    const interval = Number(entry.interval || 0);
+    return lapses > 0 || d >= 6 || (reviews >= 2 && interval <= 1);
+  }
+
   function smartScore(item, mode) {
-    const e = mode === "sentences" ? getSentenceEntry(item.i) : getEntry(item.c); if (!e) return 100;
-    const due = e.due && e.due <= Date.now() ? 100000 : 0;
-    const reviews = Number(e.reviews || 0); const interval = Number(e.interval || 0);
-    return due + (reviewFocusWeak ? (reviews * 5000 + (interval <= 1 ? 3000 : 0)) : reviews * 100) - interval;
+    const now = Date.now();
+    const type = mode || (item.__reviewType ? (item.__reviewType === "sentence" ? "sentences" : (item.__reviewType === "word" ? "words" : "characters")) : (reviewMode || "characters"));
+    const e = type === "sentences" ? getSentenceEntry(item.i) : (type === "words" ? getWordEntry(item.word) : getEntry(item.c));
+    
+    // 1. Unreviewed New Card
+    if (!e || e.status === "new" || !e.reviews) {
+      return 100000;
+    }
+
+    // 2. Known / Mastered Card
+    if (e.status === "known") {
+      if (Number(e.due || 0) <= now) {
+        // Due maintenance review for known card
+        return 800000 + Math.min(100000, (now - Number(e.due || 0)) / 1000);
+      }
+      return -10000;
+    }
+
+    // 3. Learning Card
+    const isDue = Number(e.due || 0) <= now;
+    const lapses = Number(e.lapses || 0);
+    const overdueMs = now - Number(e.due || 0);
+
+    if (isDue) {
+      // Due learning cards have highest priority (>= 1,000,000)
+      let score = 1000000 + Math.min(200000, overdueMs / 1000);
+      if (reviewFocusWeak) {
+        score += lapses * 25000 + (Number(e.d || 5) >= 6 ? 15000 : 0);
+      }
+      return score;
+    } else {
+      // Not due yet (scheduled for future date)
+      if (reviewFocusWeak && lapses > 0) {
+        return 50000 + lapses * 5000;
+      }
+      const msUntilDue = Number(e.due || 0) - now;
+      const daysUntilDue = msUntilDue / 86400000;
+      return Math.max(0, 10000 - Math.min(10000, daysUntilDue * 1000));
+    }
   }
 
   function buildPool(poolType) {
     const now = Date.now();
+    const type = poolType || (document.querySelector('input[name="pool"]:checked')?.value || "smart");
+    
     const buildChars = () => {
       const scope = getScopeData(reviewFilters.levels);
       let data = scope.filter(item => reviewDifficultyMatch(item, "characters"));
-      if (poolType === "due") return data.filter(item => { const e = getEntry(item.c); return e && e.status !== "new" && Number(e.due || 0) <= now; });
-      if (poolType === "new") return data.filter(item => getStatus(item.c) === "new");
-      if (poolType === "all") return data.filter(item => getStatus(item.c) !== "known");
+      if (type === "due") {
+        return data.filter(item => {
+          const e = getEntry(item.c);
+          return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
+        }).sort((a, b) => smartScore(b, "characters") - smartScore(a, "characters"));
+      }
+      if (type === "new") {
+        return data.filter(item => getStatus(item.c) === "new");
+      }
+      if (type === "all") {
+        return data.filter(item => getStatus(item.c) !== "known");
+      }
+      // Smart pool
       return data.filter(item => {
         const e = getEntry(item.c);
         return getStatus(item.c) !== "known" || (e && Number(e.due || 0) <= now);
       }).sort((a, b) => smartScore(b, "characters") - smartScore(a, "characters"));
     };
+
     const buildSentences = () => {
       let data = SENTENCE_DATA.filter(item => reviewDifficultyMatch(item, "sentences"));
-      if (poolType === "due") return data.filter(item => { const e = getSentenceEntry(item.i); return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now; });
-      if (poolType === "new") return data.filter(item => getSentenceStatus(item.i) === "new");
-      if (poolType === "all") return data.filter(item => getSentenceStatus(item.i) !== "known");
+      if (type === "due") {
+        return data.filter(item => {
+          const e = getSentenceEntry(item.i);
+          return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
+        }).sort((a, b) => smartScore(b, "sentences") - smartScore(a, "sentences"));
+      }
+      if (type === "new") {
+        return data.filter(item => getSentenceStatus(item.i) === "new");
+      }
+      if (type === "all") {
+        return data.filter(item => getSentenceStatus(item.i) !== "known");
+      }
       return data.filter(item => {
         const e = getSentenceEntry(item.i);
         return getSentenceStatus(item.i) !== "known" || (e && Number(e.due || 0) <= now);
       }).sort((a, b) => smartScore(b, "sentences") - smartScore(a, "sentences"));
     };
-    if (reviewMode === "characters") return buildChars();
-    if (reviewMode === "sentences") return buildSentences();
-    if (reviewMode === "mixed") {
-      const c = buildChars().map(x => ({ ...x, __reviewType: "character" })); const se = buildSentences().map(x => ({ ...x, __reviewType: "sentence" }));
-      return shuffle([...c, ...se]).sort((a, b) => smartScore(b, a.__reviewType + "s".replace("character", "characters").replace("sentence", "sentences")) - smartScore(a, a.__reviewType + "s".replace("character", "characters").replace("sentence", "sentences")));
+
+    const buildWords = () => {
+      let words = buildWordData().filter(w => w.word && w.corpusCount > 0);
+      if (type === "due") {
+        return words.filter(w => {
+          const e = getWordEntry(w.word);
+          return e && e.status !== "new" && e.status !== "known" && Number(e.due || 0) <= now;
+        }).sort((a, b) => smartScore(b, "words") - smartScore(a, "words"));
+      }
+      if (type === "new") {
+        return words.filter(w => getWordStatus(w.word) === "new");
+      }
+      if (type === "all") {
+        return words.filter(w => getWordStatus(w.word) !== "known");
+      }
+      return words.filter(w => {
+        const e = getWordEntry(w.word);
+        return getWordStatus(w.word) !== "known" || (e && Number(e.due || 0) <= now);
+      }).sort((a, b) => smartScore(b, "words") - smartScore(a, "words"));
+    };
+
+    // Apply focus-weak filter: if enabled, only include weak items (+ always include new items)
+    const applyWeakFilter = (items, getEntry) => {
+      if (!reviewFocusWeak) return items;
+      return items.filter(x => {
+        const e = getEntry(x);
+        if (!e || e.status === "new" || !e.reviews) return true; // always include new
+        return isWeakItem(e);
+      });
+    };
+
+    if (reviewMode === "characters") {
+      const chars = applyWeakFilter(buildChars(), x => getEntry(x.c));
+      return chars.map(x => ({ ...x, __reviewType: "character" }));
     }
-    let words = buildWordData().filter(w => w.word && w.corpusCount > 0);
-    if (poolType === "due") words = words.filter(w => { const e = getWordEntry(w.word); return e && e.status !== "new" && Number(e.due || 0) <= now; });
-    else if (poolType === "new") words = words.filter(w => getWordStatus(w.word) === "new");
-    else if (poolType === "all") words = words.filter(w => getWordStatus(w.word) !== "known");
-    else words = words.filter(w => {
-      const e = getWordEntry(w.word);
-      return getWordStatus(w.word) !== "known" || (e && Number(e.due || 0) <= now);
-    }).sort((a, b) => {
-      const ea = getWordEntry(a.word), eb = getWordEntry(b.word);
-      const score = e => { if (!e) return 100; const due = e.due && e.due <= now ? 100000 : 0; return due + (Number(e.reviews || 0) * 100) - Number(e.interval || 0); };
-      return score(eb) - score(ea) || (b.corpusCount - a.corpusCount);
-    });
-    return words.slice(0, 500).map(w => ({ ...w, __reviewType: "word" }));
+    if (reviewMode === "sentences") {
+      const sents = applyWeakFilter(buildSentences(), x => getSentenceEntry(x.i));
+      return sents.map(x => ({ ...x, __reviewType: "sentence" }));
+    }
+    if (reviewMode === "words") {
+      const words = applyWeakFilter(buildWords(), x => getWordEntry(x.word));
+      return words.map(x => ({ ...x, __reviewType: "word" }));
+    }
+    if (reviewMode === "mixed") {
+      const c = applyWeakFilter(buildChars(), x => getEntry(x.c)).map(x => ({ ...x, __reviewType: "character" }));
+      const se = applyWeakFilter(buildSentences(), x => getSentenceEntry(x.i)).map(x => ({ ...x, __reviewType: "sentence" }));
+      return [...c, ...se].sort((a, b) => smartScore(b, a.__reviewType === "sentence" ? "sentences" : "characters") - smartScore(a, b.__reviewType === "sentence" ? "sentences" : "characters"));
+    }
+    return buildChars().map(x => ({ ...x, __reviewType: "character" }));
   }
 
   function updateReviewEstimate() {
     if (!el("review-ready-count")) return;
     const poolType = document.querySelector('input[name="pool"]:checked')?.value || "smart";
-    const pool = buildPool(poolType); const size = Number(el("session-size")?.value || 20); const ready = Math.min(size, pool.length);
+    const pool = buildPool(poolType);
+    const size = Number(el("session-size")?.value || 20);
+    const ready = Math.min(size, pool.length);
     const smartPool = buildPool("smart");
+    const duePool = buildPool("due");
     const newPool = buildPool("new");
     const allPool = buildPool("all");
-    el("review-ready-count").textContent = pool.length.toLocaleString();
+    
+    el("review-ready-count").textContent = ready.toLocaleString();
     el("smart-count").textContent = smartPool.length.toLocaleString();
+    if (el("due-count")) el("due-count").textContent = duePool.length.toLocaleString();
     if (el("new-count")) el("new-count").textContent = newPool.length.toLocaleString();
     if (el("all-count")) el("all-count").textContent = allPool.length.toLocaleString();
     el("review-estimated-min").textContent = (Math.max(1, Math.ceil(ready * .35)) + "–" + (Math.max(2, Math.ceil(ready * .65))) + " min");
-    const total = pool.reduce((n, x) => {
+    
+    const total = pool.slice(0, ready).reduce((n, x) => {
       let e = null;
       if (x.__reviewType === "sentence" || reviewMode === "sentences") e = getSentenceEntry(x.i);
       else if (x.__reviewType === "word" || reviewMode === "words") e = getWordEntry(x.word);
       else e = getEntry(x.c);
       return n + Number(e?.reviews || 0);
     }, 0);
-    el("review-estimated-accuracy").textContent = total ? Math.round(Math.min(98, 55 + total * 2)) + "%" : "—";
+    el("review-estimated-accuracy").textContent = total ? Math.round(Math.min(98, 55 + (total / Math.max(1, ready)) * 10)) + "%" : "—";
   }
 
   function startReview() {
-    reviewShowPinyin = el("review-show-pinyin").checked; reviewShowEnglish = el("review-show-english").checked;
-    localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin)); localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish));
-    const poolType = document.querySelector('input[name="pool"]:checked').value; const size = Number(el("session-size").value);
-    let pool = buildPool(poolType); if (!pool.length) { showToast("No items match this review setup."); return; }
-    if (poolType !== "smart") pool = shuffle(pool); reviewQueue = pool.slice(0, size); reviewIndex = 0;
-    sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, mistakes: [], skipped: 0, flagged: 0 };
-    reviewStartedAt = Date.now(); window.__reviewRatingBusy = false; reviewFocusMode = false; el("review-session").classList.remove("focus-mode");
-    el("review-setup").classList.add("hidden"); el("review-summary").classList.add("hidden"); el("review-session").classList.remove("hidden"); showCard();
+    reviewShowPinyin = el("review-show-pinyin")?.checked ?? true;
+    reviewShowEnglish = el("review-show-english")?.checked ?? true;
+    localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin));
+    localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish));
+    const poolType = document.querySelector('input[name="pool"]:checked')?.value || "smart";
+    const size = Number(el("session-size")?.value || 20);
+    let pool = buildPool(poolType);
+    if (!pool.length) {
+      showToast(poolType === "due" ? "No items are due for review right now." : "No items match this review setup.");
+      return;
+    }
+    
+    let queue = [];
+    if (poolType === "smart") {
+      const topSlice = pool.slice(0, size);
+      queue = shuffle(topSlice);
+    } else {
+      queue = shuffle(pool).slice(0, size);
+    }
+    
+    reviewQueue = queue;
+    reviewIndex = 0;
+    sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
+    reviewStartedAt = Date.now();
+    window.__reviewRatingBusy = false;
+    reviewFocusMode = false;
+    el("review-session").classList.remove("focus-mode");
+    el("review-setup").classList.add("hidden");
+    el("review-summary").classList.add("hidden");
+    el("review-session").classList.remove("hidden");
+    // Set per-card reveal prefs from setup checkboxes
+    reviewShowPinyin = el("review-show-pinyin")?.checked ?? reviewShowPinyin;
+    reviewShowEnglish = el("review-show-english")?.checked ?? reviewShowEnglish;
+    showCard();
   }
 
   function fitSentenceLine(el) {
@@ -1303,6 +1792,17 @@ document.addEventListener("DOMContentLoaded", () => {
     else el.style.fontSize = "2.5rem";
   }
 
+  function updateIntervalPreviews(item) {
+    if (!item) return;
+    const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+    const entry = type === "sentence" ? getSentenceEntry(item.i) : (type === "word" ? getWordEntry(item.word) : getEntry(item.c));
+    const previews = previewFSRSIntervals(entry);
+    if (el("rate-interval-again")) el("rate-interval-again").textContent = previews[1] || "1d";
+    if (el("rate-interval-hard")) el("rate-interval-hard").textContent = previews[2] || "2d";
+    if (el("rate-interval-good")) el("rate-interval-good").textContent = previews[3] || "4d";
+    if (el("rate-interval-easy")) el("rate-interval-easy").textContent = previews[4] || "14d";
+  }
+
   function showCard() {
     if (!reviewQueue.length || reviewIndex < 0 || reviewIndex >= reviewQueue.length) return;
     reviewRevealed = false;
@@ -1316,10 +1816,10 @@ document.addEventListener("DOMContentLoaded", () => {
     el("flashcard").classList.remove("revealed");
     el("fc-hanzi").hidden = sentenceMode || wordMode;
     el("fc-sentence-front").hidden = !sentenceMode;
-    el("fc-hanzi-small").hidden = sentenceMode;
+    el("fc-hanzi-small").hidden = sentenceMode || wordMode;
     el("fc-pinyin").hidden = sentenceMode;
     el("fc-meaning").hidden = sentenceMode;
-    el("fc-examples").hidden = sentenceMode;
+    el("fc-examples").hidden = true;
     el("fc-sentence-back").hidden = !sentenceMode;
     el("fc-sentence-pinyin").hidden = true;
     el("fc-sentence-en").hidden = true;
@@ -1333,19 +1833,20 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-sentence-en").textContent = item.t || "";
       fitSentenceLine(el("fc-sentence-front"));
       fitSentenceLine(el("fc-sentence-back"));
-      el("review-card-reason").textContent = getSentenceEntry(item.i)?.due <= Date.now() ? "🔴 Due for review" : "🟡 Learning sentence";
+      const se = getSentenceEntry(item.i);
+      el("review-card-reason").textContent = (se?.due && se.due <= Date.now()) ? "🔴 Due for review" : (se?.reviews ? "🟡 Learning sentence" : "🆕 New sentence");
     } else if (wordMode) {
       el("fc-hanzi").hidden = false;
       el("fc-hanzi").textContent = item.word;
-      el("fc-hanzi-small").hidden = true;
       el("fc-pinyin").hidden = false;
       el("fc-pinyin").textContent = item.pinyin || "—";
       el("fc-meaning").hidden = false;
-      el("fc-meaning").textContent = item.english || "No English translation in the current sentence data.";
-      el("fc-examples").hidden = false;
+      el("fc-meaning").textContent = item.english || "No English translation in current data.";
       el("fc-examples").innerHTML = (item.exampleTranslations || []).slice(0, 3).map(x => '<span class="example-chip">' + escHtml(x) + "</span>").join("");
-      el("review-card-reason").textContent = "🧩 Word · " + Number(item.corpusCount || 0).toLocaleString() + " corpus uses";
+      const we = getWordEntry(item.word);
+      el("review-card-reason").textContent = (we?.due && we.due <= Date.now()) ? "🔴 Due for review" : "🧩 Word · " + Number(item.corpusCount || 0).toLocaleString() + " uses";
     } else {
+      el("fc-hanzi").hidden = false;
       el("fc-hanzi").textContent = item.c;
       el("fc-hanzi-small").textContent = item.c;
       el("fc-pinyin").hidden = false;
@@ -1353,19 +1854,42 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-meaning").textContent = formatDefinition(item.m || "No recorded meaning.");
       el("fc-examples").innerHTML = item.e?.length ? item.e.map(w => '<span class="example-chip">' + escHtml(w) + "</span>").join("") : "";
       const e = getEntry(item.c);
-      el("review-card-reason").textContent = e?.due && e.due <= Date.now() ? "🔴 Due for review" : (e?.reviews >= 2 ? "🟡 Previously missed / weak" : "🆕 New item");
+      el("review-card-reason").textContent = (e?.due && e.due <= Date.now()) ? "🔴 Due for review" : (e?.reviews >= 2 ? "🟡 Previously missed / weak" : (e?.reviews ? "🟡 Learning character" : "🆕 New character"));
       const related = [...(item.e || [])].slice(0, 3);
-      try { const wordRelated = buildWordData().filter(w => w.word.includes(item.c)).slice(0, 3).map(w => w.word + " · " + (w.pinyin || "")); related.push(...wordRelated); } catch (e) { console.warn("[HanziTracker]", e); }
-      if (related.length) { el("fc-related").hidden = false; el("fc-related-list").innerHTML = related.slice(0, 6).map(w => '<span class="fc-related-chip">' + escHtml(w) + "</span>").join(""); }
+      try {
+        const wordRelated = buildWordData().filter(w => w.word.includes(item.c)).slice(0, 3).map(w => w.word + " · " + (w.pinyin || ""));
+        related.push(...wordRelated);
+      } catch (e) { console.warn("[HanziTracker]", e); }
+      if (related.length) {
+        el("fc-related").hidden = false;
+        el("fc-related-list").innerHTML = related.slice(0, 6).map(w => '<span class="fc-related-chip">' + escHtml(w) + "</span>").join("");
+      }
     }
 
-    el("review-pinyin-toggle").classList.toggle("active", reviewShowPinyin);
-    el("review-english-toggle").classList.toggle("active", reviewShowEnglish);
+    // Front of card: NEVER show pinyin/english before reveal — it's a flashcard test
+    // Reveal tools are visible but disabled until after reveal
+    el("review-pinyin-toggle").classList.remove("active");
+    el("review-english-toggle").classList.remove("active");
     el("review-example-toggle").classList.remove("active");
-    el("review-pinyin-toggle").textContent = reviewShowPinyin ? "Hide pinyin" : "Show pinyin";
-    el("review-english-toggle").textContent = reviewShowEnglish ? "Hide English" : "Show English";
-    el("fc-pinyin").hidden = !reviewShowPinyin || sentenceMode;
-    if (sentenceMode) { el("fc-sentence-pinyin").hidden = !reviewShowPinyin; el("fc-sentence-en").hidden = !reviewShowEnglish; }
+    el("review-example-toggle").textContent = "Show examples";
+    el("review-pinyin-toggle").textContent = "Show pinyin";
+    el("review-english-toggle").textContent = "Show English";
+    // Always hide pinyin/english on front (before reveal)
+    el("fc-pinyin").hidden = true;
+    if (sentenceMode) {
+      el("fc-sentence-pinyin").hidden = true;
+      el("fc-sentence-en").hidden = true;
+    } else {
+      el("fc-meaning").hidden = false; // meaning on front helps context
+    }
+    // Disable reveal tools until card is flipped
+    document.querySelectorAll(".review-reveal-tool").forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = "0.4";
+    });
+    el("review-audio-btn").disabled = false;
+    el("review-audio-btn").style.opacity = "1";
+    updateIntervalPreviews(item);
     el("reveal-btn").classList.remove("hidden");
     el("rate-buttons").classList.add("hidden");
     el("review-progress-fill").style.width = ((reviewIndex / reviewQueue.length) * 100) + "%";
@@ -1381,13 +1905,32 @@ document.addEventListener("DOMContentLoaded", () => {
     el("rate-buttons").classList.remove("hidden");
     const item = reviewQueue[reviewIndex];
     const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+    // Now enable reveal tools after flip
+    document.querySelectorAll(".review-reveal-tool").forEach(btn => {
+      btn.disabled = false;
+      btn.style.opacity = "1";
+    });
+    // Show pinyin/english based on user prefs (now on the back face)
     if (type === "sentence") {
       el("fc-sentence-pinyin").hidden = !reviewShowPinyin;
       el("fc-sentence-en").hidden = !reviewShowEnglish;
+      el("review-pinyin-toggle").textContent = reviewShowPinyin ? "Hide pinyin" : "Show pinyin";
+      el("review-english-toggle").textContent = reviewShowEnglish ? "Hide English" : "Show English";
     } else {
       el("fc-pinyin").hidden = !reviewShowPinyin;
       el("fc-meaning").hidden = false;
+      el("review-pinyin-toggle").textContent = reviewShowPinyin ? "Hide pinyin" : "Show pinyin";
+      el("review-english-toggle").textContent = reviewShowEnglish ? "Hide English" : "Show English";
     }
+    el("review-pinyin-toggle").classList.toggle("active", reviewShowPinyin);
+    el("review-english-toggle").classList.toggle("active", reviewShowEnglish);
+    updateIntervalPreviews(item);
+    // Auto-play audio on reveal if supported
+    try {
+      const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+      const sentenceId = type === "sentence" ? item.i : null;
+      playChineseAudio(text, { rate: 0.88, sentenceId });
+    } catch (e) { /* audio not critical */ }
   }
 
   function updateLiveReviewStats() {
@@ -1410,13 +1953,34 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       if (!item) throw new Error("Review item unavailable");
       const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+      const grade = normalizeRatingGrade(rating);
+      const isRecallSuccess = grade >= 2;
       let entry = null, prevStatus = "new";
 
       if (type === "word") {
         prevStatus = getWordStatus(item.word);
         entry = rateWord(item.word, rating);
         sessionStats.reviewed++;
-        if (rating === "known") {
+        sessionStats.words = (sessionStats.words || 0) + 1;
+        if (isRecallSuccess) {
+          sessionStats.correct++;
+          sessionStats.streak++;
+          sessionStats.bestStreak = Math.max(sessionStats.bestStreak, sessionStats.streak);
+        } else {
+          sessionStats.mistakes.push(item);
+          sessionStats.streak = 0;
+        }
+        if (entry?.status === "known" && prevStatus !== "known") {
+          sessionStats.known++;
+          triggerStampFX(el("flashcard"));
+          spawnConfetti(el("flashcard"));
+        }
+      } else if (type === "sentence") {
+        prevStatus = getSentenceStatus(item.i);
+        entry = rateSentence(item.i, rating);
+        sessionStats.reviewed++;
+        sessionStats.sentences = (sessionStats.sentences || 0) + 1;
+        if (isRecallSuccess) {
           sessionStats.correct++;
           sessionStats.streak++;
           sessionStats.bestStreak = Math.max(sessionStats.bestStreak, sessionStats.streak);
@@ -1430,11 +1994,11 @@ document.addEventListener("DOMContentLoaded", () => {
           spawnConfetti(el("flashcard"));
         }
       } else {
-        prevStatus = type === "sentence" ? getSentenceStatus(item.i) : getStatus(item.c);
-        entry = type === "sentence" ? rateSentence(item.i, rating) : rateCard(item.c, rating);
+        prevStatus = getStatus(item.c);
+        entry = rateCard(item.c, rating);
         sessionStats.reviewed++;
-        if (type === "sentence") sessionStats.sentences++; else sessionStats.characters++;
-        if (rating === "known") {
+        sessionStats.characters = (sessionStats.characters || 0) + 1;
+        if (isRecallSuccess) {
           sessionStats.correct++;
           sessionStats.streak++;
           sessionStats.bestStreak = Math.max(sessionStats.bestStreak, sessionStats.streak);
@@ -1451,8 +2015,6 @@ document.addEventListener("DOMContentLoaded", () => {
       rated = true;
     } catch (err) {
       console.error("Review rating failed", err);
-      // Rating/state changes may already have been persisted before a UI operation failed.
-      // Never leave the review session locked on the same card.
     }
 
     if (!rated) {
@@ -1474,70 +2036,67 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // The rating is already saved. Advance the queue independently of UI redraws.
     try {
       showCard();
     } catch (err) {
       console.error("Review card render failed", err);
-      const next = reviewQueue[reviewIndex];
-      // Full fallback render: never leave the previous card's meaning/pinyin/examples behind.
-      try {
-        const type = next?.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
-        const sentenceMode = type === "sentence";
-        const wordMode = type === "word";
-        const face = el("flashcard");
-        face.classList.remove("revealed", "sentence-flashcard");
-        el("review-session").classList.remove("sentence-review-active");
-        el("fc-sentence-front").hidden = !sentenceMode;
-        el("fc-sentence-back").hidden = !sentenceMode;
-        el("fc-hanzi").hidden = sentenceMode;
-        el("fc-hanzi-small").hidden = sentenceMode || wordMode;
-        el("fc-pinyin").hidden = sentenceMode;
-        el("fc-meaning").hidden = sentenceMode;
-        el("fc-examples").hidden = sentenceMode;
-        el("fc-related").hidden = true;
-        el("fc-sentence-pinyin").hidden = true;
-        el("fc-sentence-en").hidden = true;
-        if (sentenceMode) {
-          el("fc-sentence-front").textContent = next?.z || "";
-          el("fc-sentence-back").textContent = next?.z || "";
-          el("fc-sentence-pinyin").textContent = sentencePinyin(next) || "";
-          el("fc-sentence-en").textContent = next?.t || "";
-        } else if (wordMode) {
-          const wordMeaning = next?.meaning || next?.english || "No English translation available.";
-          el("fc-hanzi").textContent = next?.word || "";
-          el("fc-pinyin").textContent = next?.pinyin || "—";
-          el("fc-meaning").textContent = wordMeaning;
-          el("fc-examples").innerHTML = (next?.exampleTranslations || []).slice(0, 3).map(x => '<span class="example-chip">' + escHtml(x) + "</span>").join("");
-        } else {
-          const meaning = formatDefinition(next?.m || "No recorded meaning.");
-          el("fc-hanzi").textContent = next?.c || "";
-          el("fc-hanzi-small").textContent = next?.c || "";
-          el("fc-pinyin").textContent = next?.p || "—";
-          el("fc-meaning").textContent = meaning;
-          el("fc-examples").innerHTML = (next?.e || []).map(w => '<span class="example-chip">' + escHtml(w) + "</span>").join("");
-        }
-        el("reveal-btn").classList.remove("hidden");
-        el("rate-buttons").classList.add("hidden");
-        el("review-progress-fill").style.width = ((reviewIndex / reviewQueue.length) * 100) + "%";
-        el("review-counter").textContent = (reviewIndex + 1) + " / " + reviewQueue.length;
-        updateLiveReviewStats();
-      } catch (fallbackErr) {
-        console.error("Review fallback render failed", fallbackErr);
-      }
     }
     window.__reviewRatingBusy = false;
   }
 
-  function skipCurrent() { if (!reviewQueue.length) return; sessionStats.skipped++; reviewIndex++; if (reviewIndex >= reviewQueue.length) finishReview(); else showCard(); }
-  function flagCurrent() { sessionStats.flagged++; showToast("Flagged for later review."); }
+  function skipCurrent() {
+    if (!reviewQueue.length) return;
+    const item = reviewQueue[reviewIndex];
+    if (item) sessionStats.skipped.push(item);
+    reviewIndex++;
+    reviewRevealed = false;
+    if (reviewIndex >= reviewQueue.length) finishReview();
+    else showCard();
+  }
+
+  function flagCurrent() {
+    const item = reviewQueue[reviewIndex];
+    if (!item) return;
+    const type = item.__reviewType || "character";
+    const key = type === "sentence" ? String(item.i) : (type === "word" ? item.word : item.c);
+    const label = type === "sentence" ? (item.z || "").slice(0, 24) : key;
+    // Avoid duplicate flags
+    if (!state.flaggedItems) state.flaggedItems = [];
+    const alreadyFlagged = state.flaggedItems.some(f => f.key === key && f.type === type);
+    if (alreadyFlagged) {
+      showToast("Already flagged: " + label);
+      return;
+    }
+    sessionStats.flagged.push(item);
+    state.flaggedItems.push({ key, type, label, flaggedAt: Date.now() });
+    saveState();
+    showToast("🚩 Flagged: " + label);
+    el("review-flag-btn").textContent = "🚩 Flagged!";
+    el("review-flag-btn").disabled = true;
+    setTimeout(() => {
+      el("review-flag-btn").textContent = "🚩 Flag";
+      el("review-flag-btn").disabled = false;
+    }, 1500);
+  }
   function updateReviewReveal(which) {
+    if (!reviewRevealed) return; // Only allow toggling after card is revealed
     if (which === "pinyin") reviewShowPinyin = !reviewShowPinyin;
     if (which === "english") reviewShowEnglish = !reviewShowEnglish;
-    localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin)); localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish));
-    const item = reviewQueue[reviewIndex]; const type = item?.__reviewType || (reviewMode === "sentences" ? "sentence" : "character");
-    el("review-pinyin-toggle").classList.toggle("active", reviewShowPinyin); el("review-english-toggle").classList.toggle("active", reviewShowEnglish); el("review-pinyin-toggle").textContent = reviewShowPinyin ? "Hide pinyin" : "Show pinyin"; el("review-english-toggle").textContent = reviewShowEnglish ? "Hide English" : "Show English";
-    if (type === "sentence") { el("fc-sentence-pinyin").hidden = !reviewShowPinyin; el("fc-sentence-en").hidden = !reviewShowEnglish; } else { el("fc-pinyin").hidden = !reviewShowPinyin; el("fc-meaning").hidden = !reviewShowEnglish; }
+    localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin));
+    localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish));
+    const item = reviewQueue[reviewIndex];
+    const type = item?.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+    el("review-pinyin-toggle").classList.toggle("active", reviewShowPinyin);
+    el("review-english-toggle").classList.toggle("active", reviewShowEnglish);
+    el("review-pinyin-toggle").textContent = reviewShowPinyin ? "Hide pinyin" : "Show pinyin";
+    el("review-english-toggle").textContent = reviewShowEnglish ? "Hide English" : "Show English";
+    if (type === "sentence") {
+      el("fc-sentence-pinyin").hidden = !reviewShowPinyin;
+      el("fc-sentence-en").hidden = !reviewShowEnglish;
+    } else {
+      el("fc-pinyin").hidden = !reviewShowPinyin;
+      el("fc-meaning").hidden = false; // meaning always visible after reveal
+    }
   }
 
   function stopReview() {
@@ -1552,18 +2111,47 @@ document.addEventListener("DOMContentLoaded", () => {
     reviewRevealed = false;
     window.__reviewRatingBusy = false;
     refreshDueCount();
+    updateReviewEstimate();
   }
 
   function finishReview() {
-    let mins = 0; if (reviewStartedAt) { mins = Math.max(1, Math.round((Date.now() - reviewStartedAt) / 60000)); ensureActivityState(); const key = new Date().toISOString().slice(0, 10); if (!state.activity[key]) state.activity[key] = { reviews: 0, characters: 0, sentences: 0, words: 0, minutes: 0 }; state.activity[key].minutes = Number(state.activity[key].minutes || 0) + mins; saveState(); reviewStartedAt = null; }
+    let mins = 0;
+    if (reviewStartedAt) {
+      mins = Math.max(1, Math.round((Date.now() - reviewStartedAt) / 60000));
+      ensureActivityState();
+      const key = new Date().toISOString().slice(0, 10);
+      if (!state.activity[key]) state.activity[key] = { reviews: 0, characters: 0, sentences: 0, words: 0, minutes: 0 };
+      state.activity[key].minutes = Number(state.activity[key].minutes || 0) + mins;
+      saveState();
+      reviewStartedAt = null;
+    }
     const accuracy = sessionStats.reviewed ? Math.round(sessionStats.correct / sessionStats.reviewed * 100) : 0;
+    const skippedCount = Array.isArray(sessionStats.skipped) ? sessionStats.skipped.length : (sessionStats.skipped || 0);
+    const flaggedCount = Array.isArray(sessionStats.flagged) ? sessionStats.flagged.length : (sessionStats.flagged || 0);
     setTimeout(() => {
-      el("review-session").classList.add("hidden"); el("review-summary").classList.remove("hidden");
-      el("summary-reviewed").textContent = sessionStats.reviewed; el("summary-known").textContent = sessionStats.known; el("summary-accuracy").textContent = accuracy + "%"; el("summary-minutes").textContent = mins;
-      el("summary-breakdown-text").innerHTML = "Characters · " + sessionStats.characters + "<br>Sentences · " + sessionStats.sentences + "<br>Skipped · " + sessionStats.skipped + "<br>Best streak · " + sessionStats.bestStreak;
-      el("summary-next-text").textContent = sessionStats.mistakes.length ? sessionStats.mistakes.length + " item(s) need another look. Review your mistakes while they are fresh." : "Great recall. You can reinforce the session or return to Progress.";
+      el("review-session").classList.add("hidden");
+      el("review-summary").classList.remove("hidden");
+      el("summary-reviewed").textContent = sessionStats.reviewed;
+      el("summary-known").textContent = sessionStats.known;
+      el("summary-accuracy").textContent = accuracy + "%";
+      el("summary-minutes").textContent = mins;
+      el("summary-breakdown-text").innerHTML = "Characters · " + (sessionStats.characters || 0) + "<br>Sentences · " + (sessionStats.sentences || 0) + "<br>Words · " + (sessionStats.words || 0) + "<br>Skipped · " + skippedCount + "<br>Flagged · " + flaggedCount + "<br>Best streak · " + (sessionStats.bestStreak || 0);
+      const nextMsgParts = [];
+      if (sessionStats.mistakes.length) nextMsgParts.push(sessionStats.mistakes.length + " mistake(s) need another look.");
+      if (skippedCount) nextMsgParts.push(skippedCount + " item(s) were skipped.");
+      if (!nextMsgParts.length) nextMsgParts.push("Great recall! All items remembered.");
+      el("summary-next-text").textContent = nextMsgParts.join(" ");
       el("review-mistakes-btn").disabled = !sessionStats.mistakes.length;
-      window._lastReviewMistakes = sessionStats.mistakes.slice(); window._lastReviewMinutes = mins;
+      el("review-mistakes-btn").textContent = sessionStats.mistakes.length ? ("Review Mistakes (" + sessionStats.mistakes.length + ")") : "No Mistakes";
+      // Skipped button
+      const skippedBtn = el("review-skipped-btn");
+      if (skippedBtn) {
+        skippedBtn.disabled = !skippedCount;
+        skippedBtn.textContent = skippedCount ? ("Review Skipped (" + skippedCount + ")") : "No Skipped Items";
+      }
+      window._lastReviewMistakes = sessionStats.mistakes.slice();
+      window._lastReviewSkipped = Array.isArray(sessionStats.skipped) ? sessionStats.skipped.slice() : [];
+      window._lastReviewMinutes = mins;
     }, 260);
   }
 
@@ -1978,7 +2566,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ---------- wiring ---------- */
-  function openSmartReview() { const tab = document.querySelector('.tab-btn[data-tab="review"]'); if (tab) tab.click(); const r = document.querySelector('input[name="pool"][value="due"]'); if (r) r.checked = true; const b = el("start-review"); if (b) setTimeout(() => b.click(), 80); }
+  function openSmartReview() {
+    const tab = document.querySelector('.tab-btn[data-tab="review"]');
+    if (tab) tab.click();
+    const r = document.querySelector('input[name="pool"][value="smart"]');
+    if (r) r.checked = true;
+    updateReviewEstimate();
+    const b = el("start-review");
+    if (b) setTimeout(() => b.click(), 80);
+  }
 
   function wireReadings() {
     const parseBtn = el('readings-parse-btn');
@@ -2243,11 +2839,12 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.classList.add("active");
         el("tab-" + btn.dataset.tab).classList.add("active");
         if (btn.dataset.tab === "evolution") renderEvolutionTab();
+        if (btn.dataset.tab === "pictographs") renderPictographsTab();
         if (btn.dataset.tab === "progress") renderProgress();
         if (btn.dataset.tab === "sentences") renderSentences();
         if (btn.dataset.tab === "words") renderWords();
         if (btn.dataset.tab === "tones") renderTonesTab();
-        if (btn.dataset.tab === "review") refreshDueCount();
+        if (btn.dataset.tab === "review") { refreshDueCount(); updateReviewEstimate(); }
         if (btn.dataset.tab === "readings") {
             const libraryView = el("readings-library-view");
             if (libraryView && !libraryView.classList.contains("hidden")) {
@@ -2452,26 +3049,56 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function wireReview() {
-    const reviewLevelContainer = el("review-level-chips"); reviewLevelContainer.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => { toggleMultiChip(chip, reviewLevelContainer, "level", reviewFilters.levels, () => { refreshDueCount(); updateReviewEstimate(); }); }));
+    const reviewLevelContainer = el("review-level-chips");
+    reviewLevelContainer.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => {
+      toggleMultiChip(chip, reviewLevelContainer, "level", reviewFilters.levels, () => { refreshDueCount(); updateReviewEstimate(); });
+    }));
     document.querySelectorAll("[data-review-mode]").forEach(btn => btn.addEventListener("click", () => { reviewMode = btn.dataset.reviewMode; setReviewModeUI(); }));
     el("review-difficulty")?.addEventListener("change", e => { reviewDifficulty = e.target.value; updateReviewEstimate(); });
     el("review-focus-weak")?.addEventListener("change", e => { reviewFocusWeak = e.target.checked; updateReviewEstimate(); });
     document.querySelectorAll('input[name="pool"]').forEach(r => r.addEventListener("change", updateReviewEstimate));
     el("session-size").addEventListener("input", e => { el("session-size-label").textContent = e.target.value; updateReviewEstimate(); });
-    el("review-show-pinyin").checked = reviewShowPinyin; el("review-show-english").checked = reviewShowEnglish;
+    el("review-show-pinyin").checked = reviewShowPinyin;
+    el("review-show-english").checked = reviewShowEnglish;
     el("review-show-pinyin").addEventListener("change", () => { reviewShowPinyin = el("review-show-pinyin").checked; localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin)); });
     el("review-show-english").addEventListener("change", () => { reviewShowEnglish = el("review-show-english").checked; localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish)); });
-    el("review-pinyin-toggle").addEventListener("click", () => updateReviewReveal("pinyin")); el("review-english-toggle").addEventListener("click", () => updateReviewReveal("english"));
-    el("review-example-toggle").addEventListener("click", () => { const box = el("fc-examples"); const show = box.hidden; box.hidden = !show; el("review-example-toggle").classList.toggle("active", show); el("review-example-toggle").textContent = show ? "Hide examples" : "Show examples"; });
+    el("review-pinyin-toggle").addEventListener("click", () => updateReviewReveal("pinyin"));
+    el("review-english-toggle").addEventListener("click", () => updateReviewReveal("english"));
+    el("review-example-toggle").addEventListener("click", () => {
+      const box = el("fc-examples");
+      const show = box.hidden;
+      box.hidden = !show;
+      el("review-example-toggle").classList.toggle("active", show);
+      el("review-example-toggle").textContent = show ? "Hide examples" : "Show examples";
+    });
+    // Audio button with visual loading feedback
     el("review-audio-btn").addEventListener("click", () => {
       const item = reviewQueue[reviewIndex];
       if (!item) return;
+      const btn = el("review-audio-btn");
       const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
       const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
       const sentenceId = type === "sentence" ? item.i : null;
-      playChineseAudio(text, { rate: 0.88, sentenceId });
+      btn.textContent = "⏳ Playing…";
+      btn.disabled = true;
+      playChineseAudio(text, {
+        rate: 0.88,
+        sentenceId,
+        onEnd: () => {
+          btn.textContent = "🔊 Listen";
+          btn.disabled = false;
+        }
+      });
+      // Fallback re-enable in case audio ends without calling onEnd
+      setTimeout(() => {
+        if (btn.disabled) { btn.textContent = "🔊 Listen"; btn.disabled = false; }
+      }, 5000);
     });
-    el("start-review").addEventListener("click", startReview); el("stop-review").addEventListener("click", stopReview); el("reveal-btn").addEventListener("click", revealCard); el("review-skip-btn").addEventListener("click", skipCurrent); el("review-flag-btn").addEventListener("click", flagCurrent);
+    el("start-review").addEventListener("click", startReview);
+    el("stop-review").addEventListener("click", stopReview);
+    el("reveal-btn").addEventListener("click", revealCard);
+    el("review-skip-btn").addEventListener("click", skipCurrent);
+    el("review-flag-btn").addEventListener("click", flagCurrent);
     // Add right click context menu for radical grid so they can still see details or mark known via right click
     el("radical-grid")?.addEventListener("contextmenu", e => {
       const btn = e.target.closest(".radical-card");
@@ -2484,14 +3111,69 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.target.closest("button,a")) return;
       if (!reviewRevealed) revealCard();
     });
-    el("flashcard").setAttribute("tabindex", "0"); el("flashcard").setAttribute("role", "button");
-    el("flashcard").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && !reviewRevealed) { e.preventDefault(); revealCard(); } });
-    el("review-focus-toggle").addEventListener("click", () => { reviewFocusMode = !reviewFocusMode; el("review-session").classList.toggle("focus-mode", reviewFocusMode); document.body.classList.toggle("review-focus-active", reviewFocusMode); el("review-focus-toggle").classList.toggle("active", reviewFocusMode); el("review-focus-toggle").textContent = reviewFocusMode ? "⛶ Exit Focus" : "⛶ Focus"; });
-    document.querySelectorAll("#rate-buttons .status-btn").forEach(btn => btn.addEventListener("click", () => rateCurrent(btn.dataset.rate)));
-    el("back-to-setup").addEventListener("click", () => { reviewFocusMode = false; document.body.classList.remove("review-focus-active"); el("review-summary").classList.add("hidden"); el("review-session").classList.add("hidden"); el("review-setup").classList.remove("hidden"); refreshDueCount(); updateReviewEstimate(); });
-    el("review-again-btn").addEventListener("click", () => { if (window._lastReviewMistakes?.length) { reviewQueue = shuffle(window._lastReviewMistakes).slice(); reviewIndex = 0; sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, mistakes: [], skipped: 0, flagged: 0 }; reviewStartedAt = Date.now(); el("review-summary").classList.add("hidden"); el("review-session").classList.remove("hidden"); showCard(); } else { el("review-summary").classList.add("hidden"); el("review-setup").classList.remove("hidden"); } });
-    el("review-mistakes-btn").addEventListener("click", () => { if (!window._lastReviewMistakes?.length) return; reviewQueue = shuffle(window._lastReviewMistakes).slice(); reviewIndex = 0; sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, mistakes: [], skipped: 0, flagged: 0 }; reviewStartedAt = Date.now(); el("review-summary").classList.add("hidden"); el("review-session").classList.remove("hidden"); showCard(); });
-    document.addEventListener("keydown", e => { if (!el("tab-review").classList.contains("active") || el("review-session").classList.contains("hidden")) return; if (e.code === "Space") { e.preventDefault(); if (!reviewRevealed) revealCard(); } else if (reviewRevealed) { if (e.key === "1") rateCurrent("new"); if (e.key === "2") rateCurrent("learning"); if (e.key === "3") rateCurrent("known"); } else if (e.key.toLowerCase() === "s") { skipCurrent(); } });
+    el("flashcard").setAttribute("tabindex", "0");
+    el("flashcard").setAttribute("role", "button");
+    el("review-focus-toggle").addEventListener("click", () => {
+      reviewFocusMode = !reviewFocusMode;
+      el("review-session").classList.toggle("focus-mode", reviewFocusMode);
+      document.body.classList.toggle("review-focus-active", reviewFocusMode);
+      el("review-focus-toggle").classList.toggle("active", reviewFocusMode);
+      el("review-focus-toggle").textContent = reviewFocusMode ? "⛶ Exit Focus" : "⛶ Focus";
+    });
+    document.querySelectorAll("#rate-buttons .status-btn, #rate-buttons .fsrs-rate-btn").forEach(btn => btn.addEventListener("click", () => rateCurrent(btn.dataset.rate)));
+    el("back-to-setup").addEventListener("click", () => {
+      reviewFocusMode = false;
+      document.body.classList.remove("review-focus-active");
+      el("review-summary").classList.add("hidden");
+      el("review-session").classList.add("hidden");
+      el("review-setup").classList.remove("hidden");
+      refreshDueCount();
+      updateReviewEstimate();
+    });
+    el("review-again-btn").addEventListener("click", () => {
+      reviewFocusMode = false;
+      document.body.classList.remove("review-focus-active");
+      el("review-summary").classList.add("hidden");
+      startReview();
+    });
+    el("review-mistakes-btn").addEventListener("click", () => {
+      if (!window._lastReviewMistakes?.length) return;
+      reviewQueue = shuffle(window._lastReviewMistakes).slice();
+      reviewIndex = 0;
+      sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
+      reviewStartedAt = Date.now();
+      el("review-summary").classList.add("hidden");
+      el("review-session").classList.remove("hidden");
+      showCard();
+    });
+    // Wire "Review Skipped" button
+    el("review-skipped-btn")?.addEventListener("click", () => {
+      const skipped = window._lastReviewSkipped;
+      if (!skipped?.length) return;
+      reviewQueue = shuffle(skipped).slice();
+      reviewIndex = 0;
+      sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
+      reviewStartedAt = Date.now();
+      el("review-summary").classList.add("hidden");
+      el("review-session").classList.remove("hidden");
+      showCard();
+    });
+    document.addEventListener("keydown", e => {
+      if (!el("tab-review")?.classList.contains("active") || el("review-session")?.classList.contains("hidden")) return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName)) return;
+      if (e.code === "Space" || e.key === "Enter") {
+        e.preventDefault();
+        if (!reviewRevealed) revealCard();
+      } else if (reviewRevealed) {
+        if (e.key === "1") rateCurrent("again");
+        else if (e.key === "2") rateCurrent("hard");
+        else if (e.key === "3") rateCurrent("good");
+        else if (e.key === "4") rateCurrent("easy");
+        else if (e.key.toLowerCase() === "f") flagCurrent();
+      } else if (e.key.toLowerCase() === "s") {
+        skipCurrent();
+      }
+    });
     setReviewModeUI();
   }
 
@@ -4377,18 +5059,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   /* =========================================================
-   *  SUPABASE AUTH & CLOUD SYNC
+   *  SUPABASE AUTH & CLOUD SYNC ENGINE
    * ========================================================= */
 
-  const SUPABASE_URL = "https://gyafdvspybhyspasbifo.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wgx0UQzbw3X7POQeeUT6MQ_YBF-fvHX";
+  const DEFAULT_SUPABASE_URL = "https://gyafdvspybhyspasbifo.supabase.co";
+  const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wgx0UQzbw3X7POQeeUT6MQ_YBF-fvHX";
+  const CUSTOM_SUPABASE_STORAGE_KEY = "hanzi_custom_supabase_v1";
 
   let supabaseClient = null;
   let currentUser = null;
   let syncDebounceTimer = null;
+  let lastSyncedTime = null;
+  let authMode = "password"; // "password" or "magic"
+  let isSignUpMode = false;
+
+  function getSupabaseConfig() {
+    try {
+      const custom = window.localStorage.getItem(CUSTOM_SUPABASE_STORAGE_KEY);
+      if (custom) {
+        const parsed = JSON.parse(custom);
+        if (parsed && parsed.url && parsed.key) {
+          return { url: parsed.url.trim(), key: parsed.key.trim(), isCustom: true };
+        }
+      }
+    } catch (e) {
+      console.warn("[Sync] Custom config parse error:", e);
+    }
+    return { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_PUBLISHABLE_KEY, isCustom: false };
+  }
 
   function initSupabase() {
-    if (SUPABASE_URL === "YOUR_PROJECT_URL") {
+    const config = getSupabaseConfig();
+    if (!config.url || !config.key || config.url === "YOUR_PROJECT_URL") {
       console.log("[Sync] Supabase not configured — running in local-only mode");
       return;
     }
@@ -4398,7 +5100,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      supabaseClient = window.supabase.createClient(config.url, config.key, {
         auth: {
           storage: window.localStorage,
           autoRefreshToken: true,
@@ -4410,17 +5112,17 @@ document.addEventListener("DOMContentLoaded", () => {
       supabaseClient.auth.onAuthStateChange((event, session) => {
         currentUser = session?.user || null;
         updateAuthUI(currentUser);
-        if (currentUser && event === 'SIGNED_IN') {
-          loadFromCloud();
+        if (currentUser && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          loadFromCloud({ silent: event === 'TOKEN_REFRESHED' });
         }
       });
 
-      // Initial check
+      // Initial session check
       supabaseClient.auth.getSession().then(({ data: { session } }) => {
         currentUser = session?.user || null;
         updateAuthUI(currentUser);
         if (currentUser) {
-          loadFromCloud();
+          loadFromCloud({ silent: true });
         }
       }).catch(e => console.warn("[Sync] getSession failed:", e));
     } catch (err) {
@@ -4433,51 +5135,607 @@ document.addEventListener("DOMContentLoaded", () => {
     const userSection = el("auth-user");
     const avatar = el("auth-avatar");
     const nameEl = el("auth-name");
+    const indicator = el("sync-indicator");
 
     if (user) {
       if (signInBtn) signInBtn.classList.add("hidden");
       if (userSection) userSection.classList.remove("hidden");
-      if (avatar) avatar.src = "icons/icon-192.png";
-      if (nameEl) nameEl.textContent = user.email?.split("@")[0] || "User";
+      if (avatar) {
+        avatar.src = user.user_metadata?.avatar_url || "icons/icon-192.png";
+      }
+      const displayName = user.user_metadata?.user_name || user.user_metadata?.name || user.email?.split("@")[0] || "User";
+      if (nameEl) nameEl.textContent = displayName;
+      if (indicator) {
+        indicator.title = lastSyncedTime ? "Synced " + formatTimeAgo(lastSyncedTime) : "Synced";
+        indicator.classList.remove("error");
+      }
     } else {
       if (signInBtn) signInBtn.classList.remove("hidden");
       if (userSection) userSection.classList.add("hidden");
+      if (indicator) {
+        indicator.title = "Not signed in";
+        indicator.classList.remove("syncing", "error");
+      }
+    }
+
+    updateAccountModalInfo();
+  }
+
+  function formatTimeAgo(date) {
+    if (!date) return "Never";
+    const sec = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+    if (sec < 45) return "just now";
+    if (sec < 90) return "1 min ago";
+    const mins = Math.floor(sec / 60);
+    if (mins < 60) return mins + " mins ago";
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + (hours === 1 ? " hour ago" : " hours ago");
+    return new Date(date).toLocaleDateString();
+  }
+
+  function updateAccountModalInfo() {
+    if (!currentUser) return;
+    const emailEl = el("account-modal-email");
+    const avatarEl = el("account-modal-avatar");
+    const lastSyncEl = el("account-last-sync-time");
+    const charCountEl = el("account-char-count");
+    const wordCountEl = el("account-word-count");
+    const statusTextEl = el("account-status-text");
+    const statusDotEl = el("account-status-dot");
+
+    if (emailEl) emailEl.textContent = currentUser.email || currentUser.id || "Signed In";
+    if (avatarEl) avatarEl.src = currentUser.user_metadata?.avatar_url || "icons/icon-192.png";
+    if (lastSyncEl) lastSyncEl.textContent = formatTimeAgo(lastSyncedTime);
+
+    const knownChars = Object.values(state.progress || {}).filter(p => p && (p.status === "known" || p.status === "learning")).length;
+    const knownWords = Object.values(state.wordProgress || {}).filter(p => p && (p.status === "known" || p.status === "learning")).length;
+
+    if (charCountEl) charCountEl.textContent = knownChars.toLocaleString();
+    if (wordCountEl) wordCountEl.textContent = knownWords.toLocaleString();
+
+    if (statusTextEl) statusTextEl.textContent = "Cloud Sync Active";
+    if (statusDotEl) {
+      statusDotEl.className = "status-dot online";
+    }
+
+    // Populate custom supabase fields
+    const config = getSupabaseConfig();
+    const urlInput = el("custom-supabase-url");
+    const keyInput = el("custom-supabase-key");
+    if (urlInput && config.isCustom) urlInput.value = config.url;
+    if (keyInput && config.isCustom) keyInput.value = config.key;
+  }
+
+  /* ---------- MERGE STATE ENGINE ---------- */
+  function mergeState(local, remote) {
+    if (!remote || typeof remote !== "object") return local;
+
+    const merged = {
+      progress: Object.assign({}, local.progress || {}),
+      wordProgress: Object.assign({}, local.wordProgress || {}),
+      sentenceProgress: Object.assign({}, local.sentenceProgress || {}),
+      streak: {
+        count: Math.max(local.streak?.count || 0, remote.streak?.count || 0),
+        last: (local.streak?.last && remote.streak?.last)
+          ? (new Date(local.streak.last) >= new Date(remote.streak.last) ? local.streak.last : remote.streak.last)
+          : (local.streak?.last || remote.streak?.last || null)
+      },
+      activity: Object.assign({}, local.activity || {}),
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Merge Characters
+    if (remote.progress && typeof remote.progress === "object") {
+      Object.keys(remote.progress).forEach(char => {
+        const localItem = merged.progress[char];
+        const remoteItem = remote.progress[char];
+
+        if (!localItem) {
+          merged.progress[char] = remoteItem;
+        } else if (remoteItem) {
+          // Compare review count, timestamps, and status
+          const localRev = Number(localItem.reviews || 0);
+          const remoteRev = Number(remoteItem.reviews || 0);
+          const localTime = Math.max(localItem.last_review || 0, localItem.stampedAt || 0, 0);
+          const remoteTime = Math.max(remoteItem.last_review || 0, remoteItem.stampedAt || 0, 0);
+
+          if (remoteRev > localRev || (remoteRev === localRev && remoteTime > localTime)) {
+            merged.progress[char] = Object.assign({}, localItem, remoteItem);
+          } else if (localItem.status === "new" && remoteItem.status && remoteItem.status !== "new") {
+            merged.progress[char] = Object.assign({}, localItem, remoteItem);
+          }
+        }
+      });
+    }
+
+    // 2. Merge Words
+    if (remote.wordProgress && typeof remote.wordProgress === "object") {
+      Object.keys(remote.wordProgress).forEach(word => {
+        const localItem = merged.wordProgress[word];
+        const remoteItem = remote.wordProgress[word];
+
+        if (!localItem) {
+          merged.wordProgress[word] = remoteItem;
+        } else if (remoteItem) {
+          const localRev = Number(localItem.reviews || 0);
+          const remoteRev = Number(remoteItem.reviews || 0);
+          const localTime = Math.max(localItem.last_review || 0, localItem.stampedAt || 0, 0);
+          const remoteTime = Math.max(remoteItem.last_review || 0, remoteItem.stampedAt || 0, 0);
+
+          if (remoteRev > localRev || (remoteRev === localRev && remoteTime > localTime)) {
+            merged.wordProgress[word] = Object.assign({}, localItem, remoteItem);
+          } else if (localItem.status === "new" && remoteItem.status && remoteItem.status !== "new") {
+            merged.wordProgress[word] = Object.assign({}, localItem, remoteItem);
+          }
+        }
+      });
+    }
+
+    // 3. Merge Sentences
+    if (remote.sentenceProgress && typeof remote.sentenceProgress === "object") {
+      Object.keys(remote.sentenceProgress).forEach(id => {
+        const localItem = merged.sentenceProgress[id];
+        const remoteItem = remote.sentenceProgress[id];
+
+        if (!localItem) {
+          merged.sentenceProgress[id] = remoteItem;
+        } else if (remoteItem) {
+          const localRev = Number(localItem.reviews || 0);
+          const remoteRev = Number(remoteItem.reviews || 0);
+          const localTime = Math.max(localItem.last_review || 0, 0);
+          const remoteTime = Math.max(remoteItem.last_review || 0, 0);
+
+          if (remoteRev > localRev || (remoteRev === localRev && remoteTime > localTime)) {
+            merged.sentenceProgress[id] = Object.assign({}, localItem, remoteItem);
+          } else if (localItem.status === "new" && remoteItem.status && remoteItem.status !== "new") {
+            merged.sentenceProgress[id] = Object.assign({}, localItem, remoteItem);
+          }
+        }
+      });
+    }
+
+    // 4. Merge Activity History
+    if (remote.activity && typeof remote.activity === "object") {
+      Object.keys(remote.activity).forEach(date => {
+        const localAct = merged.activity[date] || { reviews: 0, characters: 0, sentences: 0, words: 0, minutes: 0 };
+        const remoteAct = remote.activity[date] || {};
+
+        merged.activity[date] = {
+          reviews: Math.max(Number(localAct.reviews || 0), Number(remoteAct.reviews || 0)),
+          characters: Math.max(Number(localAct.characters || 0), Number(remoteAct.characters || 0)),
+          sentences: Math.max(Number(localAct.sentences || 0), Number(remoteAct.sentences || 0)),
+          words: Math.max(Number(localAct.words || 0), Number(remoteAct.words || 0)),
+          minutes: Math.max(Number(localAct.minutes || 0), Number(remoteAct.minutes || 0))
+        };
+      });
+    }
+
+    return merged;
+  }
+
+  function hasAnyLocalProgress() {
+    const chars = Object.values(state.progress || {}).some(p => p && p.status && p.status !== "new");
+    const words = Object.values(state.wordProgress || {}).some(p => p && p.status && p.status !== "new");
+    const sentences = Object.values(state.sentenceProgress || {}).some(p => p && p.status && p.status !== "new");
+    const streak = (state.streak?.count || 0) > 0;
+    return chars || words || sentences || streak;
+  }
+
+  /* ---------- SYNC TO CLOUD ---------- */
+  async function syncToCloud(options = {}) {
+    if (!currentUser || !supabaseClient) return;
+
+    const indicator = el("sync-indicator");
+    const statusTextEl = el("account-status-text");
+    const statusDotEl = el("account-status-dot");
+
+    if (indicator) {
+      indicator.classList.add("syncing");
+      indicator.classList.remove("error");
+      indicator.title = "Syncing with cloud…";
+    }
+    if (statusTextEl) statusTextEl.textContent = "Syncing…";
+    if (statusDotEl) statusDotEl.className = "status-dot syncing";
+
+    try {
+      const nowIso = new Date().toISOString();
+      const totalReviews = Object.values(state.progress || {}).reduce((sum, p) => sum + (p.reviews || 0), 0);
+      const totalKnown = Object.values(state.progress || {}).filter(p => p.status === "known").length;
+
+      // 1. Primary Full State Snapshot row
+      const primaryRow = {
+        user_id: currentUser.id,
+        character: "__app_state_v1__",
+        status: JSON.stringify(state),
+        attempts: totalReviews,
+        correct: totalKnown,
+        last_practiced: nowIso,
+        updated_at: nowIso
+      };
+
+      const { error: primaryError } = await supabaseClient
+        .from("hanzi_progress")
+        .upsert(primaryRow, { onConflict: "user_id,character" });
+
+      if (primaryError) throw primaryError;
+
+      // 2. Granular rows for non-new characters, words, sentences (for relational queries)
+      const granularRows = [];
+
+      Object.entries(state.progress || {}).forEach(([char, entry]) => {
+        if (entry && entry.status && entry.status !== "new") {
+          granularRows.push({
+            user_id: currentUser.id,
+            character: char,
+            status: entry.status,
+            attempts: entry.reviews || 0,
+            correct: entry.interval || 0,
+            last_practiced: entry.last_review ? new Date(entry.last_review).toISOString() : nowIso,
+            updated_at: nowIso
+          });
+        }
+      });
+
+      Object.entries(state.wordProgress || {}).forEach(([word, entry]) => {
+        if (entry && entry.status && entry.status !== "new") {
+          granularRows.push({
+            user_id: currentUser.id,
+            character: "word:" + word,
+            status: entry.status,
+            attempts: entry.reviews || 0,
+            correct: entry.interval || 0,
+            last_practiced: entry.last_review ? new Date(entry.last_review).toISOString() : nowIso,
+            updated_at: nowIso
+          });
+        }
+      });
+
+      Object.entries(state.sentenceProgress || {}).forEach(([id, entry]) => {
+        if (entry && entry.status && entry.status !== "new") {
+          granularRows.push({
+            user_id: currentUser.id,
+            character: "sentence:" + id,
+            status: entry.status,
+            attempts: entry.reviews || 0,
+            correct: entry.interval || 0,
+            last_practiced: entry.last_review ? new Date(entry.last_review).toISOString() : nowIso,
+            updated_at: nowIso
+          });
+        }
+      });
+
+      // Upsert in safe batches of 150
+      for (let i = 0; i < granularRows.length; i += 150) {
+        const chunk = granularRows.slice(i, i + 150);
+        const { error: chunkError } = await supabaseClient
+          .from("hanzi_progress")
+          .upsert(chunk, { onConflict: "user_id,character" });
+        if (chunkError) console.warn("[Sync] Granular batch warning:", chunkError);
+      }
+
+      lastSyncedTime = new Date();
+      if (indicator) {
+        indicator.classList.remove("syncing", "error");
+        indicator.title = "Synced just now";
+      }
+      if (statusTextEl) statusTextEl.textContent = "Cloud Sync Active";
+      if (statusDotEl) statusDotEl.className = "status-dot online";
+
+      updateAccountModalInfo();
+
+      if (options.isManual) {
+        showToast("☁️ Progress backed up to cloud!");
+      }
+    } catch (err) {
+      console.warn("[Sync] Cloud save failed:", err);
+      if (indicator) {
+        indicator.classList.remove("syncing");
+        indicator.classList.add("error");
+        indicator.title = "Sync error: " + (err.message || "Failed to sync");
+      }
+      if (statusTextEl) statusTextEl.textContent = "Sync Error";
+      if (statusDotEl) statusDotEl.className = "status-dot error";
+
+      if (options.isManual) {
+        showToast("Cloud sync failed: " + (err.message || "Unknown error"), true);
+      }
     }
   }
 
+  function debouncedSync() {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => syncToCloud(), 1500);
+  }
+
+  /* ---------- LOAD FROM CLOUD ---------- */
+  async function loadFromCloud(options = {}) {
+    if (!currentUser || !supabaseClient) return;
+
+    const indicator = el("sync-indicator");
+    const statusTextEl = el("account-status-text");
+    const statusDotEl = el("account-status-dot");
+
+    if (indicator) {
+      indicator.classList.add("syncing");
+      indicator.classList.remove("error");
+    }
+    if (statusTextEl) statusTextEl.textContent = "Syncing…";
+    if (statusDotEl) statusDotEl.className = "status-dot syncing";
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("hanzi_progress")
+        .select("*")
+        .eq("user_id", currentUser.id);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        // Cloud is empty. If local state has progress, upload it automatically!
+        if (hasAnyLocalProgress()) {
+          console.log("[Sync] Cloud empty — uploading local progress to cloud");
+          await syncToCloud();
+          if (!options.silent) {
+            showToast("☁️ Cloud connected: Local progress uploaded!");
+          }
+        }
+        lastSyncedTime = new Date();
+        if (indicator) indicator.classList.remove("syncing");
+        if (statusTextEl) statusTextEl.textContent = "Cloud Sync Active";
+        if (statusDotEl) statusDotEl.className = "status-dot online";
+        updateAccountModalInfo();
+        return;
+      }
+
+      // Look for full state row
+      const stateRow = data.find(r => r.character === "__app_state_v1__");
+      if (stateRow && stateRow.status) {
+        try {
+          const cloudState = JSON.parse(stateRow.status);
+          state = mergeState(state, cloudState);
+        } catch (e) {
+          console.warn("[Sync] Parse cloud state JSON failed:", e);
+        }
+      } else {
+        // Legacy format reconstruction
+        data.forEach(row => {
+          if (!row.character || row.character === "__app_state_v1__") return;
+          if (row.character.startsWith("word:")) {
+            const word = row.character.slice(5);
+            if (!state.wordProgress[word]) {
+              state.wordProgress[word] = { status: row.status || "learning", interval: row.correct || 0, reviews: row.attempts || 0, due: Date.now() };
+            }
+          } else if (row.character.startsWith("sentence:")) {
+            const id = row.character.slice(9);
+            if (!state.sentenceProgress[id]) {
+              state.sentenceProgress[id] = { status: row.status || "learning", interval: row.correct || 0, reviews: row.attempts || 0, due: Date.now() };
+            }
+          } else {
+            const current = getStatus(row.character);
+            if (row.status && row.status !== current) {
+              setStatusRaw(row.character, row.status, row.correct, row.attempts);
+            }
+          }
+        });
+      }
+
+      // Persist merged state locally
+      const payload = JSON.stringify(state);
+      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch (e) {}
+      try { if (window.storage && typeof window.storage.set === "function") await window.storage.set(STORAGE_KEY, payload, false); } catch (e) {}
+
+      // Refresh all UI tabs and views
+      syncUI();
+      renderBrowse();
+      renderSentences();
+      renderWords();
+      renderProgress();
+      renderTonesTab();
+      renderPictographsTab();
+      updateHeaderProgress();
+      refreshDueCount();
+      updateXPDisplay();
+      renderAchievementGrid();
+      if (typeof renderSealAlbum === "function") renderSealAlbum();
+
+      lastSyncedTime = new Date();
+      if (indicator) {
+        indicator.classList.remove("syncing", "error");
+        indicator.title = "Synced just now";
+      }
+      if (statusTextEl) statusTextEl.textContent = "Cloud Sync Active";
+      if (statusDotEl) statusDotEl.className = "status-dot online";
+
+      updateAccountModalInfo();
+
+      if (!options.silent) {
+        showToast("☁️ Progress synced from cloud");
+      }
+    } catch (err) {
+      console.warn("[Sync] Cloud load failed:", err);
+      if (indicator) {
+        indicator.classList.remove("syncing");
+        indicator.classList.add("error");
+        indicator.title = "Sync error: " + (err.message || "Failed to load");
+      }
+      if (statusTextEl) statusTextEl.textContent = "Sync Error";
+      if (statusDotEl) statusDotEl.className = "status-dot error";
+
+      if (!options.silent) {
+        showToast("Cloud sync failed: " + (err.message || "Unknown error"), true);
+      }
+    }
+  }
+
+  function setStatusRaw(char, status, interval = 0, reviews = 0) {
+    if (!state.progress[char]) {
+      state.progress[char] = { status: status, interval: interval || 0, reviews: reviews || 0, due: Date.now(), stampedAt: null };
+    } else {
+      state.progress[char].status = status;
+      if (reviews) state.progress[char].reviews = reviews;
+      if (interval) state.progress[char].interval = interval;
+    }
+  }
+
+  /* ---------- FORCE ACTIONS ---------- */
+  async function forceUploadToCloud() {
+    if (!currentUser || !supabaseClient) {
+      showToast("Sign in first to sync to cloud", true);
+      return;
+    }
+    if (!confirm("Upload local progress to cloud and overwrite cloud backup?")) return;
+    await syncToCloud({ isManual: true });
+  }
+
+  async function forceRestoreFromCloud() {
+    if (!currentUser || !supabaseClient) {
+      showToast("Sign in first to restore from cloud", true);
+      return;
+    }
+    if (!confirm("Restore cloud backup and replace current local progress? This cannot be undone.")) return;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("hanzi_progress")
+        .select("*")
+        .eq("user_id", currentUser.id);
+
+      if (error) throw error;
+      const stateRow = data?.find(r => r.character === "__app_state_v1__");
+      if (!stateRow || !stateRow.status) {
+        showToast("No full cloud backup found for this account.", true);
+        return;
+      }
+
+      state = JSON.parse(stateRow.status);
+      const payload = JSON.stringify(state);
+      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch(e){}
+      try { if (window.storage) window.storage.set(STORAGE_KEY, payload, false); } catch(e){}
+
+      syncUI();
+      renderBrowse();
+      renderSentences();
+      renderWords();
+      renderProgress();
+      renderTonesTab();
+      renderPictographsTab();
+      updateHeaderProgress();
+      refreshDueCount();
+      updateXPDisplay();
+      renderAchievementGrid();
+      if (typeof renderSealAlbum === "function") renderSealAlbum();
+
+      lastSyncedTime = new Date();
+      updateAccountModalInfo();
+      showToast("☁️ Progress restored from cloud!");
+      closeAccountModal();
+    } catch (e) {
+      showToast("Restore failed: " + (e.message || "Unknown error"), true);
+    }
+  }
+
+  /* ---------- AUTH ACTIONS ---------- */
+  function setAuthStatusMessage(text, type = "info") {
+    const msgEl = el("auth-status-message");
+    if (!msgEl) return;
+    if (!text) {
+      msgEl.classList.add("hidden");
+      msgEl.textContent = "";
+      return;
+    }
+    msgEl.className = "auth-status-message " + type;
+    msgEl.textContent = text;
+    msgEl.classList.remove("hidden");
+  }
+
   async function signInWithGithub() {
-    if (!supabaseClient) { showToast("Supabase not configured"); return; }
-    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: "github", options: { redirectTo: window.location.origin + window.location.pathname } });
-    if (error) showToast("Sign-in failed: " + error.message);
+    if (!supabaseClient) { showToast("Supabase not configured", true); return; }
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error) {
+      setAuthStatusMessage("GitHub sign-in failed: " + error.message, "error");
+    }
   }
 
   async function signInWithEmail() {
-    if (!supabaseClient) { showToast("Supabase not configured"); return; }
-    const email = el("auth-email")?.value;
+    if (!supabaseClient) { showToast("Supabase not configured", true); return; }
+    const email = el("auth-email")?.value.trim();
     const password = el("auth-password")?.value;
-    if (!email || !password) { showToast("Enter email and password"); return; }
+    if (!email || !password) {
+      setAuthStatusMessage("Please enter both email and password.", "error");
+      return;
+    }
 
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    setAuthStatusMessage("Signing in…", "info");
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
-      showToast("Sign-in failed: " + error.message);
+      if (error.message.includes("Email not confirmed")) {
+        setAuthStatusMessage("Email not confirmed. Check your inbox to confirm before signing in.", "error");
+      } else {
+        setAuthStatusMessage(error.message, "error");
+      }
     } else {
+      currentUser = data.user;
       closeAuthModal();
-      showToast("Signed in!");
+      showToast("☁️ Signed in successfully!");
+      loadFromCloud();
     }
   }
 
   async function signUpWithEmail() {
-    if (!supabaseClient) { showToast("Supabase not configured"); return; }
-    const email = el("auth-email")?.value;
+    if (!supabaseClient) { showToast("Supabase not configured", true); return; }
+    const email = el("auth-email")?.value.trim();
     const password = el("auth-password")?.value;
-    if (!email || !password) { showToast("Enter email and password"); return; }
+    if (!email || !password) {
+      setAuthStatusMessage("Please enter both email and password.", "error");
+      return;
+    }
+    if (password.length < 6) {
+      setAuthStatusMessage("Password must be at least 6 characters.", "error");
+      return;
+    }
 
-    const { error } = await supabaseClient.auth.signUp({ email, password });
+    setAuthStatusMessage("Creating account…", "info");
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    });
+
     if (error) {
-      showToast("Sign-up failed: " + error.message);
+      setAuthStatusMessage(error.message, "error");
     } else {
-      closeAuthModal();
-      showToast("Account created! Check your email to confirm if required.");
+      if (data.session) {
+        currentUser = data.user;
+        closeAuthModal();
+        showToast("☁️ Account created & signed in!");
+        loadFromCloud();
+      } else {
+        setAuthStatusMessage("Account created! Check your email to confirm your address.", "success");
+      }
+    }
+  }
+
+  async function signInWithMagicLink() {
+    if (!supabaseClient) { showToast("Supabase not configured", true); return; }
+    const email = el("auth-email")?.value.trim();
+    if (!email) {
+      setAuthStatusMessage("Please enter your email address.", "error");
+      return;
+    }
+
+    setAuthStatusMessage("Sending magic sign-in link…", "info");
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    });
+
+    if (error) {
+      setAuthStatusMessage(error.message, "error");
+    } else {
+      setAuthStatusMessage("Magic link sent! Check your inbox to sign in with one click.", "success");
     }
   }
 
@@ -4486,123 +5744,168 @@ document.addEventListener("DOMContentLoaded", () => {
     const { error } = await supabaseClient.auth.signOut();
     if (!error) {
       currentUser = null;
+      lastSyncedTime = null;
       updateAuthUI(null);
-      showToast("Signed out");
+      closeAccountModal();
+      showToast("Signed out of cloud sync");
     }
   }
 
+  /* ---------- MODAL CONTROLS ---------- */
   function openAuthModal() {
+    setAuthStatusMessage("");
     el("auth-modal")?.classList.remove("hidden");
   }
 
   function closeAuthModal() {
     el("auth-modal")?.classList.add("hidden");
+    setAuthStatusMessage("");
   }
 
-  let isSignUpMode = false;
+  function openAccountModal() {
+    updateAccountModalInfo();
+    el("account-modal")?.classList.remove("hidden");
+  }
+
+  function closeAccountModal() {
+    el("account-modal")?.classList.add("hidden");
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const pwTab = el("auth-tab-password");
+    const magicTab = el("auth-tab-magic");
+    const pwInput = el("auth-password");
+    const magicHint = el("auth-magic-hint");
+    const submitBtn = el("auth-submit-btn");
+    const toggleWrap = el("auth-signup-toggle-wrap");
+
+    if (mode === "magic") {
+      pwTab?.classList.remove("active");
+      magicTab?.classList.add("active");
+      if (pwInput) pwInput.style.display = "none";
+      if (magicHint) magicHint.classList.remove("hidden");
+      if (submitBtn) submitBtn.textContent = "Send Magic Link";
+      if (toggleWrap) toggleWrap.style.display = "none";
+    } else {
+      pwTab?.classList.add("active");
+      magicTab?.classList.remove("active");
+      if (pwInput) pwInput.style.display = "block";
+      if (magicHint) magicHint.classList.hidden = "hidden";
+      if (submitBtn) submitBtn.textContent = isSignUpMode ? "Create account" : "Sign in";
+      if (toggleWrap) toggleWrap.style.display = "block";
+    }
+    setAuthStatusMessage("");
+  }
+
   function toggleSignUpMode() {
     isSignUpMode = !isSignUpMode;
-    const btn = el("auth-email-btn");
+    const btn = el("auth-submit-btn");
     const toggle = el("auth-signup-toggle");
-    if (btn) btn.textContent = isSignUpMode ? "Create account" : "Sign in";
-    if (toggle) toggle.textContent = isSignUpMode ? "Already have an account? Sign in" : "Don't have an account? Sign up";
+    const title = el("auth-modal-title");
+
+    if (btn && authMode === "password") btn.textContent = isSignUpMode ? "Create account" : "Sign in";
+    if (toggle) toggle.textContent = isSignUpMode ? "Sign in" : "Create account";
+    if (title) title.textContent = isSignUpMode ? "Create an account" : "Sign in to sync";
+    setAuthStatusMessage("");
   }
 
-  async function syncToCloud() {
-    if (!currentUser || !supabaseClient) return;
-    const indicator = el("sync-indicator");
-    if (indicator) indicator.classList.add("syncing");
+  function handleCustomSupabaseSave() {
+    const url = (el("custom-supabase-url")?.value || el("auth-custom-url")?.value || "").trim();
+    const key = (el("custom-supabase-key")?.value || el("auth-custom-key")?.value || "").trim();
+
+    if (!url || !key) {
+      showToast("Enter both Supabase URL and Key", true);
+      return;
+    }
 
     try {
-      // Collect all character statuses to upsert
-      const progressData = [];
-      HANZI_DATA.forEach(h => {
-        const status = getStatus(h.c);
-        if (status !== "new") {
-          // For simplicity, we just save the status here
-          progressData.push({
-            user_id: currentUser.id,
-            character: h.c,
-            status: status,
-            attempts: 0,
-            correct: 0,
-            last_practiced: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-        }
-      });
-
-      // Batch upsert to Supabase
-      if (progressData.length > 0) {
-        const { error } = await supabaseClient
-          .from("hanzi_progress")
-          .upsert(progressData, { onConflict: "user_id,character" });
-
-        if (error) {
-          console.error("Supabase upsert error:", error);
-        }
-      }
+      window.localStorage.setItem(CUSTOM_SUPABASE_STORAGE_KEY, JSON.stringify({ url, key }));
+      initSupabase();
+      showToast("Custom Supabase configured!");
     } catch (e) {
-      console.warn("[Sync] Cloud save failed:", e);
-    } finally {
-      if (indicator) indicator.classList.remove("syncing");
+      showToast("Failed to save config: " + e.message, true);
     }
   }
 
-  function debouncedSync() {
-    clearTimeout(syncDebounceTimer);
-    syncDebounceTimer = setTimeout(syncToCloud, 2000);
-  }
-
-  async function loadFromCloud() {
-    if (!currentUser || !supabaseClient) return;
+  function handleCustomSupabaseReset() {
     try {
-      const { data, error } = await supabaseClient
-        .from("hanzi_progress")
-        .select("*")
-        .eq("user_id", currentUser.id);
-
-      if (error) throw error;
-      if (!data || data.length === 0) return;
-
-      data.forEach(row => {
-        const current = getStatus(row.character);
-        if (row.status && row.status !== current) {
-          setStatusRaw(row.character, row.status);
-        }
-      });
-
-      showToast("☁️ Data synced from cloud");
-      saveState();
-      renderBrowse();
-      renderProgress();
-      updateHeaderProgress();
-      updateXPDisplay();
+      window.localStorage.removeItem(CUSTOM_SUPABASE_STORAGE_KEY);
+      const urlInput = el("custom-supabase-url");
+      const keyInput = el("custom-supabase-key");
+      if (urlInput) urlInput.value = "";
+      if (keyInput) keyInput.value = "";
+      initSupabase();
+      showToast("Reset to default Supabase server");
     } catch (e) {
-      console.warn("[Sync] Cloud load failed:", e);
+      showToast("Failed to reset: " + e.message, true);
     }
   }
 
-  // Helper: set status without triggering full re-render (for bulk import)
-  function setStatusRaw(char, status) {
-    if (!state.progress[char]) {
-      state.progress[char] = { status: status, interval: 0, reviews: 0, due: Date.now(), stampedAt: null };
-    } else {
-      state.progress[char].status = status;
-    }
-  }
-
+  /* ---------- WIRE AUTH & SYNC UI ---------- */
   function wireAuth() {
+    // Auth Modal triggers
     el("auth-sign-in-btn")?.addEventListener("click", openAuthModal);
     el("auth-modal-close")?.addEventListener("click", closeAuthModal);
     el("auth-close-link")?.addEventListener("click", e => { e.preventDefault(); closeAuthModal(); });
+
+    // Account modal triggers (avatar & sync indicator)
+    el("auth-user")?.addEventListener("click", openAccountModal);
+    el("auth-user")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openAccountModal(); }
+    });
+    el("account-modal-close")?.addEventListener("click", closeAccountModal);
+
+    // Auth forms
     el("auth-github-btn")?.addEventListener("click", signInWithGithub);
-    el("auth-email-btn")?.addEventListener("click", () => isSignUpMode ? signUpWithEmail() : signInWithEmail());
+    el("auth-tab-password")?.addEventListener("click", () => setAuthMode("password"));
+    el("auth-tab-magic")?.addEventListener("click", () => setAuthMode("magic"));
     el("auth-signup-toggle")?.addEventListener("click", e => { e.preventDefault(); toggleSignUpMode(); });
 
-    // Sign out on avatar click
-    el("auth-avatar")?.addEventListener("click", () => {
-      if (confirm("Sign out of cloud sync?")) signOutUser();
+    el("auth-form")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (authMode === "magic") {
+        signInWithMagicLink();
+      } else if (isSignUpMode) {
+        signUpWithEmail();
+      } else {
+        signInWithEmail();
+      }
+    });
+
+    el("auth-submit-btn")?.addEventListener("click", () => {
+      if (authMode === "magic") {
+        signInWithMagicLink();
+      } else if (isSignUpMode) {
+        signUpWithEmail();
+      } else {
+        signInWithEmail();
+      }
+    });
+
+    // Account Modal actions
+    el("account-sync-now-btn")?.addEventListener("click", async () => {
+      await syncToCloud({ isManual: true });
+      await loadFromCloud({ silent: true });
+    });
+    el("account-upload-btn")?.addEventListener("click", forceUploadToCloud);
+    el("account-restore-btn")?.addEventListener("click", forceRestoreFromCloud);
+    el("account-export-btn")?.addEventListener("click", exportData);
+    el("account-import-btn")?.addEventListener("click", () => el("import-file")?.click());
+    el("account-signout-btn")?.addEventListener("click", signOutUser);
+
+    // Custom Server actions
+    el("custom-supabase-save-btn")?.addEventListener("click", handleCustomSupabaseSave);
+    el("custom-supabase-reset-btn")?.addEventListener("click", handleCustomSupabaseReset);
+    el("auth-custom-save-btn")?.addEventListener("click", handleCustomSupabaseSave);
+    el("auth-custom-reset-btn")?.addEventListener("click", handleCustomSupabaseReset);
+
+    // Close modals on outside backdrop click
+    el("auth-modal")?.addEventListener("click", (e) => {
+      if (e.target === el("auth-modal")) closeAuthModal();
+    });
+    el("account-modal")?.addEventListener("click", (e) => {
+      if (e.target === el("account-modal")) closeAccountModal();
     });
   }
 
@@ -4656,13 +5959,16 @@ document.addEventListener("DOMContentLoaded", () => {
       wireDataManagement();
       wireRadicals();
       wireContextMenu();
+      initThemeEngine();
       initEvolution();
+      initPictographs();
       buildSentenceIndex();
 
       renderBrowse();
       renderSentences();
       renderProgress();
       renderTonesTab();
+      renderPictographsTab();
       updateHeaderProgress();
       refreshDueCount();
 
@@ -5215,6 +6521,872 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ============================================================
    END EVOLUTION MODULE
    ============================================================ */
+
+  
+  /* ============================================================
+   PICTOGRAPHS MODULE — 象形画字与绘画工坊
+   ============================================================ */
+
+  let pictoActiveView = "gallery";
+  let pictoFilterCat = "all";
+  let pictoSearchQuery = "";
+  let pictoShowPinyin = localStorage.getItem("hanziPictoShowPinyin") !== "0";
+  let pictoShowMeaning = localStorage.getItem("hanziPictoShowMeaning") !== "0";
+  let pictoActiveChar = "山";
+  let pictoModalActiveLayer = "drawing";
+
+  // Drawing Canvas State
+  let pictoCanvas = null;
+  let pictoCtx = null;
+  let pictoIsDrawing = false;
+  let pictoBrushColor = "#FFD873";
+  let pictoBrushSize = 8;
+  let pictoDrawHistory = [];
+  let pictoGhostHanziActive = true;
+  let pictoGridOverlayActive = true;
+  let pictoGhostSvgActive = false;
+
+  // Quiz State
+  let pictoQuizMode = "pic2char";
+  let pictoQuizItem = null;
+  let pictoQuizScore = 0;
+  let pictoQuizStreak = 0;
+  let pictoQuizBest = 0;
+  let pictoQuizAnswered = false;
+
+  function getPictographItem(char) {
+    if (typeof PICTOGRAPH_DATA === "undefined" || !PICTOGRAPH_DATA) return null;
+    return PICTOGRAPH_DATA.find(p => p.c === char) || null;
+  }
+
+  function getFilteredPictographs() {
+    if (typeof PICTOGRAPH_DATA === "undefined" || !PICTOGRAPH_DATA) return [];
+    const q = pictoSearchQuery.trim().toLowerCase();
+    return PICTOGRAPH_DATA.filter(item => {
+      if (pictoFilterCat !== "all" && item.cat !== pictoFilterCat) return false;
+      if (q) {
+        const matchesChar = item.c.includes(q);
+        const matchesPinyin = (item.p || "").toLowerCase().includes(q);
+        const matchesMeaning = (item.m || "").toLowerCase().includes(q);
+        if (!matchesChar && !matchesPinyin && !matchesMeaning) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderPictographsTab() {
+    if (pictoActiveView === "gallery") {
+      renderPictographGrid();
+    } else if (pictoActiveView === "canvas") {
+      renderCanvasStudio();
+    } else if (pictoActiveView === "quiz") {
+      renderPictographQuiz();
+    }
+  }
+
+  function switchPictoView(view) {
+    pictoActiveView = view;
+    document.querySelectorAll(".picto-view-btn").forEach(btn => {
+      const active = btn.dataset.pictoView === view;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    ["gallery", "canvas", "quiz"].forEach(v => {
+      const pane = el("picto-view-" + v);
+      if (pane) pane.classList.toggle("hidden", v !== view);
+    });
+    renderPictographsTab();
+  }
+
+  function renderPictographGrid() {
+    const grid = el("picto-grid");
+    if (!grid) return;
+    const items = getFilteredPictographs();
+    const countEl = el("picto-count");
+    if (countEl) countEl.textContent = `${items.length} of ${typeof PICTOGRAPH_DATA !== "undefined" ? PICTOGRAPH_DATA.length : 0} pictographs`;
+
+    if (!items.length) {
+      grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 48px 16px; color: var(--cream-text);">
+        <p style="font-size: 1.2rem; margin-bottom: 8px;">No pictographs match your search.</p>
+        <button type="button" class="btn-secondary" id="picto-reset-filters-btn">Reset Filters</button>
+      </div>`;
+      el("picto-reset-filters-btn")?.addEventListener("click", () => {
+        pictoFilterCat = "all";
+        pictoSearchQuery = "";
+        const searchInput = el("picto-search");
+        if (searchInput) searchInput.value = "";
+        document.querySelectorAll("#picto-category-chips .chip").forEach(c => c.classList.toggle("active", c.dataset.pictoCat === "all"));
+        renderPictographGrid();
+      });
+      return;
+    }
+
+    grid.innerHTML = items.map(item => {
+      const status = getStatus(item.c) || "new";
+      const statusClass = status === "known" ? "known" : status === "learning" ? "learning" : "new";
+      const statusLabel = status === "known" ? "✓ Known" : status === "learning" ? "Learning" : "New";
+      const hskLabel = item.h ? `HSK ${item.h}` : "Basic";
+
+      return `
+        <article class="picto-card status-${status}" data-picto-char="${escHtml(item.c)}" tabindex="0" role="button" aria-label="${escHtml(item.c)} - ${escHtml(item.m)}">
+          <span class="picto-card-status-badge ${statusClass}">${statusLabel}</span>
+          <button type="button" class="picto-card-audio-btn" data-speak-char="${escHtml(item.c)}" title="Listen to ${escHtml(item.c)}">🔊</button>
+          
+          <div class="picto-card-art-box">
+            ${item.svg}
+            <div class="picto-card-hanzi-overlay">${escHtml(item.c)}</div>
+          </div>
+          
+          <div class="picto-card-info">
+            <div class="picto-card-pinyin" ${pictoShowPinyin ? "" : "hidden"}>${escHtml(item.p)}</div>
+            <div class="picto-card-meaning" ${pictoShowMeaning ? "" : "hidden"} title="${escHtml(item.m)}">${escHtml(item.m)}</div>
+          </div>
+
+          <div class="picto-card-footer">
+            <span class="picto-card-cat-label">${escHtml(item.cat)} · ${hskLabel}</span>
+            <span class="picto-card-practice-link">Inspect ↗</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    // Wire Card Clicks
+    grid.querySelectorAll(".picto-card").forEach(card => {
+      card.addEventListener("click", e => {
+        if (e.target.closest(".picto-card-audio-btn")) {
+          e.stopPropagation();
+          const speakChar = e.target.closest("[data-speak-char]")?.dataset.speakChar;
+          if (speakChar) playChineseAudio(speakChar, { rate: 0.85 });
+          return;
+        }
+        openPictographModal(card.dataset.pictoChar);
+      });
+      card.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openPictographModal(card.dataset.pictoChar);
+        }
+      });
+    });
+  }
+
+  /* ---- Modal Logic ---- */
+  function openPictographModal(char) {
+    const item = getPictographItem(char);
+    if (!item) {
+      openDetail(char);
+      return;
+    }
+    pictoActiveChar = char;
+    pictoModalActiveLayer = "drawing";
+
+    // Set char & headers
+    if (el("picto-modal-char")) el("picto-modal-char").textContent = item.c;
+    if (el("picto-modal-pinyin")) el("picto-modal-pinyin").textContent = item.p || "—";
+    if (el("picto-modal-meaning")) el("picto-modal-meaning").textContent = item.m || "";
+    if (el("picto-modal-hsk")) el("picto-modal-hsk").textContent = item.h ? `HSK ${item.h}` : "Foundational";
+    if (el("picto-modal-cat")) el("picto-modal-cat").textContent = item.cat || "Pictograph";
+    if (el("picto-modal-story")) el("picto-modal-story").textContent = item.story || "";
+
+    // Memory Cues
+    const cuesList = el("picto-modal-cues");
+    if (cuesList) {
+      cuesList.innerHTML = (item.cues || []).map(c => `<li>${escHtml(c)}</li>`).join("");
+    }
+
+    // Derivatives
+    const derivBox = el("picto-modal-derivatives");
+    const derivSection = el("picto-modal-derivatives-section");
+    if (derivBox && derivSection) {
+      if (item.derivatives && item.derivatives.length) {
+        derivSection.style.display = "";
+        derivBox.innerHTML = item.derivatives.map(d => `<span class="picto-derivative-chip">${escHtml(d)}</span>`).join("");
+      } else {
+        derivSection.style.display = "none";
+      }
+    }
+
+    // Art Box
+    updateModalArtLayer(item, pictoModalActiveLayer);
+
+    // Layer Controls
+    document.querySelectorAll(".picto-layer-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.layer === pictoModalActiveLayer);
+    });
+
+    // Status buttons
+    const status = getStatus(char) || "new";
+    ["new", "learning", "known"].forEach(s => {
+      el("picto-status-btn-" + s)?.classList.toggle("active", status === s);
+    });
+
+    // Open modal
+    el("picto-detail-modal")?.classList.add("open");
+    el("picto-detail-modal")?.setAttribute("aria-hidden", "false");
+  }
+
+  function updateModalArtLayer(item, layer) {
+    const artBox = el("picto-modal-art-box");
+    if (!artBox || !item) return;
+
+    if (layer === "drawing") {
+      artBox.innerHTML = item.svg;
+    } else if (layer === "oracle") {
+      artBox.innerHTML = `<div class="picto-modal-art-glyph" style="font-family: var(--font-hanzi); color: var(--gold-dark);">${escHtml(item.oracle || item.c)}</div>`;
+    } else {
+      artBox.innerHTML = `<div class="picto-modal-art-glyph">${escHtml(item.c)}</div>`;
+    }
+  }
+
+  function closePictographModal() {
+    el("picto-detail-modal")?.classList.remove("open");
+    el("picto-detail-modal")?.setAttribute("aria-hidden", "true");
+  }
+
+  /* ---- Drawing Canvas Studio Logic ---- */
+  function initDrawingCanvas() {
+    pictoCanvas = el("picto-drawing-canvas");
+    if (!pictoCanvas) return;
+    pictoCtx = pictoCanvas.getContext("2d", { willReadFrequently: true });
+
+    pictoCanvas.width = 340;
+    pictoCanvas.height = 340;
+
+    let lastX = 0;
+    let lastY = 0;
+
+    function saveStateToHistory() {
+      if (pictoDrawHistory.length > 25) pictoDrawHistory.shift();
+      pictoDrawHistory.push(pictoCtx.getImageData(0, 0, pictoCanvas.width, pictoCanvas.height));
+    }
+
+    function getCoords(e) {
+      const r = pictoCanvas.getBoundingClientRect();
+      const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+      const scaleX = pictoCanvas.width / r.width;
+      const scaleY = pictoCanvas.height / r.height;
+      return {
+        x: (clientX - r.left) * scaleX,
+        y: (clientY - r.top) * scaleY
+      };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      saveStateToHistory();
+      pictoIsDrawing = true;
+      const pos = getCoords(e);
+      lastX = pos.x;
+      lastY = pos.y;
+
+      pictoCtx.beginPath();
+      pictoCtx.arc(lastX, lastY, pictoBrushSize / 2, 0, Math.PI * 2);
+      pictoCtx.fillStyle = pictoBrushColor;
+      pictoCtx.fill();
+    }
+
+    function draw(e) {
+      if (!pictoIsDrawing) return;
+      e.preventDefault();
+      const pos = getCoords(e);
+
+      pictoCtx.beginPath();
+      pictoCtx.moveTo(lastX, lastY);
+      pictoCtx.lineTo(pos.x, pos.y);
+      pictoCtx.strokeStyle = pictoBrushColor;
+      pictoCtx.lineWidth = pictoBrushSize;
+      pictoCtx.lineCap = "round";
+      pictoCtx.lineJoin = "round";
+      pictoCtx.stroke();
+
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function stopDraw(e) {
+      if (pictoIsDrawing) {
+        pictoIsDrawing = false;
+      }
+    }
+
+    pictoCanvas.addEventListener("mousedown", startDraw);
+    pictoCanvas.addEventListener("mousemove", draw);
+    window.addEventListener("mouseup", stopDraw);
+
+    pictoCanvas.addEventListener("touchstart", startDraw, { passive: false });
+    pictoCanvas.addEventListener("touchmove", draw, { passive: false });
+    window.addEventListener("touchend", stopDraw);
+
+    // Wire Palette
+    document.querySelectorAll(".picto-color-dot").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".picto-color-dot").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        pictoBrushColor = btn.dataset.color || "#FFD873";
+      });
+    });
+
+    // Wire Size Slider
+    el("canvas-brush-size")?.addEventListener("input", e => {
+      pictoBrushSize = Number(e.target.value) || 8;
+      if (el("canvas-brush-val")) el("canvas-brush-val").textContent = `${pictoBrushSize}px`;
+    });
+
+    // Clear
+    el("canvas-clear-btn")?.addEventListener("click", () => {
+      if (pictoCtx) {
+        saveStateToHistory();
+        pictoCtx.clearRect(0, 0, pictoCanvas.width, pictoCanvas.height);
+      }
+    });
+
+    // Undo
+    el("canvas-undo-btn")?.addEventListener("click", () => {
+      if (pictoDrawHistory.length > 0 && pictoCtx) {
+        const prev = pictoDrawHistory.pop();
+        pictoCtx.putImageData(prev, 0, 0);
+      }
+    });
+
+    // Save Sketch
+    el("canvas-save-btn")?.addEventListener("click", () => {
+      if (!pictoCanvas) return;
+      const dataUrl = pictoCanvas.toDataURL("image/png");
+      saveUserSketch(pictoActiveChar, dataUrl);
+      showToast(`Sketch of "${pictoActiveChar}" saved! 🎨`);
+      renderSavedSketches();
+    });
+
+    // Toggle Grid
+    el("toggle-grid-overlay")?.addEventListener("click", e => {
+      pictoGridOverlayActive = !pictoGridOverlayActive;
+      e.target.classList.toggle("active", pictoGridOverlayActive);
+      el("picto-grid-overlay")?.classList.toggle("hidden", !pictoGridOverlayActive);
+    });
+
+    // Toggle Ghost Hanzi
+    el("toggle-ghost-overlay")?.addEventListener("click", e => {
+      pictoGhostHanziActive = !pictoGhostHanziActive;
+      e.target.classList.toggle("active", pictoGhostHanziActive);
+      el("picto-ghost-overlay")?.classList.toggle("hidden", !pictoGhostHanziActive);
+    });
+
+    // Toggle Ghost Picture
+    el("toggle-ghost-picto")?.addEventListener("click", e => {
+      pictoGhostSvgActive = !pictoGhostSvgActive;
+      e.target.classList.toggle("active", pictoGhostSvgActive);
+      el("picto-ghost-svg-overlay")?.classList.toggle("show", pictoGhostSvgActive);
+    });
+
+    // Animate Stroke
+    el("btn-animate-picto-stroke")?.addEventListener("click", () => {
+      playHanziWriterInCanvas(pictoActiveChar, "animate");
+    });
+
+    // Quiz Stroke
+    el("btn-quiz-picto-stroke")?.addEventListener("click", () => {
+      playHanziWriterInCanvas(pictoActiveChar, "quiz");
+    });
+
+    // Speak
+    el("btn-speak-picto-char")?.addEventListener("click", () => {
+      if (pictoActiveChar) playChineseAudio(pictoActiveChar, { rate: 0.82 });
+    });
+  }
+
+  function playHanziWriterInCanvas(char, mode) {
+    const hwContainer = el("picto-hanziwriter-container");
+    if (!hwContainer) return;
+
+    hwContainer.classList.remove("hidden");
+    hwContainer.innerHTML = "";
+
+    if (window.HanziWriter) {
+      const writer = HanziWriter.create("picto-hanziwriter-container", char, {
+        width: 340,
+        height: 340,
+        padding: 15,
+        strokeAnimationSpeed: 1.4,
+        delayBetweenStrokes: 60,
+        strokeColor: "#C4841C",
+        radicalColor: "#2F8F6E",
+        showOutline: true,
+        outlineColor: "rgba(59, 21, 18, 0.12)"
+      });
+
+      if (mode === "animate") {
+        writer.animateCharacter();
+      } else if (mode === "quiz") {
+        writer.quiz({
+          onComplete: () => {
+            showToast(`Mastered stroke order for "${char}"! +10 XP 🎉`);
+            awardXP(10, "Stroke Order Master");
+          }
+        });
+      }
+    }
+  }
+
+  function loadCharIntoCanvas(char) {
+    pictoActiveChar = char;
+    const item = getPictographItem(char);
+
+    // Clear HanziWriter overlay
+    const hw = el("picto-hanziwriter-container");
+    if (hw) {
+      hw.classList.add("hidden");
+      hw.innerHTML = "";
+    }
+
+    if (el("canvas-active-char")) el("canvas-active-char").textContent = char;
+    if (el("canvas-active-pinyin")) el("canvas-active-pinyin").textContent = item ? `${item.p} · ${item.m}` : char;
+    if (el("picto-ghost-overlay")) el("picto-ghost-overlay").textContent = char;
+
+    // Ghost SVG overlay
+    const ghostSvg = el("picto-ghost-svg-overlay");
+    if (ghostSvg) {
+      ghostSvg.innerHTML = item ? item.svg : "";
+    }
+
+    // Sidebar
+    const sideDraw = el("picto-sidebar-drawing");
+    if (sideDraw) sideDraw.innerHTML = item ? item.svg : "";
+    const sideStory = el("picto-sidebar-story");
+    if (sideStory) sideStory.textContent = item ? item.story : "";
+
+    // Clear canvas
+    if (pictoCtx && pictoCanvas) {
+      pictoCtx.clearRect(0, 0, pictoCanvas.width, pictoCanvas.height);
+      pictoDrawHistory = [];
+    }
+
+    // Highlight in char picker
+    document.querySelectorAll(".picto-char-pick-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.char === char);
+    });
+  }
+
+  function renderCanvasStudio() {
+    if (!pictoCanvas) {
+      initDrawingCanvas();
+    }
+    loadCharIntoCanvas(pictoActiveChar || "山");
+    renderQuickCharPicker();
+    renderSavedSketches();
+  }
+
+  function renderQuickCharPicker() {
+    const container = el("picto-quick-char-grid");
+    if (!container || typeof PICTOGRAPH_DATA === "undefined") return;
+
+    container.innerHTML = PICTOGRAPH_DATA.map(p => `
+      <button type="button" class="picto-char-pick-btn ${p.c === pictoActiveChar ? "active" : ""}" data-char="${escHtml(p.c)}" title="${escHtml(p.c)} · ${escHtml(p.p)} (${escHtml(p.m)})">
+        ${escHtml(p.c)}
+      </button>
+    `).join("");
+
+    container.querySelectorAll(".picto-char-pick-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        loadCharIntoCanvas(btn.dataset.char);
+      });
+    });
+  }
+
+  /* ---- Saved User Sketches ---- */
+  const SKETCHES_STORAGE_KEY = "hanzi-tracker-user-sketches";
+
+  function getUserSketches() {
+    try {
+      const raw = localStorage.getItem(SKETCHES_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveUserSketch(char, dataUrl) {
+    try {
+      const sketches = getUserSketches();
+      sketches[char] = { dataUrl, timestamp: Date.now() };
+      localStorage.setItem(SKETCHES_STORAGE_KEY, JSON.stringify(sketches));
+    } catch (e) {
+      console.warn("Could not save sketch", e);
+    }
+  }
+
+  function renderSavedSketches() {
+    const container = el("picto-user-sketches-grid");
+    if (!container) return;
+    const sketches = getUserSketches();
+    const entries = Object.entries(sketches);
+
+    if (!entries.length) {
+      container.innerHTML = `<span class="picto-no-sketches">No saved sketches yet. Draw something and click "Save My Sketch"!</span>`;
+      return;
+    }
+
+    container.innerHTML = entries.map(([char, data]) => `
+      <div class="picto-sketch-thumb" data-char="${escHtml(char)}" title="Load sketch for ${escHtml(char)}">
+        <img src="${escHtml(data.dataUrl)}" alt="Sketch of ${escHtml(char)}">
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".picto-sketch-thumb").forEach(thumb => {
+      thumb.addEventListener("click", () => {
+        const char = thumb.dataset.char;
+        loadCharIntoCanvas(char);
+        const img = new Image();
+        img.onload = () => {
+          if (pictoCtx && pictoCanvas) {
+            pictoCtx.clearRect(0, 0, pictoCanvas.width, pictoCanvas.height);
+            pictoCtx.drawImage(img, 0, 0);
+          }
+        };
+        img.src = sketches[char].dataUrl;
+        showToast(`Loaded saved sketch for "${char}" ✍️`);
+      });
+    });
+  }
+
+  /* ============================================================
+   *  PICTOGRAPH QUIZ MODULE
+   * ============================================================ */
+
+  function renderPictographQuiz() {
+    if (!pictoQuizItem) {
+      generatePictographQuizQuestion(pictoQuizMode);
+    }
+  }
+
+  function generatePictographQuizQuestion(mode) {
+    pictoQuizAnswered = false;
+    el("picto-quiz-feedback")?.classList.add("hidden");
+    const promptBox = el("picto-quiz-prompt");
+    const optGrid = el("picto-quiz-options-grid");
+    if (!promptBox || !optGrid || typeof PICTOGRAPH_DATA === "undefined") return;
+
+    // Pick target
+    const targetIdx = Math.floor(Math.random() * PICTOGRAPH_DATA.length);
+    const target = PICTOGRAPH_DATA[targetIdx];
+
+    // Pick 3 distractors
+    const others = PICTOGRAPH_DATA.filter((_, i) => i !== targetIdx);
+    const distractors = shuffle(others).slice(0, 3);
+    const choices = shuffle([target, ...distractors]);
+    const correctIdx = choices.indexOf(target);
+
+    pictoQuizItem = {
+      mode,
+      target,
+      correctIdx,
+      choices
+    };
+
+    if (mode === "pic2char") {
+      promptBox.innerHTML = `
+        <div class="picto-quiz-prompt-art">${target.svg}</div>
+        <div class="picto-quiz-prompt-hint">Which Chinese character represents this drawing?</div>
+      `;
+
+      optGrid.innerHTML = choices.map((c, i) => `
+        <button type="button" class="picto-quiz-opt-card" data-quiz-choice="${i}">
+          <span class="picto-quiz-opt-char">${escHtml(c.c)}</span>
+          <div class="picto-quiz-opt-info">
+            <span class="picto-quiz-opt-pinyin">${escHtml(c.p)}</span>
+            <span class="picto-quiz-opt-meaning">${escHtml(c.m)}</span>
+          </div>
+        </button>
+      `).join("");
+    } else if (mode === "char2pic") {
+      promptBox.innerHTML = `
+        <div class="picto-quiz-prompt-char">${escHtml(target.c)}</div>
+        <div style="font-size:1.2rem; font-weight:800; color:var(--gold-dark);">${escHtml(target.p)} · ${escHtml(target.m)}</div>
+        <div class="picto-quiz-prompt-hint">Choose the visual illustration matching this character:</div>
+      `;
+
+      optGrid.innerHTML = choices.map((c, i) => `
+        <button type="button" class="picto-quiz-opt-card" data-quiz-choice="${i}" style="justify-content:center; flex-direction:column; padding:12px;">
+          <div class="picto-quiz-opt-art">${c.svg}</div>
+          <span style="font-size:0.85rem; font-weight:700; color:var(--cream-text); margin-top:6px;">${escHtml(c.m)}</span>
+        </button>
+      `).join("");
+    } else {
+      promptBox.innerHTML = `
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:8px;">
+          <div class="picto-quiz-prompt-art" style="width:90px; height:90px;">${target.svg}</div>
+          <div class="picto-quiz-prompt-char" style="font-size:3.5rem;">${escHtml(target.c)}</div>
+        </div>
+        <div class="picto-quiz-prompt-hint">${escHtml(target.story)}</div>
+      `;
+
+      optGrid.innerHTML = choices.map((c, i) => `
+        <button type="button" class="picto-quiz-opt-card" data-quiz-choice="${i}">
+          <span class="picto-quiz-opt-char">${escHtml(c.c)}</span>
+          <div class="picto-quiz-opt-info">
+            <span class="picto-quiz-opt-pinyin">${escHtml(c.p)}</span>
+            <span class="picto-quiz-opt-meaning">${escHtml(c.m)}</span>
+          </div>
+        </button>
+      `).join("");
+    }
+
+    // Play pronunciation sound
+    setTimeout(() => {
+      playChineseAudio(target.c, { rate: 0.85 });
+    }, 100);
+  }
+
+  function checkPictographQuizAnswer(chosenIdx) {
+    if (pictoQuizAnswered || !pictoQuizItem) return;
+    pictoQuizAnswered = true;
+    const isCorrect = chosenIdx === pictoQuizItem.correctIdx;
+    const target = pictoQuizItem.target;
+
+    document.querySelectorAll("#picto-quiz-options-grid .picto-quiz-opt-card").forEach((card, i) => {
+      if (i === pictoQuizItem.correctIdx) {
+        card.classList.add("correct");
+      } else if (i === chosenIdx && !isCorrect) {
+        card.classList.add("wrong");
+      }
+    });
+
+    const feedback = el("picto-quiz-feedback");
+    const fIcon = el("picto-feedback-icon");
+    const fTitle = el("picto-feedback-title");
+    const fSub = el("picto-feedback-sub");
+
+    if (isCorrect) {
+      pictoQuizScore += 15;
+      pictoQuizStreak++;
+      pictoQuizBest = Math.max(pictoQuizBest, pictoQuizStreak);
+      awardXP(15, "Pictograph Quiz Master");
+
+      if (feedback) {
+        feedback.className = "tone-quiz-feedback is-correct";
+        if (fIcon) fIcon.textContent = "✓";
+        if (fTitle) fTitle.textContent = "Correct! +15 XP";
+        if (fSub) fSub.textContent = `${target.c} (${target.p}) · ${target.m} — ${target.story}`;
+        feedback.classList.remove("hidden");
+      }
+      if (pictoQuizStreak > 0 && pictoQuizStreak % 5 === 0) {
+        showToast(`🔥 ${pictoQuizStreak} streak on Pictograph Quiz!`);
+      }
+    } else {
+      pictoQuizStreak = 0;
+      if (feedback) {
+        feedback.className = "tone-quiz-feedback is-wrong";
+        if (fIcon) fIcon.textContent = "✗";
+        if (fTitle) fTitle.textContent = "Not quite!";
+        if (fSub) fSub.textContent = `Correct answer: ${target.c} (${target.p}) · ${target.m} — ${target.story}`;
+        feedback.classList.remove("hidden");
+      }
+    }
+
+    if (el("picto-quiz-score")) el("picto-quiz-score").textContent = pictoQuizScore;
+    if (el("picto-quiz-streak")) el("picto-quiz-streak").textContent = pictoQuizStreak;
+    if (el("picto-quiz-best")) el("picto-quiz-best").textContent = pictoQuizBest;
+  }
+
+  function initPictographs() {
+    el("btn-picto-canvas-jump")?.addEventListener("click", () => switchPictoView("canvas"));
+    el("btn-picto-quiz-jump")?.addEventListener("click", () => switchPictoView("quiz"));
+
+    document.querySelectorAll(".picto-view-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        switchPictoView(btn.dataset.pictoView || "gallery");
+      });
+    });
+
+    let searchDebounce;
+    el("picto-search")?.addEventListener("input", e => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        pictoSearchQuery = e.target.value;
+        renderPictographGrid();
+      }, 150);
+    });
+
+    el("picto-category-chips")?.addEventListener("click", e => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      document.querySelectorAll("#picto-category-chips .chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      pictoFilterCat = chip.dataset.pictoCat || "all";
+      renderPictographGrid();
+    });
+
+    el("picto-toggle-pinyin")?.addEventListener("click", e => {
+      pictoShowPinyin = !pictoShowPinyin;
+      localStorage.setItem("hanziPictoShowPinyin", pictoShowPinyin ? "1" : "0");
+      e.target.classList.toggle("active", pictoShowPinyin);
+      renderPictographGrid();
+    });
+
+    el("picto-toggle-meaning")?.addEventListener("click", e => {
+      pictoShowMeaning = !pictoShowMeaning;
+      localStorage.setItem("hanziPictoShowMeaning", pictoShowMeaning ? "1" : "0");
+      e.target.classList.toggle("active", pictoShowMeaning);
+      renderPictographGrid();
+    });
+
+    el("picto-modal-close")?.addEventListener("click", closePictographModal);
+    el("picto-detail-modal")?.addEventListener("click", e => {
+      if (e.target === el("picto-detail-modal")) closePictographModal();
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && el("picto-detail-modal")?.classList.contains("open")) {
+        closePictographModal();
+      }
+    });
+
+    el("picto-modal-speak")?.addEventListener("click", () => {
+      if (pictoActiveChar) playChineseAudio(pictoActiveChar, { rate: 0.85 });
+    });
+
+    document.querySelectorAll(".picto-layer-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".picto-layer-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        pictoModalActiveLayer = btn.dataset.layer || "drawing";
+        const item = getPictographItem(pictoActiveChar);
+        if (item) updateModalArtLayer(item, pictoModalActiveLayer);
+      });
+    });
+
+    ["new", "learning", "known"].forEach(s => {
+      el("picto-status-btn-" + s)?.addEventListener("click", () => {
+        if (!pictoActiveChar) return;
+        const wasKnown = getStatus(pictoActiveChar) === "known";
+        setStatusManual(pictoActiveChar, s);
+        if (s === "known" && !wasKnown) {
+          triggerStampFX(el("picto-modal-char"));
+          spawnConfetti(el("picto-detail-modal"));
+        }
+        ["new", "learning", "known"].forEach(st => {
+          el("picto-status-btn-" + st)?.classList.toggle("active", st === s);
+        });
+        syncUI();
+      });
+    });
+
+    el("picto-open-in-canvas-btn")?.addEventListener("click", () => {
+      closePictographModal();
+      switchPictoView("canvas");
+      loadCharIntoCanvas(pictoActiveChar);
+    });
+
+    el("picto-open-detail-drawer-btn")?.addEventListener("click", () => {
+      closePictographModal();
+      openDetail(pictoActiveChar);
+    });
+
+    el("picto-quiz-options-grid")?.addEventListener("click", e => {
+      const card = e.target.closest("[data-quiz-choice]");
+      if (card) {
+        checkPictographQuizAnswer(Number(card.dataset.quizChoice));
+      }
+    });
+
+    el("picto-quiz-next-btn")?.addEventListener("click", () => {
+      generatePictographQuizQuestion(pictoQuizMode);
+    });
+
+    document.querySelectorAll(".picto-quiz-modes .tone-quiz-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".picto-quiz-modes .tone-quiz-mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        pictoQuizMode = btn.dataset.pictoQuizMode || "pic2char";
+        generatePictographQuizQuestion(pictoQuizMode);
+      });
+    });
+  }
+  /* ============================================================
+   END PICTOGRAPHS MODULE
+   ============================================================ */
+
+
+  /* ============================================================
+   THEME ENGINE MODULE — 多主题引擎与实时切换
+   ============================================================ */
+  const THEMES_META = {
+    "cyber-neon": { name: "Midnight Cyber", metaColor: "#080B14" },
+    "zen-jade": { name: "Zen Jade & Celadon", metaColor: "#071714" },
+    "deep-ocean": { name: "Deep Ocean", metaColor: "#061124" },
+    "sakura": { name: "Sakura Twilight", metaColor: "#160824" },
+    "light-studio": { name: "Porcelain Light", metaColor: "#F1F5F9" },
+    "imperial": { name: "Imperial Lacquer", metaColor: "#5A0E1F" }
+  };
+
+  let currentTheme = localStorage.getItem("hanziTheme") || "cyber-neon";
+
+  function applyTheme(themeKey) {
+    if (!THEMES_META[themeKey]) themeKey = "cyber-neon";
+    currentTheme = themeKey;
+    document.documentElement.setAttribute("data-theme", themeKey);
+    localStorage.setItem("hanziTheme", themeKey);
+
+    // Update theme-color meta tag
+    const metaTag = document.querySelector('meta[name="theme-color"]');
+    if (metaTag) metaTag.setAttribute("content", THEMES_META[themeKey].metaColor);
+
+    // Update active state in dropdown
+    document.querySelectorAll(".theme-option-btn").forEach(btn => {
+      const isActive = btn.dataset.themeId === themeKey;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    // Update button label
+    const toggleBtn = el("theme-toggle-btn");
+    if (toggleBtn) {
+      const labelSpan = toggleBtn.querySelector(".theme-btn-label");
+      if (labelSpan) labelSpan.textContent = THEMES_META[themeKey].name.split(" ")[0];
+    }
+  }
+
+  function initThemeEngine() {
+    applyTheme(currentTheme);
+
+    const toggleBtn = el("theme-toggle-btn");
+    const dropdown = el("theme-dropdown");
+    if (!toggleBtn || !dropdown) return;
+
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = dropdown.classList.contains("hidden");
+      dropdown.classList.toggle("hidden", !isHidden);
+      toggleBtn.setAttribute("aria-expanded", isHidden ? "true" : "false");
+    });
+
+    document.querySelectorAll(".theme-option-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const themeId = btn.dataset.themeId;
+        if (themeId) {
+          applyTheme(themeId);
+          dropdown.classList.add("hidden");
+          toggleBtn.setAttribute("aria-expanded", "false");
+        }
+      });
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener("click", (e) => {
+      if (!dropdown.contains(e.target) && !toggleBtn.contains(e.target)) {
+        dropdown.classList.add("hidden");
+        toggleBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !dropdown.classList.contains("hidden")) {
+        dropdown.classList.add("hidden");
+        toggleBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
 
   init();
 })();

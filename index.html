@@ -13,7 +13,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&family=Baloo+2:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
@@ -51,10 +51,66 @@
           characters stamped
         </div>
         <div class="progress-ring" id="progress-ring" style="--pct:0"><span id="progress-ring-label">0%</span></div>
+        
+        <!-- Theme Switcher -->
+        <div class="theme-switcher-wrap" id="theme-switcher-wrap">
+          <button type="button" class="theme-btn" id="theme-toggle-btn" title="Change Theme" aria-haspopup="true" aria-expanded="false">
+            <span class="theme-btn-icon">🎨</span>
+            <span class="theme-btn-label">Theme</span>
+          </button>
+          <div class="theme-dropdown hidden" id="theme-dropdown" role="menu">
+            <div class="theme-dropdown-header">Visual Theme</div>
+            <div class="theme-options">
+              <button type="button" class="theme-option-btn active" data-theme-id="cyber-neon" role="menuitem">
+                <span class="theme-swatch cyber-neon-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Midnight Cyber</strong>
+                  <span>High-tech neon slate</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" data-theme-id="zen-jade" role="menuitem">
+                <span class="theme-swatch zen-jade-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Zen Jade &amp; Celadon</strong>
+                  <span>Calm emerald tea-forest</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" data-theme-id="deep-ocean" role="menuitem">
+                <span class="theme-swatch deep-ocean-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Deep Ocean</strong>
+                  <span>Sapphire &amp; ice blue</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" data-theme-id="sakura" role="menuitem">
+                <span class="theme-swatch sakura-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Sakura Twilight</strong>
+                  <span>Warm plum &amp; coral</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" data-theme-id="light-studio" role="menuitem">
+                <span class="theme-swatch light-studio-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Porcelain Light</strong>
+                  <span>Clean daylight alabaster</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" data-theme-id="imperial" role="menuitem">
+                <span class="theme-swatch imperial-swatch"></span>
+                <div class="theme-option-info">
+                  <strong>Imperial Lacquer</strong>
+                  <span>Royal crimson &amp; gold</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="auth-section" id="auth-section">
-          <button class="btn-secondary auth-btn" id="auth-sign-in-btn">☁️ Sync</button>
-          <div class="auth-user hidden" id="auth-user">
-            <img class="auth-avatar" id="auth-avatar" src="" alt="">
+          <button class="btn-secondary auth-btn" id="auth-sign-in-btn" type="button">☁️ Sync</button>
+          <div class="auth-user hidden" id="auth-user" role="button" tabindex="0" title="Account &amp; Cloud Sync settings" aria-label="Account and Cloud Sync settings">
+            <img class="auth-avatar" id="auth-avatar" src="icons/icon-192.png" alt="User avatar">
             <span class="auth-name" id="auth-name"></span>
             <div class="sync-indicator" id="sync-indicator" title="Synced">☁️</div>
           </div>
@@ -70,6 +126,7 @@
       <button class="tab-btn" data-tab="tones">Tones</button>
       <button class="tab-btn" data-tab="radicals">Radicals</button>
       <button class="tab-btn" data-tab="evolution">Evolution</button>
+      <button class="tab-btn" data-tab="pictographs">Pictographs</button>
       <button class="tab-btn" data-tab="review">Review</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
@@ -315,10 +372,23 @@
             <button type="button" class="review-reveal-tool" id="review-audio-btn">🔊 Listen</button>
           </div>
           <button id="reveal-btn" class="btn-secondary">Show answer</button>
-          <div class="rate-buttons drawer-status-buttons hidden" id="rate-buttons" style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
-            <button class="status-btn" data-rate="new" id="review-status-btn-new">New</button>
-            <button class="status-btn" data-rate="learning" id="review-status-btn-learning">Learning</button>
-            <button class="status-btn" data-rate="known" id="review-status-btn-known">Known</button>
+          <div class="rate-buttons fsrs-rate-buttons hidden" id="rate-buttons">
+            <button type="button" class="fsrs-rate-btn rate-again" data-rate="again" id="review-rate-again" title="Shortcut: 1">
+              <span class="fsrs-btn-top"><span class="fsrs-key">1</span><strong class="fsrs-label">Again</strong></span>
+              <span class="fsrs-interval-pill" id="rate-interval-again">1d</span>
+            </button>
+            <button type="button" class="fsrs-rate-btn rate-hard" data-rate="hard" id="review-rate-hard" title="Shortcut: 2">
+              <span class="fsrs-btn-top"><span class="fsrs-key">2</span><strong class="fsrs-label">Hard</strong></span>
+              <span class="fsrs-interval-pill" id="rate-interval-hard">2d</span>
+            </button>
+            <button type="button" class="fsrs-rate-btn rate-good" data-rate="good" id="review-rate-good" title="Shortcut: 3">
+              <span class="fsrs-btn-top"><span class="fsrs-key">3</span><strong class="fsrs-label">Good</strong></span>
+              <span class="fsrs-interval-pill" id="rate-interval-good">4d</span>
+            </button>
+            <button type="button" class="fsrs-rate-btn rate-easy" data-rate="easy" id="review-rate-easy" title="Shortcut: 4">
+              <span class="fsrs-btn-top"><span class="fsrs-key">4</span><strong class="fsrs-label">Easy</strong></span>
+              <span class="fsrs-interval-pill" id="rate-interval-easy">14d</span>
+            </button>
           </div>
           <div class="review-session-footer">
             <button type="button" class="review-footer-btn" id="review-skip-btn">Skip →</button>
@@ -341,6 +411,7 @@
           </div>
           <div class="summary-actions">
             <button id="review-mistakes-btn" class="btn-primary">Review Mistakes</button>
+            <button id="review-skipped-btn" class="btn-secondary" disabled>No Skipped Items</button>
             <button id="review-again-btn" class="btn-secondary">Review Again</button>
             <button id="back-to-setup" class="btn-secondary">Back to setup</button>
           </div>
@@ -1038,6 +1109,219 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- PICTOGRAPHS & DRAWING STUDIO -->
+      <section id="tab-pictographs" class="tab-panel">
+        <div class="picto-dashboard">
+          
+          <!-- Hero Section -->
+          <div class="picto-hero">
+            <div class="picto-hero-text">
+              <div class="picto-hero-kicker">象形 · Visual Pictographs &amp; Drawing Studio</div>
+              <h2>Learn Characters with Drawings &amp; Pictures</h2>
+              <p>Chinese characters were born as pictures of the world. Explore vibrant pictographic drawings, trace and practice your own brush sketches on the interactive calligraphy canvas, and test your visual recall with picture matching games.</p>
+            </div>
+            <div class="picto-hero-actions">
+              <button type="button" class="btn-primary" id="btn-picto-canvas-jump">✍️ Draw &amp; Sketch Canvas</button>
+              <button type="button" class="btn-secondary" id="btn-picto-quiz-jump">🎮 Picture Match Quiz</button>
+            </div>
+          </div>
+
+          <!-- Top View Mode Switcher -->
+          <div class="picto-view-switcher" role="tablist" aria-label="Pictograph study views">
+            <button type="button" class="picto-view-btn active" data-picto-view="gallery" role="tab" aria-selected="true">
+              <span class="picto-btn-icon">🖼️</span>
+              <span>Visual Gallery</span>
+            </button>
+            <button type="button" class="picto-view-btn" data-picto-view="canvas" role="tab" aria-selected="false">
+              <span class="picto-btn-icon">✍️</span>
+              <span>Draw &amp; Canvas Pad</span>
+            </button>
+            <button type="button" class="picto-view-btn" data-picto-view="quiz" role="tab" aria-selected="false">
+              <span class="picto-btn-icon">🎮</span>
+              <span>Picture Quiz</span>
+            </button>
+          </div>
+
+          <!-- ================= VIEW 1: VISUAL GALLERY ================= -->
+          <div id="picto-view-gallery" class="picto-subview">
+            <!-- Filter & Search Toolbar -->
+            <div class="picto-toolbar">
+              <div class="picto-search-wrap">
+                <input id="picto-search" type="text" placeholder="Search character, pinyin, or English meaning…" aria-label="Search pictographs">
+              </div>
+              <div class="picto-category-chips" id="picto-category-chips">
+                <button type="button" class="chip active" data-picto-cat="all">All</button>
+                <button type="button" class="chip" data-picto-cat="nature">🌄 Nature</button>
+                <button type="button" class="chip" data-picto-cat="animal">🐎 Animals</button>
+                <button type="button" class="chip" data-picto-cat="person">👤 Body &amp; People</button>
+                <button type="button" class="chip" data-picto-cat="object">🏹 Objects &amp; Tools</button>
+                <button type="button" class="chip" data-picto-cat="concept">💡 Concepts &amp; Actions</button>
+              </div>
+              <div class="picto-meta-row">
+                <span class="results-meta" id="picto-count">123 pictographs</span>
+                <div class="picto-display-toggles">
+                  <button type="button" class="tab-display-btn active" id="picto-toggle-pinyin">Show Pinyin</button>
+                  <button type="button" class="tab-display-btn active" id="picto-toggle-meaning">Show Meaning</button>
+                </div>
+              </div>
+            </div>
+
+            <p class="filter-hint">Hover over or tap any card to morph between the drawing and the modern character. Click to open the full picture breakdown, mnemonic story, and drawing practice!</p>
+
+            <!-- Cards Grid -->
+            <div class="picto-grid" id="picto-grid"></div>
+          </div>
+
+          <!-- ================= VIEW 2: INTERACTIVE DRAWING & SKETCH CANVAS ================= -->
+          <div id="picto-view-canvas" class="picto-subview hidden">
+            <div class="picto-canvas-studio">
+              
+              <!-- Studio Left: Drawing Canvas & Tools -->
+              <div class="picto-canvas-main">
+                <div class="picto-canvas-header">
+                  <div class="picto-canvas-title">
+                    <span class="picto-active-char" id="canvas-active-char">山</span>
+                    <div>
+                      <h3 id="canvas-active-pinyin">shān · mountain</h3>
+                      <p id="canvas-active-hint">Trace the strokes or draw your own mnemonic picture</p>
+                    </div>
+                  </div>
+                  <div class="picto-canvas-actions">
+                    <button type="button" class="btn-secondary picto-tool-btn" id="canvas-undo-btn" title="Undo last stroke">↩ Undo</button>
+                    <button type="button" class="btn-secondary picto-tool-btn" id="canvas-clear-btn" title="Clear canvas">🗑 Clear</button>
+                    <button type="button" class="btn-primary picto-tool-btn" id="canvas-save-btn" title="Save this sketch">💾 Save My Sketch</button>
+                  </div>
+                </div>
+
+                <!-- Canvas Wrapper with Guidelines -->
+                <div class="picto-canvas-wrapper" id="picto-canvas-wrapper">
+                  <!-- Tianzige / Mizige Grid Layer -->
+                  <div class="picto-grid-overlay" id="picto-grid-overlay"></div>
+                  
+                  <!-- Ghost Character Guide Layer -->
+                  <div class="picto-ghost-overlay" id="picto-ghost-overlay">山</div>
+                  
+                  <!-- Ghost Pictograph SVG Overlay -->
+                  <div class="picto-ghost-svg-overlay" id="picto-ghost-svg-overlay"></div>
+                  
+                  <!-- HanziWriter Stroke Container -->
+                  <svg id="picto-hanziwriter-container" width="340" height="340" class="hidden"></svg>
+
+                  <!-- The HTML5 Drawing Canvas -->
+                  <canvas id="picto-drawing-canvas" width="340" height="340"></canvas>
+                </div>
+
+                <!-- Canvas Control Bar -->
+                <div class="picto-canvas-toolbar">
+                  <!-- Brush Colors -->
+                  <div class="picto-color-palette" id="picto-color-palette">
+                    <span class="palette-label">Ink:</span>
+                    <button type="button" class="picto-color-dot active" data-color="#FFD873" style="background:#FFD873;" title="Imperial Gold"></button>
+                    <button type="button" class="picto-color-dot" data-color="#FF7A54" style="background:#FF7A54;" title="Cinnabar Red"></button>
+                    <button type="button" class="picto-color-dot" data-color="#2F8F6E" style="background:#2F8F6E;" title="Jade Green"></button>
+                    <button type="button" class="picto-color-dot" data-color="#4FC3F7" style="background:#4FC3F7;" title="River Blue"></button>
+                    <button type="button" class="picto-color-dot" data-color="#FFF3D6" style="background:#FFF3D6;" title="Paper White"></button>
+                    <button type="button" class="picto-color-dot" data-color="#3B1512" style="background:#3B1512;" title="Charcoal Ink"></button>
+                  </div>
+
+                  <!-- Stroke Size -->
+                  <div class="picto-stroke-control">
+                    <label for="canvas-brush-size">Size: <span id="canvas-brush-val">8px</span></label>
+                    <input type="range" id="canvas-brush-size" min="2" max="28" value="8" step="1">
+                  </div>
+
+                  <!-- Guideline Overlays -->
+                  <div class="picto-overlay-toggles">
+                    <button type="button" class="picto-toggle-chip active" id="toggle-grid-overlay">田 Tianzige Grid</button>
+                    <button type="button" class="picto-toggle-chip active" id="toggle-ghost-overlay">Ghost Hanzi</button>
+                    <button type="button" class="picto-toggle-chip" id="toggle-ghost-picto">Ghost Picture</button>
+                  </div>
+                </div>
+
+                <!-- Stroke Animation & Practice Tools -->
+                <div class="picto-animation-bar">
+                  <span class="animation-label">Stroke Order:</span>
+                  <button type="button" class="btn-secondary" id="btn-animate-picto-stroke">▶ Animate Strokes</button>
+                  <button type="button" class="btn-secondary" id="btn-quiz-picto-stroke">✍️ Stroke Quiz</button>
+                  <button type="button" class="btn-secondary" id="btn-speak-picto-char">🔊 Pronounce</button>
+                </div>
+              </div>
+
+              <!-- Studio Right: Character Selector & Reference Drawing -->
+              <aside class="picto-canvas-sidebar">
+                <div class="side-card">
+                  <div class="side-card-kicker">Reference Picture</div>
+                  <div class="picto-sidebar-drawing" id="picto-sidebar-drawing"></div>
+                  <div class="picto-sidebar-story" id="picto-sidebar-story"></div>
+                </div>
+
+                <div class="side-card">
+                  <div class="side-card-kicker">Choose Character to Draw</div>
+                  <div class="picto-quick-char-grid" id="picto-quick-char-grid"></div>
+                </div>
+                
+                <div class="side-card" id="picto-saved-gallery-card">
+                  <div class="side-card-kicker">My Saved Sketches</div>
+                  <div class="picto-user-sketches-grid" id="picto-user-sketches-grid">
+                    <span class="picto-no-sketches">No saved sketches yet. Draw something and click "Save My Sketch"!</span>
+                  </div>
+                </div>
+              </aside>
+
+            </div>
+          </div>
+
+          <!-- ================= VIEW 3: PICTURE MATCH QUIZ ARENA ================= -->
+          <div id="picto-view-quiz" class="picto-subview hidden">
+            <div class="picto-quiz-arena">
+              
+              <!-- Quiz Header & Stats -->
+              <div class="picto-quiz-header">
+                <div class="picto-quiz-title-wrap">
+                  <span class="tone-quiz-kicker">Visual Recall Arena</span>
+                  <h3>🎮 Pictograph Memory Challenge</h3>
+                  <p>Test your visual intuition by matching drawings with their ancient origin and modern character.</p>
+                </div>
+                <div class="tone-quiz-stats">
+                  <div class="quiz-stat"><strong id="picto-quiz-score">0</strong><span>Score</span></div>
+                  <div class="quiz-stat"><strong id="picto-quiz-streak">0</strong><span>🔥 Streak</span></div>
+                  <div class="quiz-stat"><strong id="picto-quiz-best">0</strong><span>Best</span></div>
+                </div>
+              </div>
+
+              <!-- Quiz Modes -->
+              <div class="picto-quiz-modes">
+                <button type="button" class="tone-quiz-mode-btn active" data-picto-quiz-mode="pic2char">🖼️ Picture ➔ Character</button>
+                <button type="button" class="tone-quiz-mode-btn" data-picto-quiz-mode="char2pic">字 Character ➔ Picture</button>
+                <button type="button" class="tone-quiz-mode-btn" data-picto-quiz-mode="meaning">💡 Visual Meaning</button>
+              </div>
+
+              <!-- Quiz Card Body -->
+              <div class="picto-quiz-body">
+                <div class="picto-quiz-prompt" id="picto-quiz-prompt">
+                  <!-- Prompt content dynamically rendered here -->
+                </div>
+
+                <div class="picto-quiz-options-grid" id="picto-quiz-options-grid">
+                  <!-- 4 Choice cards dynamically injected here -->
+                </div>
+
+                <!-- Feedback Banner -->
+                <div class="tone-quiz-feedback hidden" id="picto-quiz-feedback">
+                  <div class="feedback-icon" id="picto-feedback-icon">✓</div>
+                  <div class="feedback-details">
+                    <div class="feedback-title" id="picto-feedback-title">Correct! +15 XP</div>
+                    <div class="feedback-sub" id="picto-feedback-sub"></div>
+                  </div>
+                  <button type="button" class="btn-primary" id="picto-quiz-next-btn">Next Challenge →</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
 
         </div>
       </section>
@@ -1092,6 +1376,70 @@
       </section>
     </main>
   </div>
+<!-- PICTOGRAPH DETAIL MODAL -->
+<div id="picto-detail-modal" class="picto-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Pictograph Details">
+  <div class="picto-modal-box">
+    <button type="button" class="picto-modal-close" id="picto-modal-close" aria-label="Close">✕</button>
+    
+    <div class="picto-modal-grid">
+      <!-- Left: Big Interactive Visual Illustration -->
+      <div class="picto-modal-visual-side">
+        <div class="picto-modal-art-box" id="picto-modal-art-box"></div>
+        <div class="picto-layer-controls">
+          <button type="button" class="picto-layer-btn active" data-layer="drawing">🎨 Picture</button>
+          <button type="button" class="picto-layer-btn" data-layer="oracle">甲 Ancient</button>
+          <button type="button" class="picto-layer-btn" data-layer="modern">字 Modern</button>
+        </div>
+      </div>
+
+      <!-- Right: Character Info, Story & Actions -->
+      <div class="picto-modal-info-side">
+        <div class="picto-modal-hero">
+          <div class="picto-modal-char-wrap">
+            <span class="picto-modal-char" id="picto-modal-char">山</span>
+            <button type="button" class="tone-audio-btn-sm" id="picto-modal-speak" title="Pronounce">🔊</button>
+          </div>
+          <div class="picto-modal-header-text">
+            <div class="picto-modal-pinyin" id="picto-modal-pinyin">shān</div>
+            <div class="picto-modal-meaning" id="picto-modal-meaning">mountain</div>
+            <div class="picto-modal-badges">
+              <span class="evolution-detail-badge" id="picto-modal-hsk">HSK 1</span>
+              <span class="picto-category-badge" id="picto-modal-cat">Nature</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Story -->
+        <div class="picto-modal-section">
+          <h4>Visual Mnemonic Story · 象形溯源</h4>
+          <p id="picto-modal-story" class="picto-modal-story-text"></p>
+        </div>
+
+        <!-- Visual Cues Breakdown -->
+        <div class="picto-modal-section">
+          <h4>Memory Cues · 记忆线索</h4>
+          <ul id="picto-modal-cues" class="picto-cues-list"></ul>
+        </div>
+
+        <!-- Related / Derived Characters -->
+        <div class="picto-modal-section" id="picto-modal-derivatives-section">
+          <h4>Related Compounds · 衍生字词</h4>
+          <div id="picto-modal-derivatives" class="picto-derivatives-chips"></div>
+        </div>
+
+        <!-- Status Action Buttons -->
+        <div class="picto-modal-actions">
+          <div class="drawer-status-buttons" id="picto-status-buttons">
+            <button type="button" class="status-btn" id="picto-status-btn-new">New</button>
+            <button type="button" class="status-btn" id="picto-status-btn-learning">Learning</button>
+            <button type="button" class="status-btn" id="picto-status-btn-known">Known ✓</button>
+          </div>
+          <button type="button" class="btn-primary" id="picto-open-in-canvas-btn">✍️ Practice on Canvas</button>
+          <button type="button" class="btn-secondary" id="picto-open-detail-drawer-btn">Full Details ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="drawer-backdrop"></div>
@@ -1125,6 +1473,10 @@
     <div><span>Unicode</span><strong id="drawer-stat-unicode">—</strong></div>
     <div><span>Frequency</span><strong id="drawer-stat-frequency">—</strong></div>
     <div><span>Status</span><strong id="drawer-stat-status">—</strong></div>
+    <div><span>Stability</span><strong id="drawer-stat-fsrs-s">—</strong></div>
+    <div><span>Difficulty</span><strong id="drawer-stat-fsrs-d">—</strong></div>
+    <div><span>Retrievability</span><strong id="drawer-stat-fsrs-r">—</strong></div>
+    <div><span>Reviews / Lapses</span><strong id="drawer-stat-fsrs-reps">—</strong></div>
   </div>
 
   <section class="character-detail-section">
@@ -1197,24 +1549,132 @@
 
 <div id="toast-container"></div>
 
-<div class="auth-modal hidden" id="auth-modal">
+<div class="auth-modal hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
   <div class="auth-modal-box">
-    <button class="auth-modal-close" id="auth-modal-close">✕</button>
-    <h2>☁️ Sign in to sync</h2>
-    <p>Your progress will be backed up and available on any device. Study on desktop, review on your phone.</p>
-    <button class="auth-google-btn" id="auth-github-btn">
-      Sign in with GitHub
-    </button>
-    <div class="auth-divider">or use email</div>
-    <input type="email" id="auth-email" placeholder="Email address">
-    <input type="password" id="auth-password" placeholder="Password">
-    <button class="btn-primary" id="auth-email-btn">Sign in</button>
-    <p class="auth-toggle">
-      Don't have an account? <a href="#" id="auth-signup-toggle">Sign up</a>
-    </p>
-    <p class="auth-toggle" style="margin-top:8px;">
-      <a href="#" id="auth-close-link">Continue without signing in</a>
-    </p>
+    <button class="auth-modal-close" id="auth-modal-close" aria-label="Close dialog">✕</button>
+    <div class="auth-modal-header">
+      <div class="auth-icon-badge">☁️</div>
+      <h2 id="auth-modal-title">Sign in to sync</h2>
+      <p id="auth-modal-desc">Back up your study progress across all devices. Study on desktop, review on your phone.</p>
+    </div>
+
+    <div class="auth-methods">
+      <button class="auth-oauth-btn auth-github-btn" id="auth-github-btn" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:8px;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        Sign in with GitHub
+      </button>
+
+      <div class="auth-divider"><span>or with email</span></div>
+
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab-btn active" id="auth-tab-password" data-mode="password" type="button">Password</button>
+        <button class="auth-tab-btn" id="auth-tab-magic" data-mode="magic" type="button">Magic Link (OTP)</button>
+      </div>
+
+      <form class="auth-form" id="auth-form" onsubmit="return false;">
+        <input type="email" id="auth-email" placeholder="Email address (e.g. user@gmail.com)" autocomplete="email" required>
+        <input type="password" id="auth-password" placeholder="Password (min 6 chars)" autocomplete="current-password">
+        <p class="auth-magic-hint hidden" id="auth-magic-hint">We'll send a secure one-click sign-in link to your email. No password needed!</p>
+        <div class="auth-status-message hidden" id="auth-status-message"></div>
+        <button class="btn-primary auth-submit-btn" id="auth-submit-btn" type="submit">Sign in</button>
+      </form>
+
+      <p class="auth-toggle" id="auth-signup-toggle-wrap">
+        Don't have an account? <a href="#" id="auth-signup-toggle">Create account</a>
+      </p>
+
+      <details class="auth-custom-server-toggle" id="auth-custom-server-toggle">
+        <summary>⚙️ Custom Supabase Server</summary>
+        <div class="custom-config-fields">
+          <input type="text" id="auth-custom-url" placeholder="https://xyzcompany.supabase.co">
+          <input type="text" id="auth-custom-key" placeholder="Publishable / Anon Key">
+          <div class="custom-config-btns">
+            <button class="btn-secondary btn-sm" id="auth-custom-save-btn" type="button">Apply Custom Server</button>
+            <button class="btn-secondary btn-sm" id="auth-custom-reset-btn" type="button">Reset Default</button>
+          </div>
+        </div>
+      </details>
+
+      <p class="auth-toggle" style="margin-top:12px;">
+        <a href="#" id="auth-close-link">Continue locally without signing in</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT & SYNC MANAGEMENT MODAL -->
+<div class="account-modal hidden" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+  <div class="account-modal-box">
+    <button class="account-modal-close" id="account-modal-close" aria-label="Close dialog">✕</button>
+    <div class="account-header">
+      <img class="account-modal-avatar" id="account-modal-avatar" src="icons/icon-192.png" alt="User">
+      <div class="account-user-info">
+        <h3 id="account-modal-email">user@example.com</h3>
+        <div class="account-sync-status" id="account-modal-status">
+          <span class="status-dot online" id="account-status-dot"></span>
+          <span id="account-status-text">Cloud Sync Active</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="account-sync-meta">
+      <div class="sync-meta-item">
+        <span class="meta-label">Last Synced</span>
+        <strong id="account-last-sync-time">Just now</strong>
+      </div>
+      <div class="sync-meta-item">
+        <span class="meta-label">Characters Tracked</span>
+        <strong id="account-char-count">0</strong>
+      </div>
+      <div class="sync-meta-item">
+        <span class="meta-label">Words Tracked</span>
+        <strong id="account-word-count">0</strong>
+      </div>
+    </div>
+
+    <div class="account-actions">
+      <button class="btn-primary account-action-btn" id="account-sync-now-btn" type="button">
+        <span class="action-icon">🔄</span> Sync Now
+      </button>
+      <div class="account-action-row">
+        <button class="btn-secondary account-sub-btn" id="account-upload-btn" type="button" title="Push local progress to cloud">
+          <span>⬆️</span> Push to Cloud
+        </button>
+        <button class="btn-secondary account-sub-btn" id="account-restore-btn" type="button" title="Restore all progress from cloud">
+          <span>⬇️</span> Pull from Cloud
+        </button>
+      </div>
+    </div>
+
+    <div class="account-divider"><span>Backup &amp; Offline Storage</span></div>
+
+    <div class="account-backup-row">
+      <button class="btn-secondary account-sub-btn" id="account-export-btn" type="button">
+        <span>📤</span> Export JSON Backup
+      </button>
+      <button class="btn-secondary account-sub-btn" id="account-import-btn" type="button">
+        <span>📥</span> Import JSON Backup
+      </button>
+    </div>
+
+    <details class="account-custom-config" id="account-custom-config">
+      <summary>⚙️ Custom Supabase Server</summary>
+      <div class="custom-config-fields">
+        <p class="custom-config-desc">Use your own Supabase project URL &amp; Publishable Key:</p>
+        <input type="text" id="custom-supabase-url" placeholder="https://xyzcompany.supabase.co">
+        <input type="text" id="custom-supabase-key" placeholder="Publishable / Anon API Key">
+        <div class="custom-config-btns">
+          <button class="btn-secondary btn-sm" id="custom-supabase-save-btn" type="button">Save &amp; Reconnect</button>
+          <button class="btn-secondary btn-sm" id="custom-supabase-reset-btn" type="button">Reset Default</button>
+        </div>
+      </div>
+    </details>
+
+    <div class="account-footer">
+      <button class="btn-danger-outline account-signout-btn" id="account-signout-btn" type="button">
+        <span>🚪</span> Sign Out
+      </button>
+    </div>
   </div>
 </div>
 
