@@ -1262,10 +1262,35 @@ document.addEventListener("DOMContentLoaded", () => {
     return out.join("").replace(/\s+([，。！？、；：,.!?])/g, "$1");
   }
 
+  let sentenceLoadPromise = null;
+  function ensureSentenceData() {
+    if (window.SENTENCE_DATA && window.SENTENCE_DATA.length > 0) {
+      if (!sentenceIndexByChar) buildSentenceIndex();
+      return Promise.resolve(window.SENTENCE_DATA);
+    }
+    if (sentenceLoadPromise) return sentenceLoadPromise;
+    sentenceLoadPromise = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "sentences.js";
+      script.async = true;
+      script.onload = () => {
+        refreshDueCount();
+        resolve(window.SENTENCE_DATA || []);
+      };
+      script.onerror = (err) => {
+        console.warn("[HanziTracker] Failed to load sentences.js:", err);
+        sentenceLoadPromise = null;
+        resolve([]);
+      };
+      document.head.appendChild(script);
+    });
+    return sentenceLoadPromise;
+  }
+
   function buildSentenceIndex() {
-    if (sentenceIndexByChar) return;
+    if (sentenceIndexByChar || !window.SENTENCE_DATA || !window.SENTENCE_DATA.length) return;
     sentenceIndexByChar = {};
-    for (const sentence of SENTENCE_DATA) {
+    for (const sentence of window.SENTENCE_DATA) {
       for (const ch of Array.from(sentence.z)) {
         if (!HANZI_BY_CHAR[ch]) continue;
         if (!sentenceIndexByChar[ch]) sentenceIndexByChar[ch] = [];
@@ -1273,12 +1298,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
-  function getSentencesForChar(char) { buildSentenceIndex(); return sentenceIndexByChar[char] || []; }
+  function getSentencesForChar(char) { buildSentenceIndex(); return (sentenceIndexByChar && sentenceIndexByChar[char]) || []; }
 
   function sentenceHskLevel(item) {
+    if (item._h !== undefined) return item._h;
     let max = 0;
     for (const ch of Array.from(item.z || "")) { const h = HANZI_BY_CHAR[ch]?.h; if (Number.isFinite(Number(h)) && Number(h) > max) max = Number(h); }
-    return max || 0;
+    item._h = max || 0;
+    return item._h;
   }
   function sentenceHskLabel(item) { const h = sentenceHskLevel(item); return h <= 6 && h > 0 ? "HSK " + h : "HSK 7–9+"; }
   // Feature 6: personal difficulty based on % of chars the user already knows
@@ -1297,16 +1324,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function sentenceDifficulty(item) {
+    if (item._d !== undefined) return item._d;
     const len = Array.from(item.z || "").filter(ch => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(ch)).length;
     const h = sentenceHskLevel(item);
-    if (len <= 7 && h <= 2) return "easy";
-    if (len <= 14 && h <= 4) return "medium";
-    return "hard";
+    if (len <= 7 && h <= 2) item._d = "easy";
+    else if (len <= 14 && h <= 4) item._d = "medium";
+    else item._d = "hard";
+    return item._d;
   }
   function sentenceDifficultyLabel(item) { const d = sentenceDifficulty(item); return d === "easy" ? "Beginner" : d === "medium" ? "Intermediate" : "Advanced"; }
 
   function renderDetailSentences(char) {
     const node = el("drawer-sentences"); if (!node) return;
+    if (!window.SENTENCE_DATA || !window.SENTENCE_DATA.length) {
+      node.innerHTML = '<div class="drawer-sentence-empty">Loading sentence examples…</div>';
+      ensureSentenceData().then(() => renderDetailSentences(char));
+      return;
+    }
     const sentences = getSentencesForChar(char);
     node.innerHTML = sentences.length ? sentences.map(sentence =>
       '<article class="drawer-sentence">' +
@@ -1447,6 +1481,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderSentences() {
+    if (!window.SENTENCE_DATA || !window.SENTENCE_DATA.length) {
+      const grid = el("sentence-grid");
+      if (grid) {
+        grid.innerHTML = '<div class="sentence-empty" style="padding:48px 20px;text-align:center;"><div class="seal-spin" style="margin:0 auto 12px;width:38px;height:38px;line-height:38px;font-size:1.2rem;">句</div><p style="color:var(--gold-dark);font-weight:600;margin:0;">Loading sentence library…</p></div>';
+      }
+      ensureSentenceData().then(() => renderSentences());
+      return;
+    }
     renderSentenceDashboard();
     applySentenceLayout();
     const data = getFilteredSentences();
@@ -1467,6 +1509,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openSentenceDetails(id) {
+    if (!window.SENTENCE_DATA || !window.SENTENCE_DATA.length) {
+      ensureSentenceData().then(() => openSentenceDetails(id));
+      return;
+    }
     const item = SENTENCE_DATA.find(x => String(x.i) === String(id)); if (!item) return;
     el("sentence-detail-zh").textContent = item.z;
     el("sentence-detail-pinyin").textContent = sentencePinyin(item);
@@ -2333,6 +2379,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderWords() {
+    if (!window.SENTENCE_DATA || !window.SENTENCE_DATA.length) {
+      const grid = el("word-grid");
+      if (grid && !WORD_DATA) {
+        grid.innerHTML = '<div class="sentence-empty" style="padding:48px 20px;text-align:center;"><div class="seal-spin" style="margin:0 auto 12px;width:38px;height:38px;line-height:38px;font-size:1.2rem;">词</div><p style="color:var(--gold-dark);font-weight:600;margin:0;">Building vocabulary corpus…</p></div>';
+      }
+      if (!window._wordRenderQueued) {
+        window._wordRenderQueued = true;
+        ensureSentenceData().then(() => {
+          window._wordRenderQueued = false;
+          renderWords();
+        });
+      }
+      return;
+    }
     const data = buildWordData();
     const q = wordFilters.query.trim().toLowerCase();
     let items = data.filter(item => {
@@ -5526,12 +5586,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Refresh all UI tabs and views
       syncUI();
-      renderBrowse();
-      renderSentences();
-      renderWords();
-      renderProgress();
-      renderTonesTab();
-      renderPictographsTab();
+      const activeTabBtn = document.querySelector('.tab-btn.active');
+      const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'browse';
+      if (activeTab === 'browse') renderBrowse();
+      if (activeTab === 'sentences') renderSentences();
+      if (activeTab === 'words') renderWords();
+      if (activeTab === 'progress') renderProgress();
+      if (activeTab === 'tones') renderTonesTab();
+      if (activeTab === 'pictographs') renderPictographsTab();
       updateHeaderProgress();
       refreshDueCount();
       updateXPDisplay();
@@ -5613,12 +5675,14 @@ document.addEventListener("DOMContentLoaded", () => {
       try { if (window.storage) window.storage.set(STORAGE_KEY, payload, false); } catch(e){}
 
       syncUI();
-      renderBrowse();
-      renderSentences();
-      renderWords();
-      renderProgress();
-      renderTonesTab();
-      renderPictographsTab();
+      const activeTabBtn = document.querySelector('.tab-btn.active');
+      const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'browse';
+      if (activeTab === 'browse') renderBrowse();
+      if (activeTab === 'sentences') renderSentences();
+      if (activeTab === 'words') renderWords();
+      if (activeTab === 'progress') renderProgress();
+      if (activeTab === 'tones') renderTonesTab();
+      if (activeTab === 'pictographs') renderPictographsTab();
       updateHeaderProgress();
       refreshDueCount();
       updateXPDisplay();
@@ -5962,13 +6026,8 @@ document.addEventListener("DOMContentLoaded", () => {
       initThemeEngine();
       initEvolution();
       initPictographs();
-      buildSentenceIndex();
-
+      // Render initial active tab
       renderBrowse();
-      renderSentences();
-      renderProgress();
-      renderTonesTab();
-      renderPictographsTab();
       updateHeaderProgress();
       refreshDueCount();
 
@@ -5981,6 +6040,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // Register service worker for PWA
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW:", e));
+      }
+
+      // Background prefetch sentences dataset without blocking initial render
+      if (typeof window !== "undefined") {
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(() => ensureSentenceData());
+        } else {
+          setTimeout(ensureSentenceData, 300);
+        }
       }
     } catch (err) {
       console.error("[HanziTracker] App init error:", err);

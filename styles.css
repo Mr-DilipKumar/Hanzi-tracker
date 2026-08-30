@@ -986,6 +986,10 @@ header.topbar,
 .review-reveal-tools {
   width: min(760px, 92vw);
   margin: 12px auto 10px !important;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 #reveal-btn {
@@ -1010,6 +1014,8 @@ header.topbar,
   width: min(760px, 92vw);
   margin: 12px auto 0 !important;
   justify-content: space-between !important;
+  display: flex;
+  gap: 8px;
 }
 
 .review-summary {
@@ -2253,8 +2259,7 @@ nav.tabs {
   -webkit-transform: rotateY(180deg) !important;
   border: 3px solid var(--gold-dark) !important;
   box-shadow: 0 16px 40px var(--paper-shadow) !important;
-  justify-content: flex-start !important;
-  padding-top: 24px !important;
+  justify-content: center !important;
   z-index: 1 !important;
 }
 

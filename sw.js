@@ -3,17 +3,22 @@
  * Cache-first for the main app (large single file), network-first for CDN assets.
  */
 
-const CACHE_VERSION = 'hanzi-tracker-v5';
+const CACHE_VERSION = 'hanzi-tracker-v6';
 const APP_SHELL = [
   './',
   './index.html',
+  './styles.css',
+  './app.js',
+  './data.js',
+  './sentences.js',
   './manifest.json',
   './icons/icon-192.png'
 ];
 
 // CDN assets that we'll cache opportunistically
 const CDN_ASSETS = [
-  'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&family=Baloo+2:wght@400;500;600;700;800&display=swap',
+  'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&family=Baloo+2:wght@500;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://unpkg.com/pinyin-pro@3.28.1/dist/index.js',
   'https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js'
 ];
@@ -50,9 +55,9 @@ self.addEventListener('fetch', event => {
       url.hostname.includes('googleapis.com/identitytoolkit') ||
       url.hostname.includes('firestore.googleapis.com')) return;
 
-  // App shell files: network-first (always get fresh content if online)
+  // App shell files & local assets: stale-while-revalidate (instant offline/cached load + silent background refresh)
   if (url.origin === location.origin) {
-    event.respondWith(networkFirst(event.request));
+    event.respondWith(staleWhileRevalidate(event.request));
     return;
   }
 
