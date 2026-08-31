@@ -90,8 +90,20 @@ document.addEventListener("DOMContentLoaded", () => {
 (function () {
   "use strict";
 
+  const HANZI_DATA = window.HANZI_DATA || [];
+  const SENTENCE_DATA = window.SENTENCE_DATA || [];
+  const RADICAL_DATA = window.RADICAL_DATA || [];
+  const HSK_WORDS_DATA = window.HSK_WORDS_DATA || [];
+  const LEVEL_GROUPS = window.LEVEL_GROUPS || [];
+  const RADICAL_DETAILS = window.RADICAL_DETAILS || [];
+  const RADICAL_DATA_URLS = window.RADICAL_DATA_URLS || [];
+  const RADICAL_RSINDEX_URLS = window.RADICAL_RSINDEX_URLS || [];
+  const LEVELS = window.LEVELS || [];
+  const ACHIEVEMENTS = window.ACHIEVEMENTS || [];
+  const PICTOGRAPH_DATA = window.PICTOGRAPH_DATA || [];
+
   const STORAGE_KEY = "hanzi-tracker-state-v1";
-  let state = { progress: {}, sentenceProgress: {}, streak: { count: 0, last: null }, activity: {} };
+  let state = { progress: {}, sentenceProgress: {}, wordProgress: {}, streak: { count: 0, last: null }, activity: {} };
   let saveTimeout = null;
   let HANZI_BY_CHAR = {};
 
@@ -245,11 +257,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (onStart) onStart();
 
     if (typeof Audio !== "undefined") {
-      if (options.sentenceId) {
-        const AUDIO_BASE = "https://pub-52c697c605e848d0afdbb3ae1b779947.r2.dev";
-        const audioUrl = `${AUDIO_BASE}/${options.sentenceId}.wav`;
+      if (options.audioPath || options.sentenceId) {
+        let audioUrl = options.audioPath || `audio/${options.sentenceId}.mp3`;
+        if (options.rate && options.rate < 0.8) {
+          if (options.slowAudioPath) audioUrl = options.slowAudioPath;
+          else if (options.sentenceId && !options.audioPath) audioUrl = `audio/${options.sentenceId}_slow.mp3`;
+        }
         const a = new Audio(audioUrl);
-        a.playbackRate = rate > 0.95 ? 1.0 : (rate < 0.8 ? 0.8 : 0.9);
+        a.playbackRate = 1.0;
         a.load();
         activeAudioSequence = [a];
         currentActiveAudio = a;
@@ -258,12 +273,13 @@ document.addEventListener("DOMContentLoaded", () => {
           if (onEnd) onEnd();
         };
         a.onerror = () => {
+          // If local audio file cannot be loaded, fallback to online speech synthesis
           currentActiveAudio = null;
-          if (onEnd) onEnd();
+          playFallbackSpeech(cleanText, rate, onEnd);
         };
         a.play().catch(() => {
           currentActiveAudio = null;
-          if (onEnd) onEnd();
+          playFallbackSpeech(cleanText, rate, onEnd);
         });
         return;
       }
@@ -364,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function levelMatches(item, level) {
     if (level === "all") return true;
-    if (level === "adv") return item.h >= 7 && item.h <= 9;
+    if (level === "adv" || level === "7") return item.h >= 7 && item.h <= 9;
     if (level === "0") return item.h === 0;
     return item.h === Number(level);
   }
@@ -396,10 +412,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function getSentenceStatus(id) { const e = getSentenceEntry(id); return e ? e.status : "new"; }
 
   function getWordKey(word) { return String(word || ""); }
-  function getWordEntry(word) { return state.wordProgress[getWordKey(word)] || null; }
+  function getWordEntry(word) {
+    if (!state.wordProgress || typeof state.wordProgress !== "object") state.wordProgress = {};
+    return state.wordProgress[getWordKey(word)] || null;
+  }
   function getWordStatus(word) { const e = getWordEntry(word); return e ? e.status : "new"; }
 
   function writeWordEntry(word, opts) {
+    if (!state.wordProgress || typeof state.wordProgress !== "object") state.wordProgress = {};
     const now = Date.now();
     const prev = state.wordProgress[word] || { status: "new", interval: 0, reviews: 0, due: now, stampedAt: null };
     let stampedAt = prev.stampedAt || null;
@@ -459,7 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.streak.last = today;
   }
 
-  
+
   /* ==========================================================================
      FSRS (FREE SPACED REPETITION SCHEDULER) ALGORITHM ENGINE (v4.5)
      ========================================================================== */
@@ -550,7 +570,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function scheduleFSRS(card, rawRating, now = Date.now()) {
     const grade = normalizeRatingGrade(rawRating);
     let { s = 0, d = 0, reps = 0, lapses = 0, state: cardState = 0, last_review = null, interval = 0 } = card || {};
-    
+
     // Auto-migrate legacy cards
     if (card?.interval && !s) {
       s = Math.max(0.4, Number(card.interval));
@@ -653,7 +673,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return state.progress[char];
   }
 
-    function calculateRating(prev, rating) {
+  function calculateRating(prev, rating) {
     return scheduleFSRS(prev, rating);
   }
 
@@ -1058,7 +1078,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const part of rawParts) {
       let clean = part.replace(/\s+/g, ' ');
       const lower = clean.toLowerCase();
-      
+
       // Skip duplicates
       if (seen.has(lower)) continue;
       seen.add(lower);
@@ -1146,7 +1166,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("drawer-level").textContent = levelLabel(item.h);
     el("drawer-meaning").textContent = formatDefinition(item.m || "No recorded meaning for this character.", char);
     el("drawer-freq").textContent = item.f < 99999 ? ("Frequency rank #" + item.f.toLocaleString()) : "Frequency rank unavailable";
-    
+
     // Load mnemonic if exists
     const entry = getEntry(char);
     el("drawer-mnemonic-input").value = (entry && entry.mnemonic) ? entry.mnemonic : "";
@@ -1172,15 +1192,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openWordDetail(wordText) {
-    const item = WORD_DATA.find(w => w.word === wordText);
+    if (!WORD_DATA) buildWordData();
+    const item = (WORD_DATA || []).find(w => w.word === wordText);
     if (!item) return;
 
     currentDetailChar = null;
     currentDetailWord = wordText;
     
     if (el("drawer-stat-char")) el("drawer-stat-char").textContent = wordText;
-    if (el("drawer-stat-unicode")) el("drawer-stat-unicode").textContent = "—";
-    if (el("drawer-stat-frequency")) el("drawer-stat-frequency").textContent = "—";
+    if (el("drawer-stat-unicode")) el("drawer-stat-unicode").textContent = Array.from(wordText).map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(" ");
+    if (el("drawer-stat-frequency")) el("drawer-stat-frequency").textContent = item.avgRank < 99999 ? "Avg. rank #" + Math.round(item.avgRank).toLocaleString() : "—";
     
     const status = getWordStatus(wordText) || "new";
     if (el("drawer-stat-status")) el("drawer-stat-status").textContent = status;
@@ -1195,11 +1216,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     el("drawer-pinyin").textContent = item.pinyin || "—";
-    el("drawer-level").textContent = item.level ? "HSK " + item.level : "Word";
+    el("drawer-level").textContent = item.level ? (item.level >= 7 ? "HSK 7–9" : "HSK " + item.level) : "HSK Word";
     el("drawer-meaning").textContent = formatDefinition(item.meaning || item.english || "No recorded meaning.");
     if (el("drawer-meaning-expanded")) el("drawer-meaning-expanded").textContent = formatDefinition(item.meaning || item.english || "No recorded meaning.");
     
-    el("drawer-freq").textContent = "Multi-character word";
+    el("drawer-freq").textContent = item.corpusCount ? (item.corpusCount.toLocaleString() + " occurrences in sentence corpus") : (item.avgRank < 99999 ? ("Character freq avg #" + Math.round(item.avgRank).toLocaleString()) : "HSK 3.0 vocabulary");
     
     // Clear mnemonic (currently char only)
     if (el("drawer-mnemonic-input")) {
@@ -1207,9 +1228,16 @@ document.addEventListener("DOMContentLoaded", () => {
       el("drawer-mnemonic-saved").style.opacity = "0";
     }
 
-    const charBreakdown = Array.from(item.word).map(c => `<span class="example-chip" style="cursor:pointer;" onclick="event.stopPropagation(); setTimeout(() => openDetail('${c}'), 50);">${c}</span>`).join('');
-    el("drawer-examples").innerHTML = '<div style="margin-bottom:8px;font-size:0.8rem;color:var(--text-lighter);text-transform:uppercase;letter-spacing:1px;">Characters</div>' + charBreakdown;
+    const charBreakdown = Array.from(item.word).map(c => {
+      const ci = HANZI_BY_CHAR[c];
+      const p = ci ? ci.p : '';
+      const m = ci ? (ci.m || '').slice(0, 32) : '';
+      return '<span class="example-chip" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin:3px;" onclick="event.stopPropagation(); setTimeout(() => openDetail(\'' + escHtml(c) + '\'), 50);"><strong style="font-size:1.15em;">' + escHtml(c) + '</strong>' + (p ? '<span style="color:var(--gold-dark); font-weight:700;">' + escHtml(p) + '</span>' : '') + (m ? '<small style="opacity:0.8; font-weight:normal;">' + escHtml(m) + '</small>' : '') + '</span>';
+    }).join('');
+    el("drawer-examples").innerHTML = '<div style="margin-bottom:8px;font-size:0.8rem;color:var(--text-lighter);text-transform:uppercase;letter-spacing:1px;">Constituent Characters (tap to inspect)</div>' + charBreakdown;
     
+    renderDetailSentences(wordText);
+
     ["new", "learning", "known"].forEach(s => el("status-btn-" + s).classList.toggle("active", status === s));
     el("detail-drawer").classList.add("open");
     el("drawer-backdrop").classList.add("open");
@@ -1264,27 +1292,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let sentenceLoadPromise = null;
   function ensureSentenceData() {
-    if (window.SENTENCE_DATA && window.SENTENCE_DATA.length > 0) {
-      if (!sentenceIndexByChar) buildSentenceIndex();
-      return Promise.resolve(window.SENTENCE_DATA);
-    }
-    if (sentenceLoadPromise) return sentenceLoadPromise;
-    sentenceLoadPromise = new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "sentences.js";
-      script.async = true;
-      script.onload = () => {
-        refreshDueCount();
-        resolve(window.SENTENCE_DATA || []);
-      };
-      script.onerror = (err) => {
-        console.warn("[HanziTracker] Failed to load sentences.js:", err);
-        sentenceLoadPromise = null;
-        resolve([]);
-      };
-      document.head.appendChild(script);
-    });
-    return sentenceLoadPromise;
+    window.SENTENCE_DATA = window.SENTENCE_DATA || [];
+    return Promise.resolve(window.SENTENCE_DATA);
   }
 
   function buildSentenceIndex() {
@@ -1301,6 +1310,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function getSentencesForChar(char) { buildSentenceIndex(); return (sentenceIndexByChar && sentenceIndexByChar[char]) || []; }
 
   function sentenceHskLevel(item) {
+    if (item.h !== undefined && Number.isFinite(Number(item.h))) return Number(item.h);
     if (item._h !== undefined) return item._h;
     let max = 0;
     for (const ch of Array.from(item.z || "")) { const h = HANZI_BY_CHAR[ch]?.h; if (Number.isFinite(Number(h)) && Number(h) > max) max = Number(h); }
@@ -1344,7 +1354,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const sentences = getSentencesForChar(char);
     node.innerHTML = sentences.length ? sentences.map(sentence =>
       '<article class="drawer-sentence">' +
+      '<div class="drawer-sentence-top">' +
       '<div class="drawer-sentence-zh">' + escHtml(sentence.z) + '</div>' +
+      '<div class="drawer-sentence-audio-group">' +
+      '<button type="button" class="drawer-sentence-audio-btn" data-speak-sentence="' + escHtml(sentence.i) + '" title="Listen (Normal speed)">🔊</button>' +
+      '<button type="button" class="drawer-sentence-audio-btn slow" data-speak-sentence-slow="' + escHtml(sentence.i) + '" title="Listen (Slow speed)">🐢</button>' +
+      '</div>' +
+      '</div>' +
       '<div class="drawer-sentence-pinyin">' + escHtml(sentencePinyin(sentence)) + '</div>' +
       '<div class="drawer-sentence-en">' + escHtml(sentence.t) + '</div>' +
       '</article>'
@@ -1384,8 +1400,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return true;
     });
-  if (sentenceFilters.sort === "due") data.sort((a, b) => (getSentenceEntry(a.i)?.due || Infinity) - (getSentenceEntry(b.i)?.due || Infinity));
-    else if (sentenceFilters.sort === "new") data.sort((a, b) => Number(b.i) - Number(a.i));
+    if (sentenceFilters.sort === "due") data.sort((a, b) => (getSentenceEntry(a.i)?.due || Infinity) - (getSentenceEntry(b.i)?.due || Infinity));
+    else if (sentenceFilters.sort === "new") data.sort((a, b) => String(b.i).localeCompare(String(a.i), undefined, { numeric: true }));
     else if (sentenceFilters.sort === "length") data.sort((a, b) => Array.from(a.z).length - Array.from(b.z).length);
     else if (sentenceFilters.sort === "length-desc") data.sort((a, b) => Array.from(b.z).length - Array.from(a.z).length); // Feature 8: longest first
     // Feature 7: apply shuffle order
@@ -1438,7 +1454,10 @@ document.addEventListener("DOMContentLoaded", () => {
       '<span class="sc-diff-badge">' + escHtml(sentenceDifficultyLabel(item)) + '</span>' +
       '<span class="sc-status-badge ' + escHtml(dotClass) + '">' + escHtml(statusLabel) + '</span>' +
       '</div>' +
-      '<button type="button" class="sc-audio" data-speak-sentence="' + escHtml(item.i) + '" title="Listen">🔊</button>' +
+      '<div class="sc-audio-group">' +
+      '<button type="button" class="sc-audio" data-speak-sentence="' + escHtml(item.i) + '" title="Listen (Normal speed)">🔊</button>' +
+      '<button type="button" class="sc-audio sc-audio-slow" data-speak-sentence-slow="' + escHtml(item.i) + '" title="Listen (Slow speed)">🐢</button>' +
+      '</div>' +
       '</div>' +
 
       // ── Chinese hero text ─────────────────────────────────
@@ -1501,11 +1520,19 @@ document.addEventListener("DOMContentLoaded", () => {
     el("sentence-grid").innerHTML = pageItems.length ? pageItems.map(sentenceCardHTML).join("") : '<div class="sentence-empty">No sentences match your filters.</div>';
   }
 
-  function speakSentence(item) {
+  let currentDetailSentenceId = null;
+  function speakSentence(item, isSlow = false) {
     if (!item) return;
     const text = typeof item === "string" ? item : (item.z || "");
     const sentenceId = typeof item === "object" ? item.i : null;
-    playChineseAudio(text, { rate: 0.9, sentenceId });
+    const audioPath = typeof item === "object" ? (isSlow && item.as ? item.as : item.a) : null;
+    const slowAudioPath = typeof item === "object" ? item.as : null;
+    playChineseAudio(text, {
+      rate: isSlow ? 0.75 : 0.9,
+      sentenceId,
+      audioPath,
+      slowAudioPath
+    });
   }
 
   function openSentenceDetails(id) {
@@ -1514,6 +1541,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const item = SENTENCE_DATA.find(x => String(x.i) === String(id)); if (!item) return;
+    currentDetailSentenceId = id;
     el("sentence-detail-zh").textContent = item.z;
     el("sentence-detail-pinyin").textContent = sentencePinyin(item);
     el("sentence-detail-en").textContent = item.t;
@@ -1532,7 +1560,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (btn) btn.classList.toggle("active", status === s);
     });
   }
-  function closeSentenceDetails() { el("sentence-detail-modal").classList.remove("open"); el("sentence-detail-modal").setAttribute("aria-hidden", "true"); }
+  function closeSentenceDetails() { el("sentence-detail-modal").classList.remove("open"); el("sentence-detail-modal").setAttribute("aria-hidden", "true"); currentDetailSentenceId = null; }
 
   function openSentenceReview(id) {
     const tab = document.querySelector('.tab-btn[data-tab="review"]'); if (tab) tab.click();
@@ -1626,7 +1654,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     const type = mode || (item.__reviewType ? (item.__reviewType === "sentence" ? "sentences" : (item.__reviewType === "word" ? "words" : "characters")) : (reviewMode || "characters"));
     const e = type === "sentences" ? getSentenceEntry(item.i) : (type === "words" ? getWordEntry(item.word) : getEntry(item.c));
-    
+
     // 1. Unreviewed New Card
     if (!e || e.status === "new" || !e.reviews) {
       return 100000;
@@ -1667,7 +1695,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildPool(poolType) {
     const now = Date.now();
     const type = poolType || (document.querySelector('input[name="pool"]:checked')?.value || "smart");
-    
+
     const buildChars = () => {
       const scope = getScopeData(reviewFilters.levels);
       let data = scope.filter(item => reviewDifficultyMatch(item, "characters"));
@@ -1711,7 +1739,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const buildWords = () => {
-      let words = buildWordData().filter(w => w.word && w.corpusCount > 0);
+      let words = buildWordData().filter(w => w.word);
       if (type === "due") {
         return words.filter(w => {
           const e = getWordEntry(w.word);
@@ -1770,14 +1798,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const duePool = buildPool("due");
     const newPool = buildPool("new");
     const allPool = buildPool("all");
-    
+
     el("review-ready-count").textContent = ready.toLocaleString();
     el("smart-count").textContent = smartPool.length.toLocaleString();
     if (el("due-count")) el("due-count").textContent = duePool.length.toLocaleString();
     if (el("new-count")) el("new-count").textContent = newPool.length.toLocaleString();
     if (el("all-count")) el("all-count").textContent = allPool.length.toLocaleString();
     el("review-estimated-min").textContent = (Math.max(1, Math.ceil(ready * .35)) + "–" + (Math.max(2, Math.ceil(ready * .65))) + " min");
-    
+
     const total = pool.slice(0, ready).reduce((n, x) => {
       let e = null;
       if (x.__reviewType === "sentence" || reviewMode === "sentences") e = getSentenceEntry(x.i);
@@ -1800,7 +1828,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast(poolType === "due" ? "No items are due for review right now." : "No items match this review setup.");
       return;
     }
-    
+
     let queue = [];
     if (poolType === "smart") {
       const topSlice = pool.slice(0, size);
@@ -1808,7 +1836,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       queue = shuffle(pool).slice(0, size);
     }
-    
+
     reviewQueue = queue;
     reviewIndex = 0;
     sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
@@ -2252,8 +2280,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (labelDue) labelDue.textContent = due.toLocaleString();
   }
 
-  /* ---------- WORDS ---------- */
-  let wordFilters = { query: "", sort: "common", length: "all", usage: "all", srs: "all", status: "all" };
+  /* ---------- WORDS (HSK 3.0 VOCABULARY) ---------- */
+  let wordFilters = { query: "", sort: "hsk", level: "all", length: "all", usage: "all", srs: "all", status: "all" };
   let wordPage = 0;
   let wordPageSize = 96;
   let WORD_DATA = null;
@@ -2261,112 +2289,87 @@ document.addEventListener("DOMContentLoaded", () => {
   let wordsShowEnglish = false;
   let wordSelectionMode = "off";
   let selectedWords = new Set();
+  let sentenceCorpusIndexed = false;
 
   function isHanWord(value) {
-    return /^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]{2,4}$/.test(String(value || ""));
+    return /^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]{2,6}$/.test(String(value || ""));
   }
 
-  function buildWordData() {
-    if (WORD_DATA) return WORD_DATA;
-    const candidates = new Map();
-    let sourceExamples = 0;
-
-    // Build the candidate word list first from the dictionary examples.
-    for (const item of HANZI_DATA) {
-      for (const raw of (item.e || [])) {
-        const word = String(raw || "").trim();
-        if (!isHanWord(word)) continue;
-        sourceExamples++;
-        if (!candidates.has(word)) candidates.set(word, { word, sourceCount: 0, corpusCount: 0, english: "", exampleTranslations: [], exampleSentences: [] });
-        candidates.get(word).sourceCount++;
-      }
+  function indexSentenceCorpusForWords() {
+    if (sentenceCorpusIndexed || !WORD_DATA || !window.SENTENCE_DATA || !window.SENTENCE_DATA.length) return;
+    const wordMap = new Map();
+    for (const item of WORD_DATA) {
+      wordMap.set(item.word, item);
     }
 
-    // Scan the sentence corpus once. Keep the shortest examples so the Words
-    // cards teach the word in a simpler context instead of showing an arbitrary
-    // long sentence that happened to occur first in the corpus.
-    const candidateSet = new Set(candidates.keys());
-    for (const sentence of SENTENCE_DATA) {
-      const runs = String(sentence.z || "").match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/gu) || [];
-      for (const run of runs) {
-        const chars = Array.from(run);
-        for (let i = 0; i < chars.length; i++) {
-          for (let len = 2; len <= 4 && i + len <= chars.length; len++) {
-            const word = chars.slice(i, i + len).join("");
-            if (!candidateSet.has(word)) continue;
-            const item = candidates.get(word);
+    for (const sentence of window.SENTENCE_DATA) {
+      const zh = String(sentence.z || "").trim();
+      const en = String(sentence.t || "").trim();
+      if (!zh || !en) continue;
+
+      for (let i = 0; i < zh.length; i++) {
+        for (let len = 2; len <= 4 && i + len <= zh.length; len++) {
+          const sub = zh.substring(i, i + len);
+          const item = wordMap.get(sub);
+          if (item) {
             item.corpusCount++;
-            const zh = String(sentence.z || "").trim();
-            const translation = String(sentence.t || "").trim();
-            if (!zh || !translation) continue;
-
-            // Optimization: if we already have 3 short examples and this one is longer than the longest we kept, skip it.
-            if (item.exampleSentences.length === 3 && zh.length >= item.exampleSentences[2].zh.length) continue;
-
-            if (!item.exampleSentences.some(x => x.en === translation)) {
-              item.exampleSentences.push({ zh, en: translation });
+            if (item.exampleSentences.length < 3 && !item.exampleSentences.some(x => x.en === en)) {
+              item.exampleSentences.push({ zh, en });
               item.exampleSentences.sort((a, b) => a.zh.length - b.zh.length);
-              if (item.exampleSentences.length > 3) item.exampleSentences.length = 3;
             }
           }
         }
       }
     }
-
-    WORD_DATA = Array.from(candidates.values()).map(item => {
-      const charItems = Array.from(item.word).map(ch => HANZI_BY_CHAR[ch]).filter(Boolean);
-      const freqRanks = charItems.map(x => Number(x.f)).filter(x => Number.isFinite(x) && x < 99999);
-      const avgRank = freqRanks.length ? freqRanks.reduce((a, b) => a + b, 0) / freqRanks.length : 99999;
-      let pinyin = "";
-      try {
-        if (window.pinyinPro && typeof window.pinyinPro.pinyin === "function") {
-          pinyin = window.pinyinPro.pinyin(item.word, { toneType: "symbol", type: "string", v: true });
-        }
-      } catch (e) { console.warn("[HanziTracker]", e); }
-      if (item.exampleSentences.length) item.english = item.exampleSentences[0].en;
-      return { ...item, avgRank, pinyin, charItems };
-    });
-    WORD_DATA._sourceExamples = sourceExamples;
-    return WORD_DATA;
+    sentenceCorpusIndexed = true;
   }
 
-  const WORD_MEANING_CACHE_KEY = "hanzi-tracker-word-meanings-v1";
-  let wordMeaningCache = {};
-  try { wordMeaningCache = JSON.parse(localStorage.getItem(WORD_MEANING_CACHE_KEY) || "{}"); } catch (e) { wordMeaningCache = {}; }
-
-  function saveWordMeaning(word, meaning) {
-    if (!meaning) return;
-    wordMeaningCache[word] = meaning;
-    try { localStorage.setItem(WORD_MEANING_CACHE_KEY, JSON.stringify(wordMeaningCache)); } catch (e) { console.warn("[HanziTracker]", e); }
-  }
-
-  async function fetchCombinedWordMeaning(word) {
-    if (wordMeaningCache[word]) return wordMeaningCache[word];
-    try {
-      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=" + encodeURIComponent(word);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("translation request failed");
-      const data = await response.json();
-      let translated = "";
-      if (data && data[0]) {
-        translated = data[0].map(item => item[0]).join("").trim();
+  function buildWordData() {
+    if (WORD_DATA) {
+      if (!sentenceCorpusIndexed && window.SENTENCE_DATA && window.SENTENCE_DATA.length) {
+        indexSentenceCorpusForWords();
       }
-      if (!translated || translated.toLowerCase() === word.toLowerCase()) throw new Error("no useful translation");
-      saveWordMeaning(word, translated);
-      return translated;
-    } catch (e) { return "Meaning unavailable"; }
-  }
+      return WORD_DATA;
+    }
 
-  function hydrateWordMeanings() {
-    document.querySelectorAll("[data-word-meaning]").forEach(node => {
-      const word = node.getAttribute("data-word-meaning");
-      if (!word) return;
-      if (wordMeaningCache[word]) { node.textContent = wordMeaningCache[word]; return; }
-      node.textContent = "Loading meaning…";
-      fetchCombinedWordMeaning(word).then(meaning => {
-        if (node.isConnected) node.textContent = meaning;
+    if (Array.isArray(window.HSK_WORDS_DATA) && window.HSK_WORDS_DATA.length) {
+      WORD_DATA = window.HSK_WORDS_DATA.filter(item => Array.from(item.w || "").length >= 2).map(item => {
+        const word = item.w;
+        const pinyin = item.p || "";
+        const level = Number(item.l) || 7;
+        const meaning = item.d || "";
+        const charItems = Array.from(word).map(ch => HANZI_BY_CHAR[ch]).filter(Boolean);
+        const freqRanks = charItems.map(x => Number(x.f)).filter(x => Number.isFinite(x) && x < 99999);
+        const avgRank = freqRanks.length ? freqRanks.reduce((a, b) => a + b, 0) / freqRanks.length : 99999;
+        return {
+          word,
+          pinyin,
+          level,
+          meaning,
+          english: meaning,
+          corpusCount: 0,
+          avgRank,
+          charItems,
+          exampleSentences: []
+        };
       });
-    });
+
+      if (window.SENTENCE_DATA && window.SENTENCE_DATA.length) {
+        indexSentenceCorpusForWords();
+      } else {
+        ensureSentenceData().then(() => {
+          indexSentenceCorpusForWords();
+          if (activeTab === "words") renderWords();
+        });
+      }
+
+      WORD_DATA._sourceExamples = WORD_DATA.length;
+      return WORD_DATA;
+    }
+
+    // Fallback: minimal dataset if words.js is missing
+    WORD_DATA = [];
+    return WORD_DATA;
   }
 
   function getWordSrsStage(word) {
@@ -2379,37 +2382,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderWords() {
-    if (!window.SENTENCE_DATA || !window.SENTENCE_DATA.length) {
-      const grid = el("word-grid");
-      if (grid && !WORD_DATA) {
-        grid.innerHTML = '<div class="sentence-empty" style="padding:48px 20px;text-align:center;"><div class="seal-spin" style="margin:0 auto 12px;width:38px;height:38px;line-height:38px;font-size:1.2rem;">词</div><p style="color:var(--gold-dark);font-weight:600;margin:0;">Building vocabulary corpus…</p></div>';
-      }
-      if (!window._wordRenderQueued) {
-        window._wordRenderQueued = true;
-        ensureSentenceData().then(() => {
-          window._wordRenderQueued = false;
-          renderWords();
-        });
-      }
-      return;
-    }
     const data = buildWordData();
     const q = wordFilters.query.trim().toLowerCase();
     let items = data.filter(item => {
-      if (wordFilters.length !== "all" && Array.from(item.word).length !== Number(wordFilters.length)) return false;
+      if (wordFilters.level !== "all") {
+        const lvl = Number(wordFilters.level);
+        if (lvl === 7) {
+          if (item.level < 7) return false;
+        } else if (item.level !== lvl) {
+          return false;
+        }
+      }
+      if (wordFilters.length !== "all") {
+        const wLen = Array.from(item.word).length;
+        const fLen = Number(wordFilters.length);
+        if (fLen === 4 ? wLen < 4 : wLen !== fLen) return false;
+      }
       if (wordFilters.usage === "used" && item.corpusCount < 1) return false;
       if (wordFilters.usage === "very-common" && item.corpusCount < 2) return false;
       if (wordFilters.status !== "all" && getWordStatus(item.word) !== wordFilters.status) return false;
       if (wordFilters.srs !== "all" && getWordSrsStage(item.word) !== wordFilters.srs) return false;
-      if (q && !item.word.toLowerCase().includes(q) && !(item.pinyin || "").toLowerCase().includes(q) && !(item.english || "").toLowerCase().includes(q)) return false;
+      if (q) {
+        const matchWord = item.word.toLowerCase().includes(q);
+        const matchPinyin = (item.pinyin || "").toLowerCase().includes(q);
+        const matchMeaning = (item.meaning || item.english || "").toLowerCase().includes(q);
+        if (!matchWord && !matchPinyin && !matchMeaning) return false;
+      }
       return true;
     });
 
     items.sort((a, b) => {
-      if (wordFilters.sort === "common") return (b.corpusCount - a.corpusCount) || (a.avgRank - b.avgRank) || (a.word.localeCompare(b.word));
-      if (wordFilters.sort === "rare") return (a.corpusCount - b.corpusCount) || (b.avgRank - a.avgRank) || (a.word.localeCompare(b.word));
-      if (wordFilters.sort === "charfreq") return (a.avgRank - b.avgRank) || (b.corpusCount - a.corpusCount);
-      if (wordFilters.sort === "length") return (Array.from(b.word).length - Array.from(a.word).length) || (b.corpusCount - a.corpusCount);
+      if (wordFilters.sort === "hsk") return (a.level - b.level) || (b.corpusCount - a.corpusCount) || (a.avgRank - b.avgRank) || a.word.localeCompare(b.word, "zh-Hans");
+      if (wordFilters.sort === "common") return (b.corpusCount - a.corpusCount) || (a.level - b.level) || (a.avgRank - b.avgRank) || (a.word.localeCompare(b.word));
+      if (wordFilters.sort === "rare") return (a.corpusCount - b.corpusCount) || (b.level - a.level) || (b.avgRank - a.avgRank) || (a.word.localeCompare(b.word));
+      if (wordFilters.sort === "charfreq") return (a.avgRank - b.avgRank) || (a.level - b.level) || (b.corpusCount - a.corpusCount);
+      if (wordFilters.sort === "length") return (Array.from(b.word).length - Array.from(a.word).length) || (a.level - b.level) || (b.corpusCount - a.corpusCount);
       return a.word.localeCompare(b.word, "zh-Hans");
     });
 
@@ -2417,51 +2424,81 @@ document.addEventListener("DOMContentLoaded", () => {
     if (wordPage >= totalPages) wordPage = totalPages - 1;
     if (wordPage < 0) wordPage = 0;
     const pageItems = items.slice(wordPage * wordPageSize, wordPage * wordPageSize + wordPageSize);
-    el("word-count").textContent = items.length.toLocaleString() + " words";
-    el("word-page-indicator").textContent = (wordPage + 1) + " / " + totalPages;
+    if (el("word-count")) el("word-count").textContent = items.length.toLocaleString() + " words";
+    if (el("word-page-indicator")) el("word-page-indicator").textContent = (wordPage + 1) + " / " + totalPages;
     if (el("word-page-indicator-top")) el("word-page-indicator-top").textContent = (wordPage + 1) + " / " + totalPages;
-    el("word-prev-page").disabled = wordPage === 0;
-    el("word-next-page").disabled = wordPage >= totalPages - 1;
+    if (el("word-prev-page")) el("word-prev-page").disabled = wordPage === 0;
+    if (el("word-next-page")) el("word-next-page").disabled = wordPage >= totalPages - 1;
 
-    el("word-grid").innerHTML = pageItems.length ? pageItems.map(word => {
-      const example = word.exampleSentences && word.exampleSentences.length ? word.exampleSentences[0] : null;
-      const meaningText = word.meaning || "Meaning not available";
-      const status = getWordStatus(word.word);
-      const isSelected = selectedWords.has(word.word);
-      let classes = "word-card status-" + status;
-      if (isSelected) classes += " selected";
+    const grid = el("word-grid");
+    if (grid) {
+      grid.innerHTML = pageItems.length ? pageItems.map(word => {
+        const example = word.exampleSentences && word.exampleSentences.length ? word.exampleSentences[0] : null;
+        const meaningText = word.meaning || word.english || "Meaning not available";
+        const status = getWordStatus(word.word);
+        const isSelected = selectedWords.has(word.word);
+        let classes = "word-card status-" + status;
+        if (isSelected) classes += " selected";
+        const lvlLabel = word.level >= 7 ? "HSK 7–9" : ("HSK " + (word.level || 1));
 
-      return '<article class="' + classes + '" data-word="' + escHtml(word.word) + '" tabindex="0" role="button" aria-label="Flip ' + escHtml(word.word) + ' card to reveal meaning">' +
-        '<div class="word-card-inner">' +
-        '<div class="word-card-face front">' +
-        '<button type="button" class="tone-audio-btn-sm" data-speak-word="' + escHtml(word.word) + '" title="Listen to ' + escHtml(word.word) + '" style="position:absolute; top:12px; right:12px; z-index:2;">🔊</button>' +
-        '<div class="word-zh">' + escHtml(word.word) + '</div>' +
-        '<div class="word-pinyin" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(word.pinyin || "—") + '</div>' +
-        '</div>' +
-        '<div class="word-card-face back">' +
-        '<div class="word-pinyin" style="font-size: 1.2rem; color: var(--gold-dark); font-weight: 700; margin-bottom: 8px;">' + escHtml(word.pinyin || "—") + '</div>' +
-        '<div class="word-card-back-meaning" data-word-meaning="' + escHtml(word.word) + '">' + escHtml(meaningText) + '</div>' +
-        '<div class="word-example" ' + (wordsShowEnglish ? '' : 'hidden') + '>' +
-        '<div class="word-example-label">Simple example</div>' +
-        (example ? '<div class="word-example-zh">' + escHtml(example.zh) + '</div>' + (window.pinyinPro && typeof window.pinyinPro.pinyin === "function" ? '<div class="word-example-py" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(window.pinyinPro.pinyin(example.zh, { toneType: "symbol", type: "string", v: true })) + '</div>' : '') + '<div class="word-example-en">' + escHtml(example.en) + '</div>' : '<div class="word-example-empty">No example sentence in the current corpus.</div>') +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '</article>';
-    }).join("") : '<div class="word-empty">No words match these filters.</div>';
+        return '<article class="' + classes + '" data-word="' + escHtml(word.word) + '" tabindex="0" role="button" aria-label="Flip ' + escHtml(word.word) + ' card to reveal meaning">' +
+          '<div class="word-card-inner">' +
+          '<div class="word-card-face front">' +
+          '<span class="word-level-badge level-' + (word.level || 1) + '">' + escHtml(lvlLabel) + '</span>' +
+          '<button type="button" class="tone-audio-btn-sm" data-speak-word="' + escHtml(word.word) + '" title="Listen to ' + escHtml(word.word) + '" style="position:absolute; top:10px; right:10px; z-index:2;">🔊</button>' +
+          '<div class="word-zh">' + escHtml(word.word) + '</div>' +
+          '<div class="word-pinyin" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(word.pinyin || "—") + '</div>' +
+          '</div>' +
+          '<div class="word-card-face back">' +
+          '<div class="word-pinyin" style="font-size: 1.15rem; color: var(--gold-dark); font-weight: 700; margin-bottom: 4px;">' + escHtml(word.pinyin || "—") + '</div>' +
+          '<div class="word-card-back-meaning">' + escHtml(meaningText) + '</div>' +
+          '<div class="word-example" ' + (wordsShowEnglish ? '' : 'hidden') + '>' +
+          '<div class="word-example-label">Simple example</div>' +
+          (example ? '<div class="word-example-zh">' + escHtml(example.zh) + '</div>' + (window.pinyinPro && typeof window.pinyinPro.pinyin === "function" ? '<div class="word-example-py" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(window.pinyinPro.pinyin(example.zh, { toneType: "symbol", type: "string", v: true })) + '</div>' : '') + '<div class="word-example-en">' + escHtml(example.en) + '</div>' : '<div class="word-example-empty">No example sentence in current corpus.</div>') +
+          '</div>' +
+          '</div>' +
+          '</div>' +
+          '</article>';
+      }).join("") : '<div class="word-empty">No words match these filters.</div>';
+    }
 
-    hydrateWordMeanings();
     updateWordSidebars();
     updateWordSelectionBar();
   }
 
   function wireWords() {
     const search = el("word-search");
-    if (search) { let wordSearchTimeout; search.addEventListener("input", () => { clearTimeout(wordSearchTimeout); const val = search.value; wordSearchTimeout = setTimeout(() => { wordFilters.query = val; wordPage = 0; renderWords(); }, 150); }); }
+    if (search) {
+      let wordSearchTimeout;
+      search.addEventListener("input", () => {
+        clearTimeout(wordSearchTimeout);
+        const val = search.value;
+        wordSearchTimeout = setTimeout(() => {
+          wordFilters.query = val;
+          wordPage = 0;
+          renderWords();
+        }, 150);
+      });
+    }
+
+    const lvlSelect = el("word-level-select");
+    if (lvlSelect) {
+      lvlSelect.addEventListener("change", () => {
+        wordFilters.level = lvlSelect.value;
+        wordPage = 0;
+        renderWords();
+      });
+    }
+
     ["word-sort", "word-length", "word-common-only"].forEach(id => {
       const node = el(id); if (!node) return;
-      node.addEventListener("change", () => { wordFilters[id === "word-sort" ? "sort" : id === "word-length" ? "length" : "usage"] = node.value; wordPage = 0; renderWords(); });
+      node.addEventListener("change", () => {
+        wordFilters[id === "word-sort" ? "sort" : id === "word-length" ? "length" : "usage"] = node.value;
+        wordPage = 0;
+        renderWords();
+      });
     });
+
     el("word-prev-page")?.addEventListener("click", () => { wordPage--; renderWords(); });
     el("word-next-page")?.addEventListener("click", () => { wordPage++; renderWords(); });
     const showPinyin = el("words-show-pinyin");
@@ -2516,7 +2553,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const part = e.target.closest("[data-word-char]");
-      if (part) { e.stopPropagation(); openDetail(part.dataset.wordChar); return; }
+      if (part) {
+        e.stopPropagation();
+        openDetail(part.dataset.wordChar);
+        return;
+      }
       const card = e.target.closest(".word-card");
       if (!card) return;
       const word = card.dataset.word;
@@ -2546,6 +2587,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
+    document.querySelectorAll("[data-word-side-level]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        wordFilters.level = btn.dataset.wordSideLevel;
+        if (lvlSelect) lvlSelect.value = wordFilters.level;
+        wordPage = 0;
+        renderWords();
+      });
+    });
+
     document.querySelectorAll("[data-word-side-status]").forEach(btn => {
       btn.addEventListener("click", () => {
         wordFilters.status = btn.dataset.wordSideStatus;
@@ -2562,11 +2612,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.querySelectorAll("[data-word-side-reset]").forEach(btn => {
       btn.addEventListener("click", () => {
-        wordFilters = { query: "", sort: "common", length: "all", usage: "all", srs: "all", status: "all" };
+        wordFilters = { query: "", sort: "hsk", level: "all", length: "all", usage: "all", srs: "all", status: "all" };
+        if (lvlSelect) lvlSelect.value = "all";
         if (statusSelect) statusSelect.value = "all";
         if (srsSelect) srsSelect.value = "all";
         const lenSel = el("word-length"); if (lenSel) lenSel.value = "all";
-        const sortSel = el("word-sort"); if (sortSel) sortSel.value = "common";
+        const sortSel = el("word-sort"); if (sortSel) sortSel.value = "hsk";
         const search = el("word-search"); if (search) search.value = "";
         wordPage = 0; renderWords();
       });
@@ -2650,7 +2701,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const newBtn = el('readings-new-btn');
     const backBtn = el('readings-back-btn');
     const deleteBtn = el('readings-delete-btn');
-    
+
     let currentReadingText = '';
     let currentReadingId = null;
     let readingShowPinyin = false;
@@ -2660,193 +2711,193 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Build dict for MaxMatch
     if (typeof WORD_DATA !== "undefined" && WORD_DATA) {
-        wordDict = new Set(WORD_DATA.map(w => w.word));
-        maxWordLen = Math.max(...WORD_DATA.map(w => Array.from(w.word).length));
+      wordDict = new Set(WORD_DATA.map(w => w.word));
+      maxWordLen = Math.max(...WORD_DATA.map(w => Array.from(w.word).length));
     }
 
     function renderLibrary() {
-        if (!state.readings) state.readings = [];
-        readingsList.innerHTML = state.readings.length === 0 
-            ? '<div style="color: var(--text-light); font-style: italic;">No saved readings yet. Click "Add New Reading" to get started.</div>'
-            : state.readings.map(r => 
-                '<div class="reading-item" data-id="' + r.id + '" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s;">' +
-                '<h3 style="margin: 0 0 8px 0; color: var(--gold-bright);">' + escHtml(r.title || 'Untitled Reading') + '</h3>' +
-                '<p style="margin: 0; color: var(--text-light); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escHtml((r.text || "").substring(0, 50)) + '...</p>' +
-                '</div>'
-            ).join('');
-            
-        // Bind clicks
-        readingsList.querySelectorAll('.reading-item').forEach(e => {
-            e.addEventListener('click', () => {
-                const id = e.dataset.id;
-                const reading = state.readings.find(r => r.id === id);
-                if (reading) {
-                    currentReadingId = id;
-                    titleInput.value = reading.title || '';
-                    input.value = reading.text || '';
-                    currentReadingText = reading.text || '';
-                    deleteBtn.style.display = 'block';
-                    libraryView.classList.add('hidden');
-                    readerView.classList.remove('hidden');
-                    renderReadingOutput();
-                }
-            });
+      if (!state.readings) state.readings = [];
+      readingsList.innerHTML = state.readings.length === 0
+        ? '<div style="color: var(--text-light); font-style: italic;">No saved readings yet. Click "Add New Reading" to get started.</div>'
+        : state.readings.map(r =>
+          '<div class="reading-item" data-id="' + r.id + '" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s;">' +
+          '<h3 style="margin: 0 0 8px 0; color: var(--gold-bright);">' + escHtml(r.title || 'Untitled Reading') + '</h3>' +
+          '<p style="margin: 0; color: var(--text-light); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escHtml((r.text || "").substring(0, 50)) + '...</p>' +
+          '</div>'
+        ).join('');
+
+      // Bind clicks
+      readingsList.querySelectorAll('.reading-item').forEach(e => {
+        e.addEventListener('click', () => {
+          const id = e.dataset.id;
+          const reading = state.readings.find(r => r.id === id);
+          if (reading) {
+            currentReadingId = id;
+            titleInput.value = reading.title || '';
+            input.value = reading.text || '';
+            currentReadingText = reading.text || '';
+            deleteBtn.style.display = 'block';
+            libraryView.classList.add('hidden');
+            readerView.classList.remove('hidden');
+            renderReadingOutput();
+          }
         });
+      });
     }
 
     newBtn?.addEventListener('click', () => {
-        currentReadingId = null;
-        titleInput.value = '';
-        input.value = '';
-        currentReadingText = '';
-        output.innerHTML = '<div style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">Your parsed text will appear here.</div>';
-        statsContainer?.classList.add('hidden');
-        deleteBtn.style.display = 'none';
-        libraryView.classList.add('hidden');
-        readerView.classList.remove('hidden');
+      currentReadingId = null;
+      titleInput.value = '';
+      input.value = '';
+      currentReadingText = '';
+      output.innerHTML = '<div style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">Your parsed text will appear here.</div>';
+      statsContainer?.classList.add('hidden');
+      deleteBtn.style.display = 'none';
+      libraryView.classList.add('hidden');
+      readerView.classList.remove('hidden');
     });
 
     backBtn?.addEventListener('click', () => {
-        libraryView.classList.remove('hidden');
-        readerView.classList.add('hidden');
-        renderLibrary();
+      libraryView.classList.remove('hidden');
+      readerView.classList.add('hidden');
+      renderLibrary();
     });
 
     deleteBtn?.addEventListener('click', () => {
-        if (!currentReadingId) return;
-        state.readings = state.readings.filter(r => r.id !== currentReadingId);
-        saveState();
-        libraryView.classList.remove('hidden');
-        readerView.classList.add('hidden');
-        renderLibrary();
+      if (!currentReadingId) return;
+      state.readings = state.readings.filter(r => r.id !== currentReadingId);
+      saveState();
+      libraryView.classList.remove('hidden');
+      readerView.classList.add('hidden');
+      renderLibrary();
     });
 
     saveBtn?.addEventListener('click', () => {
-        const text = input.value.trim();
-        if (!text) return;
-        
-        currentReadingText = text;
-        const title = titleInput.value.trim();
-        
-        if (currentReadingId) {
-            const reading = state.readings.find(r => r.id === currentReadingId);
-            if (reading) {
-                reading.text = text;
-                reading.title = title;
-            }
-        } else {
-            currentReadingId = Date.now().toString();
-            state.readings.push({ id: currentReadingId, title, text, date: Date.now() });
+      const text = input.value.trim();
+      if (!text) return;
+
+      currentReadingText = text;
+      const title = titleInput.value.trim();
+
+      if (currentReadingId) {
+        const reading = state.readings.find(r => r.id === currentReadingId);
+        if (reading) {
+          reading.text = text;
+          reading.title = title;
         }
-        
-        saveState();
-        renderReadingOutput();
+      } else {
+        currentReadingId = Date.now().toString();
+        state.readings.push({ id: currentReadingId, title, text, date: Date.now() });
+      }
+
+      saveState();
+      renderReadingOutput();
     });
-    
+
     parseBtn?.addEventListener("click", () => {
-        const text = input.value;
-        if (!text.trim()) return;
-        currentReadingText = text;
-        renderReadingOutput();
+      const text = input.value;
+      if (!text.trim()) return;
+      currentReadingText = text;
+      renderReadingOutput();
     });
 
     pinyinUnknownOnlyCheckbox?.addEventListener('change', (e) => {
-        readingPinyinUnknownOnly = e.target.checked;
-        renderReadingOutput();
+      readingPinyinUnknownOnly = e.target.checked;
+      renderReadingOutput();
     });
 
     function renderReadingOutput() {
-        if (!currentReadingText) return;
-        
-        let known = 0, learning = 0, newCount = 0;
-        
-        // Tokenizer: MaxMatch
-        const chars = Array.from(currentReadingText);
-        let tokens = [];
-        let i = 0;
-        while (i < chars.length) {
-            let matched = false;
-            for (let len = maxWordLen; len >= 1; len--) {
-                if (i + len <= chars.length) {
-                    const candidate = chars.slice(i, i + len).join('');
-                    if (wordDict.has(candidate)) {
-                        tokens.push({ text: candidate, isWord: true });
-                        i += len;
-                        matched = true;
-                        break;
-                    }
-                }
+      if (!currentReadingText) return;
+
+      let known = 0, learning = 0, newCount = 0;
+
+      // Tokenizer: MaxMatch
+      const chars = Array.from(currentReadingText);
+      let tokens = [];
+      let i = 0;
+      while (i < chars.length) {
+        let matched = false;
+        for (let len = maxWordLen; len >= 1; len--) {
+          if (i + len <= chars.length) {
+            const candidate = chars.slice(i, i + len).join('');
+            if (wordDict.has(candidate)) {
+              tokens.push({ text: candidate, isWord: true });
+              i += len;
+              matched = true;
+              break;
             }
-            if (!matched) {
-                tokens.push({ text: chars[i], isWord: false });
-                i++;
-            }
+          }
         }
-        
-        output.innerHTML = tokens.map(token => {
-            if (token.isWord) {
-                // Multi-char word
-                let wordHtml = '';
-                let allKnown = true;
-                
-                const charSpans = Array.from(token.text).map(ch => {
-                    if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
-                        const status = getStatus(ch);
-                        if (status === 'known') known++;
-                        else if (status === 'learning') { learning++; allKnown = false; }
-                        else { newCount++; allKnown = false; }
-                        
-                        const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-                        return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
-                    } else {
-                        return escHtml(ch);
-                    }
-                }).join('');
-                
-                if (readingShowPinyin) {
-                    let showThisPinyin = true;
-                    if (readingPinyinUnknownOnly && allKnown) showThisPinyin = false;
-                    
-                    const wordObj = WORD_DATA.find(w => w.word === token.text);
-                    const py = wordObj ? wordObj.pinyin : sentencePinyin(token.text);
-                    const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
-                    wordHtml = '<ruby class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="display:inline-flex; flex-direction:column-reverse; align-items:center; cursor:pointer;" title="' + escHtml(wordObj?.meaning || '') + '">' + charSpans + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
-                } else {
-                    wordHtml = '<span class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="cursor:pointer; display:inline-block;" title="' + escHtml(WORD_DATA.find(w => w.word === token.text)?.meaning || '') + '">' + charSpans + '</span>';
-                }
-                return wordHtml;
-                
+        if (!matched) {
+          tokens.push({ text: chars[i], isWord: false });
+          i++;
+        }
+      }
+
+      output.innerHTML = tokens.map(token => {
+        if (token.isWord) {
+          // Multi-char word
+          let wordHtml = '';
+          let allKnown = true;
+
+          const charSpans = Array.from(token.text).map(ch => {
+            if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
+              const status = getStatus(ch);
+              if (status === 'known') known++;
+              else if (status === 'learning') { learning++; allKnown = false; }
+              else { newCount++; allKnown = false; }
+
+              const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
+              return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
             } else {
-                // Single char
-                const ch = token.text;
-                if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
-                    const status = getStatus(ch);
-                    if (status === 'known') known++;
-                    else if (status === 'learning') learning++;
-                    else newCount++;
-                    
-                    const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-                    let html = '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
-                    
-                    if (readingShowPinyin) {
-                        let showThisPinyin = true;
-                        if (readingPinyinUnknownOnly && status === 'known') showThisPinyin = false;
-                        const py = sentencePinyin(ch);
-                        const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
-                        html = '<ruby style="display:inline-flex; flex-direction:column-reverse; align-items:center;">' + html + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
-                    }
-                    return html;
-                }
-                return escHtml(ch);
+              return escHtml(ch);
             }
-        }).join('');
-        
-        if (statsContainer) {
-            statsContainer.classList.remove('hidden');
-            el('reading-stat-known').textContent = known;
-            el('reading-stat-learning').textContent = learning;
-            el('reading-stat-new').textContent = newCount;
+          }).join('');
+
+          if (readingShowPinyin) {
+            let showThisPinyin = true;
+            if (readingPinyinUnknownOnly && allKnown) showThisPinyin = false;
+
+            const wordObj = WORD_DATA.find(w => w.word === token.text);
+            const py = wordObj ? wordObj.pinyin : sentencePinyin(token.text);
+            const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
+            wordHtml = '<ruby class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="display:inline-flex; flex-direction:column-reverse; align-items:center; cursor:pointer;" title="' + escHtml(wordObj?.meaning || '') + '">' + charSpans + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
+          } else {
+            wordHtml = '<span class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="cursor:pointer; display:inline-block;" title="' + escHtml(WORD_DATA.find(w => w.word === token.text)?.meaning || '') + '">' + charSpans + '</span>';
+          }
+          return wordHtml;
+
+        } else {
+          // Single char
+          const ch = token.text;
+          if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
+            const status = getStatus(ch);
+            if (status === 'known') known++;
+            else if (status === 'learning') learning++;
+            else newCount++;
+
+            const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
+            let html = '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
+
+            if (readingShowPinyin) {
+              let showThisPinyin = true;
+              if (readingPinyinUnknownOnly && status === 'known') showThisPinyin = false;
+              const py = sentencePinyin(ch);
+              const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
+              html = '<ruby style="display:inline-flex; flex-direction:column-reverse; align-items:center;">' + html + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
+            }
+            return html;
+          }
+          return escHtml(ch);
         }
+      }).join('');
+
+      if (statsContainer) {
+        statsContainer.classList.remove('hidden');
+        el('reading-stat-known').textContent = known;
+        el('reading-stat-learning').textContent = learning;
+        el('reading-stat-new').textContent = newCount;
+      }
     }
 
     if (output) {
@@ -2864,30 +2915,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     }
-    
+
     const toggleBtn = el('reading-toggle-pinyin');
     if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            readingShowPinyin = !readingShowPinyin;
-            toggleBtn.classList.toggle('active', readingShowPinyin);
-            renderReadingOutput();
-        });
+      toggleBtn.addEventListener('click', () => {
+        readingShowPinyin = !readingShowPinyin;
+        toggleBtn.classList.toggle('active', readingShowPinyin);
+        renderReadingOutput();
+      });
     }
-    
+
     const playBtn = el('reading-play-audio');
     if (playBtn) {
-        playBtn.addEventListener('click', () => {
-            if (currentReadingText) {
-                playChineseAudio(currentReadingText, { rate: 0.9 });
-            }
-        });
+      playBtn.addEventListener('click', () => {
+        if (currentReadingText) {
+          playChineseAudio(currentReadingText, { rate: 0.9 });
+        }
+      });
     }
-    
+
     // Initial render
     setTimeout(() => {
-        if (libraryView && !libraryView.classList.contains('hidden')) {
-            renderLibrary();
-        }
+      if (libraryView && !libraryView.classList.contains('hidden')) {
+        renderLibrary();
+      }
     }, 100);
   }
 
@@ -2906,16 +2957,16 @@ document.addEventListener("DOMContentLoaded", () => {
         if (btn.dataset.tab === "tones") renderTonesTab();
         if (btn.dataset.tab === "review") { refreshDueCount(); updateReviewEstimate(); }
         if (btn.dataset.tab === "readings") {
-            const libraryView = el("readings-library-view");
-            if (libraryView && !libraryView.classList.contains("hidden")) {
-               // Re-render library when tab clicked
-               const list = el("readings-list");
-               if (list && list.innerHTML === "") {
-                   // trigger initial render indirectly
-                   setTimeout(() => document.getElementById("readings-new-btn")?.click(), 10);
-                   setTimeout(() => document.getElementById("readings-back-btn")?.click(), 20);
-               }
+          const libraryView = el("readings-library-view");
+          if (libraryView && !libraryView.classList.contains("hidden")) {
+            // Re-render library when tab clicked
+            const list = el("readings-list");
+            if (list && list.innerHTML === "") {
+              // trigger initial render indirectly
+              setTimeout(() => document.getElementById("readings-new-btn")?.click(), 10);
+              setTimeout(() => document.getElementById("readings-back-btn")?.click(), 20);
             }
+          }
         }
       });
     });
@@ -3033,7 +3084,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireDrawer() {
     el("drawer-close").addEventListener("click", closeDetail);
     el("drawer-backdrop").addEventListener("click", closeDetail);
-    
+
     const saveMnemBtn = el("drawer-mnemonic-save");
     if (saveMnemBtn) {
       saveMnemBtn.addEventListener("click", () => {
@@ -3062,8 +3113,8 @@ document.addEventListener("DOMContentLoaded", () => {
           openWordDetail(currentDetailWord);
           const libView = el("readings-library-view");
           if (libView && libView.classList.contains("hidden")) {
-              const parseBtn = el('readings-parse-btn');
-              if (parseBtn) parseBtn.click();
+            const parseBtn = el('readings-parse-btn');
+            if (parseBtn) parseBtn.click();
           }
         }
       });
@@ -3106,6 +3157,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!currentDetailChar) return;
       playChineseAudio(currentDetailChar, { rate: 0.82 });
     });
+
+    el("drawer-sentences")?.addEventListener("click", e => {
+      const speakSlow = e.target.closest("[data-speak-sentence-slow]");
+      if (speakSlow) {
+        e.stopPropagation();
+        const item = SENTENCE_DATA.find(x => String(x.i) === String(speakSlow.dataset.speakSentenceSlow));
+        speakSentence(item, true);
+        return;
+      }
+      const speak = e.target.closest("[data-speak-sentence]");
+      if (speak) {
+        e.stopPropagation();
+        const item = SENTENCE_DATA.find(x => String(x.i) === String(speak.dataset.speakSentence));
+        speakSentence(item, false);
+        return;
+      }
+    });
   }
 
   function wireReview() {
@@ -3131,7 +3199,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el("review-example-toggle").classList.toggle("active", show);
       el("review-example-toggle").textContent = show ? "Hide examples" : "Show examples";
     });
-    // Audio button with visual loading feedback
+    // Audio button (normal speed) with visual loading feedback
     el("review-audio-btn").addEventListener("click", () => {
       const item = reviewQueue[reviewIndex];
       if (!item) return;
@@ -3139,11 +3207,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
       const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
       const sentenceId = type === "sentence" ? item.i : null;
+      const audioPath = type === "sentence" ? item.a : null;
+      const slowAudioPath = type === "sentence" ? item.as : null;
       btn.textContent = "⏳ Playing…";
       btn.disabled = true;
       playChineseAudio(text, {
-        rate: 0.88,
+        rate: 0.9,
         sentenceId,
+        audioPath,
+        slowAudioPath,
         onEnd: () => {
           btn.textContent = "🔊 Listen";
           btn.disabled = false;
@@ -3152,6 +3224,32 @@ document.addEventListener("DOMContentLoaded", () => {
       // Fallback re-enable in case audio ends without calling onEnd
       setTimeout(() => {
         if (btn.disabled) { btn.textContent = "🔊 Listen"; btn.disabled = false; }
+      }, 5000);
+    });
+    // Audio button (slow speed)
+    el("review-audio-slow-btn")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      if (!item) return;
+      const btn = el("review-audio-slow-btn");
+      const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+      const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+      const sentenceId = type === "sentence" ? item.i : null;
+      const audioPath = type === "sentence" ? (item.as || item.a) : null;
+      const slowAudioPath = type === "sentence" ? item.as : null;
+      btn.textContent = "⏳ Playing…";
+      btn.disabled = true;
+      playChineseAudio(text, {
+        rate: 0.72,
+        sentenceId,
+        audioPath,
+        slowAudioPath,
+        onEnd: () => {
+          btn.textContent = "🐢 Slow";
+          btn.disabled = false;
+        }
+      });
+      setTimeout(() => {
+        if (btn.disabled) { btn.textContent = "🐢 Slow"; btn.disabled = false; }
       }, 5000);
     });
     el("start-review").addEventListener("click", startReview);
@@ -3320,7 +3418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("sentence-export-csv")?.addEventListener("click", () => {
       const data = getFilteredSentences();
       if (!data.length) { showToast("No sentences to export.", true); return; }
-      const rows = [["ID","Chinese","Pinyin","English","HSK","Difficulty","Status"]];
+      const rows = [["ID", "Chinese", "Pinyin", "English", "HSK", "Difficulty", "Status"]];
       data.forEach(item => rows.push([item.i, item.z, sentencePinyin(item), item.t, sentenceHskLabel(item), sentenceDifficultyLabel(item), sentenceStatusLabel(item)]));
       const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -3355,6 +3453,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // Feature 5: Quick-study modal wiring
     el("sentence-quick-close")?.addEventListener("click", closeQuickStudy);
     el("sentence-quick-modal")?.addEventListener("click", e => { if (e.target === el("sentence-quick-modal")) closeQuickStudy(); });
+    el("sentence-quick-audio-btn")?.addEventListener("click", () => {
+      if (!quickStudyCurrentId) return;
+      const item = SENTENCE_DATA.find(x => String(x.i) === String(quickStudyCurrentId));
+      if (item) speakSentence(item, false);
+    });
+    el("sentence-quick-audio-slow-btn")?.addEventListener("click", () => {
+      if (!quickStudyCurrentId) return;
+      const item = SENTENCE_DATA.find(x => String(x.i) === String(quickStudyCurrentId));
+      if (item) speakSentence(item, true);
+    });
     el("sentence-quick-show-pinyin")?.addEventListener("click", () => {
       const p = el("sentence-quick-pinyin"); p.hidden = !p.hidden;
       el("sentence-quick-show-pinyin").textContent = p.hidden ? "Show Pinyin" : "Hide Pinyin";
@@ -3406,11 +3514,18 @@ document.addEventListener("DOMContentLoaded", () => {
         openDetail(char.dataset.sentenceChar);
         return;
       }
+      const speakSlow = e.target.closest("[data-speak-sentence-slow]");
+      if (speakSlow) {
+        e.stopPropagation();
+        const item = SENTENCE_DATA.find(x => String(x.i) === String(speakSlow.dataset.speakSentenceSlow));
+        speakSentence(item, true);
+        return;
+      }
       const speak = e.target.closest("[data-speak-sentence]");
       if (speak) {
         e.stopPropagation();
         const item = SENTENCE_DATA.find(x => String(x.i) === String(speak.dataset.speakSentence));
-        speakSentence(item);
+        speakSentence(item, false);
         return;
       }
       // Reveal panel toggle (new flat-card design)
@@ -3466,6 +3581,16 @@ document.addEventListener("DOMContentLoaded", () => {
     el("sentence-study-due").addEventListener("click", () => startSentencePool("due"));
     el("sentence-study-new").addEventListener("click", () => startSentencePool("new"));
     el("sentence-detail-close").addEventListener("click", closeSentenceDetails);
+    el("sentence-detail-audio-btn")?.addEventListener("click", () => {
+      if (!currentDetailSentenceId) return;
+      const item = SENTENCE_DATA.find(x => String(x.i) === String(currentDetailSentenceId));
+      if (item) speakSentence(item, false);
+    });
+    el("sentence-detail-audio-slow-btn")?.addEventListener("click", () => {
+      if (!currentDetailSentenceId) return;
+      const item = SENTENCE_DATA.find(x => String(x.i) === String(currentDetailSentenceId));
+      if (item) speakSentence(item, true);
+    });
     el("sentence-detail-modal").addEventListener("click", e => { if (e.target === el("sentence-detail-modal")) closeSentenceDetails(); const ch = e.target.closest("[data-sentence-char]"); if (ch) { closeSentenceDetails(); openDetail(ch.dataset.sentenceChar); } });
     el("sentence-detail-review").addEventListener("click", () => { const id = el("sentence-detail-review").dataset.reviewSentence; closeSentenceDetails(); openSentenceReview(id); });
     ["new", "learning", "known"].forEach(status => {
@@ -5581,8 +5706,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Persist merged state locally
       const payload = JSON.stringify(state);
-      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch (e) {}
-      try { if (window.storage && typeof window.storage.set === "function") await window.storage.set(STORAGE_KEY, payload, false); } catch (e) {}
+      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch (e) { }
+      try { if (window.storage && typeof window.storage.set === "function") await window.storage.set(STORAGE_KEY, payload, false); } catch (e) { }
 
       // Refresh all UI tabs and views
       syncUI();
@@ -5671,8 +5796,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       state = JSON.parse(stateRow.status);
       const payload = JSON.stringify(state);
-      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch(e){}
-      try { if (window.storage) window.storage.set(STORAGE_KEY, payload, false); } catch(e){}
+      try { window.localStorage.setItem(FALLBACK_STORAGE_KEY, payload); } catch (e) { }
+      try { if (window.storage) window.storage.set(STORAGE_KEY, payload, false); } catch (e) { }
 
       syncUI();
       const activeTabBtn = document.querySelector('.tab-btn.active');
@@ -5976,6 +6101,61 @@ document.addEventListener("DOMContentLoaded", () => {
   // showToast is already defined earlier with full animation and error support
 
   /* ---------- init ---------- */
+  function initFiltersPersistence() {
+    const persistFields = [
+      "browse-level-select", "browse-srs-select", "browse-status-select", "browse-sort",
+      "review-difficulty", "review-focus-weak", "session-size",
+      "radical-sort", "radical-character-limit",
+      "sentence-hsk-filter", "sentence-srs-filter", "sentence-difficulty-filter", "sentence-sort",
+      "word-level-select", "word-length", "word-common-only", "word-srs-select", "word-status-select", "word-sort"
+    ];
+
+    persistFields.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isCheckbox = el.type === "checkbox";
+      const key = "hanzi_pref_" + id;
+      
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
+        if (isCheckbox) el.checked = saved === "true";
+        else el.value = saved;
+        setTimeout(() => el.dispatchEvent(new Event("change")), 10);
+      }
+
+      el.addEventListener("change", () => {
+        localStorage.setItem(key, isCheckbox ? String(el.checked) : el.value);
+      });
+    });
+
+    const savedPool = localStorage.getItem("hanzi_pref_pool");
+    if (savedPool) {
+      const r = document.querySelector(`input[name="pool"][value="${savedPool}"]`);
+      if (r) { r.checked = true; setTimeout(() => r.dispatchEvent(new Event("change")), 10); }
+    }
+    document.querySelectorAll('input[name="pool"]').forEach(r => {
+      r.addEventListener("change", () => localStorage.setItem("hanzi_pref_pool", r.value));
+    });
+
+    const savedReviewMode = localStorage.getItem("hanzi_pref_reviewMode");
+    if (savedReviewMode) {
+      const btn = document.querySelector(`[data-review-mode="${savedReviewMode}"]`);
+      if (btn) { setTimeout(() => btn.click(), 10); }
+    }
+    document.querySelectorAll("[data-review-mode]").forEach(btn => {
+      btn.addEventListener("click", () => localStorage.setItem("hanzi_pref_reviewMode", btn.dataset.reviewMode));
+    });
+
+    const savedEvoLevel = localStorage.getItem("hanzi_pref_evoLevel");
+    if (savedEvoLevel) {
+      const btn = document.querySelector(`[data-evo-level="${savedEvoLevel}"]`);
+      if (btn) { setTimeout(() => btn.click(), 10); }
+    }
+    document.querySelectorAll("[data-evo-level]").forEach(btn => {
+      btn.addEventListener("click", () => localStorage.setItem("hanzi_pref_evoLevel", btn.dataset.evoLevel));
+    });
+  }
+
   async function init() {
     const dismissLoading = () => {
       const appEl = el("app");
@@ -6026,6 +6206,7 @@ document.addEventListener("DOMContentLoaded", () => {
       initThemeEngine();
       initEvolution();
       initPictographs();
+      initFiltersPersistence();
       // Render initial active tab
       renderBrowse();
       updateHeaderProgress();
@@ -6064,12 +6245,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---- Script stage registry ----
   const EVO_STAGES_META = [
-    { key: "oracle",   name: "Oracle Bone",   era: "甲骨文 c.1250\u20131000 BC" },
-    { key: "bronze",   name: "Bronze Script",  era: "\u91d1\u6587 c.1100\u2013221 BC" },
-    { key: "seal",     name: "Seal Script",    era: "\u7bc6\u4e66 c.221 BC" },
-    { key: "clerical", name: "Clerical",       era: "\u96b6\u4e66 c.200 BC\u2013200 AD" },
-    { key: "regular",  name: "Regular",        era: "\u6977\u4e66 c.200 AD+" },
-    { key: "modern",   name: "Modern",         era: "\u73b0\u4ee3 Simplified" },
+    { key: "oracle", name: "Oracle Bone", era: "甲骨文 c.1250\u20131000 BC" },
+    { key: "bronze", name: "Bronze Script", era: "\u91d1\u6587 c.1100\u2013221 BC" },
+    { key: "seal", name: "Seal Script", era: "\u7bc6\u4e66 c.221 BC" },
+    { key: "clerical", name: "Clerical", era: "\u96b6\u4e66 c.200 BC\u2013200 AD" },
+    { key: "regular", name: "Regular", era: "\u6977\u4e66 c.200 AD+" },
+    { key: "modern", name: "Modern", era: "\u73b0\u4ee3 Simplified" },
   ];
 
   // ---- Curated evolution data ----
@@ -6080,172 +6261,306 @@ document.addEventListener("DOMContentLoaded", () => {
   // The traditional form IS a genuine historical form — used until PRC script reform (1956\u20131964).
   const EVO_DATA = {
     // ── Pictographs (oracle = modern, no simplification) ──────────────────────
-    "\u4e00": { oracle:"\u4e00",bronze:"\u4e00",seal:"\u4e00",clerical:"\u4e00",regular:"\u4e00",modern:"\u4e00",
-      notes:{ oracle:"A single horizontal stroke \u2014 the simplest pictograph of unity.",seal:"Standardised by the Qin dynasty.",clerical:"Horizontal stroke with slight brush lift.",modern:"Unchanged for 3,000+ years." } },
-    "\u5c71": { oracle:"\u5c71",bronze:"\u5c71",seal:"\u5c71",clerical:"\u5c71",regular:"\u5c71",modern:"\u5c71",
-      notes:{ oracle:"Three peaks of a mountain \u2014 iconic pictograph.",bronze:"Three vertical strokes, longer centre peak.",seal:"Regularised strokes of even weight.",clerical:"Horizontal base bar added.",modern:"Mountain silhouette retained." } },
-    "\u6c34": { oracle:"\u6c34",bronze:"\u6c34",seal:"\u6c34",clerical:"\u6c34",regular:"\u6c34",modern:"\u6c34",
-      notes:{ oracle:"Wavy lines depicting flowing water.",bronze:"Central stream with flanking ripples.",seal:"Central vertical with angled strokes.",clerical:"Four strokes; angles sharpen.",modern:"Standard 4-stroke form; radical in \u6c5f,\u6d77,\u6cb3." } },
-    "\u706b": { oracle:"\u706b",bronze:"\u706b",seal:"\u706b",clerical:"\u706b",regular:"\u706b",modern:"\u706b",
-      notes:{ oracle:"Flames leaping from a base \u2014 direct pictograph of fire.",seal:"Four symmetric strokes.",modern:"Radical in \u7130,\u70e7,\u70df." } },
-    "\u6728": { oracle:"\u6728",bronze:"\u6728",seal:"\u6728",clerical:"\u6728",regular:"\u6728",modern:"\u6728",
-      notes:{ oracle:"Tree: trunk, branches above, roots below.",seal:"Symmetrical balanced form.",modern:"Radical in \u6797,\u68ee,\u684c." } },
-    "\u5927": { oracle:"\u5927",bronze:"\u5927",seal:"\u5927",clerical:"\u5927",regular:"\u5927",modern:"\u5927",
-      notes:{ oracle:"Person standing with arms spread wide \u2014 \u2018big\u2019.",bronze:"Arms clearly extended laterally.",modern:"Radical in \u5929,\u592a,\u592b." } },
-    "\u4e2d": { oracle:"\u4e2d",bronze:"\u4e2d",seal:"\u4e2d",clerical:"\u4e2d",regular:"\u4e2d",modern:"\u4e2d",
-      notes:{ oracle:"A flag through the centre of a target \u2014 \u2018middle\u2019.",seal:"Rectangular frame with vertical axis.",modern:"One of the most common characters." } },
-    "\u53e3": { oracle:"\u53e3",bronze:"\u53e3",seal:"\u53e3",clerical:"\u53e3",regular:"\u53e3",modern:"\u53e3",
-      notes:{ oracle:"An open square \u2014 the mouth or opening.",seal:"Perfect square standardised.",modern:"Radical in \u5403,\u559d,\u53eb." } },
-    "\u624b": { oracle:"\u624b",bronze:"\u624b",seal:"\u624b",clerical:"\u624b",regular:"\u624b",modern:"\u624b",
-      notes:{ oracle:"Five finger lines from a palm \u2014 direct pictograph.",seal:"4 horizontal strokes + vertical.",modern:"Radical in \u6253,\u62ff,\u63e1." } },
-    "\u5fc3": { oracle:"\u5fc3",bronze:"\u5fc3",seal:"\u5fc3",clerical:"\u5fc3",regular:"\u5fc3",modern:"\u5fc3",
-      notes:{ oracle:"Heart shape with ventricles \u2014 ancient anatomical knowledge.",seal:"Curved base with three points.",modern:"Radical in \u60f3,\u5fd8,\u60c5." } },
-    "\u6708": { oracle:"\u6708",bronze:"\u6708",seal:"\u6708",clerical:"\u6708",regular:"\u6708",modern:"\u6708",
-      notes:{ oracle:"Crescent with interior dots representing stars.",seal:"Near-rectangular form.",modern:"Radical in \u6709,\u670d,\u671f." } },
-    "\u76ee": { oracle:"\u76ee",bronze:"\u76ee",seal:"\u76ee",clerical:"\u76ee",regular:"\u76ee",modern:"\u76ee",
-      notes:{ oracle:"An eye drawn vertically \u2014 later rotated 90\u00b0.",seal:"Standardised rectangle with pupil bar.",modern:"Radical in \u770b,\u771f,\u77e5." } },
-    "\u8033": { oracle:"\u8033",bronze:"\u8033",seal:"\u8033",clerical:"\u8033",regular:"\u8033",modern:"\u8033",
-      notes:{ oracle:"An ear with inner curves \u2014 detailed pictograph.",seal:"Formalised into rectangular outer form.",modern:"Radical in \u806a,\u8046." } },
-    "\u5973": { oracle:"\u5973",bronze:"\u5973",seal:"\u5973",clerical:"\u5973",regular:"\u5973",modern:"\u5973",
-      notes:{ oracle:"A woman kneeling with arms crossed \u2014 respectful posture.",seal:"Simplified into flowing strokes.",modern:"Radical in \u59b9,\u5979,\u5983." } },
-    "\u5b50": { oracle:"\u5b50",bronze:"\u5b50",seal:"\u5b50",clerical:"\u5b50",regular:"\u5b50",modern:"\u5b50",
-      notes:{ oracle:"A baby with arms outstretched \u2014 pictograph of a child.",seal:"Standardised with rounded head stroke.",modern:"Radical in \u5b66,\u5b66,\u5b78." } },
-    "\u725b": { oracle:"\u725b",bronze:"\u725b",seal:"\u725b",clerical:"\u725b",regular:"\u725b",modern:"\u725b",
-      notes:{ oracle:"Ox head with horns pointing up \u2014 top-down view.",seal:"Horns and body regularised.",modern:"Radical in \u7269,\u7272,\u7248." } },
-    "\u7f8a": { oracle:"\u7f8a",bronze:"\u7f8a",seal:"\u7f8a",clerical:"\u7f8a",regular:"\u7f8a",modern:"\u7f8a",
-      notes:{ oracle:"Sheep/goat head with curved horns \u2014 clear pictograph.",seal:"Horns balanced over body strokes.",modern:"Radical in \u7f8e,\u7fa4,\u7fa3." } },
-    "\u9e1f": { oracle:"\u9ce5",bronze:"\u9ce5",seal:"\u9ce5",clerical:"\u9ce5",regular:"\u9ce5",modern:"\u9e1f",
-      notes:{ oracle:"A bird with beak, body, wings, tail and feet visible.",bronze:"Wing and tail feathers prominent.",seal:"Stylised; body and tail compressed.",clerical:"Traditional \u9ce5 \u2014 11 strokes.",modern:"Simplified to \u9e1f (5 strokes)." } },
+    "\u4e00": {
+      oracle: "\u4e00", bronze: "\u4e00", seal: "\u4e00", clerical: "\u4e00", regular: "\u4e00", modern: "\u4e00",
+      notes: { oracle: "A single horizontal stroke \u2014 the simplest pictograph of unity.", seal: "Standardised by the Qin dynasty.", clerical: "Horizontal stroke with slight brush lift.", modern: "Unchanged for 3,000+ years." }
+    },
+    "\u5c71": {
+      oracle: "\u5c71", bronze: "\u5c71", seal: "\u5c71", clerical: "\u5c71", regular: "\u5c71", modern: "\u5c71",
+      notes: { oracle: "Three peaks of a mountain \u2014 iconic pictograph.", bronze: "Three vertical strokes, longer centre peak.", seal: "Regularised strokes of even weight.", clerical: "Horizontal base bar added.", modern: "Mountain silhouette retained." }
+    },
+    "\u6c34": {
+      oracle: "\u6c34", bronze: "\u6c34", seal: "\u6c34", clerical: "\u6c34", regular: "\u6c34", modern: "\u6c34",
+      notes: { oracle: "Wavy lines depicting flowing water.", bronze: "Central stream with flanking ripples.", seal: "Central vertical with angled strokes.", clerical: "Four strokes; angles sharpen.", modern: "Standard 4-stroke form; radical in \u6c5f,\u6d77,\u6cb3." }
+    },
+    "\u706b": {
+      oracle: "\u706b", bronze: "\u706b", seal: "\u706b", clerical: "\u706b", regular: "\u706b", modern: "\u706b",
+      notes: { oracle: "Flames leaping from a base \u2014 direct pictograph of fire.", seal: "Four symmetric strokes.", modern: "Radical in \u7130,\u70e7,\u70df." }
+    },
+    "\u6728": {
+      oracle: "\u6728", bronze: "\u6728", seal: "\u6728", clerical: "\u6728", regular: "\u6728", modern: "\u6728",
+      notes: { oracle: "Tree: trunk, branches above, roots below.", seal: "Symmetrical balanced form.", modern: "Radical in \u6797,\u68ee,\u684c." }
+    },
+    "\u5927": {
+      oracle: "\u5927", bronze: "\u5927", seal: "\u5927", clerical: "\u5927", regular: "\u5927", modern: "\u5927",
+      notes: { oracle: "Person standing with arms spread wide \u2014 \u2018big\u2019.", bronze: "Arms clearly extended laterally.", modern: "Radical in \u5929,\u592a,\u592b." }
+    },
+    "\u4e2d": {
+      oracle: "\u4e2d", bronze: "\u4e2d", seal: "\u4e2d", clerical: "\u4e2d", regular: "\u4e2d", modern: "\u4e2d",
+      notes: { oracle: "A flag through the centre of a target \u2014 \u2018middle\u2019.", seal: "Rectangular frame with vertical axis.", modern: "One of the most common characters." }
+    },
+    "\u53e3": {
+      oracle: "\u53e3", bronze: "\u53e3", seal: "\u53e3", clerical: "\u53e3", regular: "\u53e3", modern: "\u53e3",
+      notes: { oracle: "An open square \u2014 the mouth or opening.", seal: "Perfect square standardised.", modern: "Radical in \u5403,\u559d,\u53eb." }
+    },
+    "\u624b": {
+      oracle: "\u624b", bronze: "\u624b", seal: "\u624b", clerical: "\u624b", regular: "\u624b", modern: "\u624b",
+      notes: { oracle: "Five finger lines from a palm \u2014 direct pictograph.", seal: "4 horizontal strokes + vertical.", modern: "Radical in \u6253,\u62ff,\u63e1." }
+    },
+    "\u5fc3": {
+      oracle: "\u5fc3", bronze: "\u5fc3", seal: "\u5fc3", clerical: "\u5fc3", regular: "\u5fc3", modern: "\u5fc3",
+      notes: { oracle: "Heart shape with ventricles \u2014 ancient anatomical knowledge.", seal: "Curved base with three points.", modern: "Radical in \u60f3,\u5fd8,\u60c5." }
+    },
+    "\u6708": {
+      oracle: "\u6708", bronze: "\u6708", seal: "\u6708", clerical: "\u6708", regular: "\u6708", modern: "\u6708",
+      notes: { oracle: "Crescent with interior dots representing stars.", seal: "Near-rectangular form.", modern: "Radical in \u6709,\u670d,\u671f." }
+    },
+    "\u76ee": {
+      oracle: "\u76ee", bronze: "\u76ee", seal: "\u76ee", clerical: "\u76ee", regular: "\u76ee", modern: "\u76ee",
+      notes: { oracle: "An eye drawn vertically \u2014 later rotated 90\u00b0.", seal: "Standardised rectangle with pupil bar.", modern: "Radical in \u770b,\u771f,\u77e5." }
+    },
+    "\u8033": {
+      oracle: "\u8033", bronze: "\u8033", seal: "\u8033", clerical: "\u8033", regular: "\u8033", modern: "\u8033",
+      notes: { oracle: "An ear with inner curves \u2014 detailed pictograph.", seal: "Formalised into rectangular outer form.", modern: "Radical in \u806a,\u8046." }
+    },
+    "\u5973": {
+      oracle: "\u5973", bronze: "\u5973", seal: "\u5973", clerical: "\u5973", regular: "\u5973", modern: "\u5973",
+      notes: { oracle: "A woman kneeling with arms crossed \u2014 respectful posture.", seal: "Simplified into flowing strokes.", modern: "Radical in \u59b9,\u5979,\u5983." }
+    },
+    "\u5b50": {
+      oracle: "\u5b50", bronze: "\u5b50", seal: "\u5b50", clerical: "\u5b50", regular: "\u5b50", modern: "\u5b50",
+      notes: { oracle: "A baby with arms outstretched \u2014 pictograph of a child.", seal: "Standardised with rounded head stroke.", modern: "Radical in \u5b66,\u5b66,\u5b78." }
+    },
+    "\u725b": {
+      oracle: "\u725b", bronze: "\u725b", seal: "\u725b", clerical: "\u725b", regular: "\u725b", modern: "\u725b",
+      notes: { oracle: "Ox head with horns pointing up \u2014 top-down view.", seal: "Horns and body regularised.", modern: "Radical in \u7269,\u7272,\u7248." }
+    },
+    "\u7f8a": {
+      oracle: "\u7f8a", bronze: "\u7f8a", seal: "\u7f8a", clerical: "\u7f8a", regular: "\u7f8a", modern: "\u7f8a",
+      notes: { oracle: "Sheep/goat head with curved horns \u2014 clear pictograph.", seal: "Horns balanced over body strokes.", modern: "Radical in \u7f8e,\u7fa4,\u7fa3." }
+    },
+    "\u9e1f": {
+      oracle: "\u9ce5", bronze: "\u9ce5", seal: "\u9ce5", clerical: "\u9ce5", regular: "\u9ce5", modern: "\u9e1f",
+      notes: { oracle: "A bird with beak, body, wings, tail and feet visible.", bronze: "Wing and tail feathers prominent.", seal: "Stylised; body and tail compressed.", clerical: "Traditional \u9ce5 \u2014 11 strokes.", modern: "Simplified to \u9e1f (5 strokes)." }
+    },
     // ── Simplified \u2192 Traditional (major visual difference) ───────────────────────────
-    "\u4eba": { oracle:"\ud840\udc89",bronze:"\ud840\udc89",seal:"\u4eba",clerical:"\u4eba",regular:"\u4eba",modern:"\u4eba",
-      notes:{ oracle:"Person in side profile, arms at sides.",bronze:"Simplified silhouette.",seal:"Two strokes established.",modern:"Universal modern form." } },
-    "\u65e5": { oracle:"\ud841\uddb8",bronze:"\u65e5",seal:"\u65e5",clerical:"\u65e5",regular:"\u65e5",modern:"\u65e5",
-      notes:{ oracle:"Circle with a dot inside \u2014 the sun.",bronze:"Rectangular; dot centred.",seal:"Squared form.",modern:"Square with internal bar." } },
-    "\u56fd": { oracle:"\u6216",bronze:"\u6216",seal:"\u56fd",clerical:"\u570b",regular:"\u570B",modern:"\u56fd",
-      notes:{ oracle:"\u6208 (weapon) + \u53e3 (people) \u2014 to defend.",bronze:"Enclosure begins to form.",seal:"Full enclosure: \u56d7 wraps inner element.",clerical:"Traditional \u570B with \u7389 jade inside.",regular:"Full 11-stroke traditional form.",modern:"Simplified: \u738b inside \u56d7 (1956)." } },
-    "\u9a6c": { oracle:"\u99AC",bronze:"\u99AC",seal:"\u99AC",clerical:"\u99AC",regular:"\u99ac",modern:"\u9a6c",
-      notes:{ oracle:"Horse in full profile: mane, body, four legs.",bronze:"Mane and legs prominent.",seal:"Legs compressed to parallel strokes.",clerical:"Traditional \u99ac with four leg dots.",regular:"Full traditional form pre-1956.",modern:"\u9a6c (3 strokes) \u2014 dramatic reduction." } },
-    "\u9c7c": { oracle:"\u9b5a",bronze:"\u9b5a",seal:"\u9b5a",clerical:"\u9b5a",regular:"\u9b5a",modern:"\u9c7c",
-      notes:{ oracle:"Fish with head, scales, and tail fin.",bronze:"Grid-like scale pattern.",seal:"Stylised fish outline.",clerical:"Traditional \u9b5a with four bottom strokes.",regular:"Full traditional form.",modern:"\u9c7c \u2014 four bottom strokes become one." } },
-    "\u8f66": { oracle:"\u8eca",bronze:"\u8eca",seal:"\u8eca",clerical:"\u8eca",regular:"\u8eca",modern:"\u8f66",
-      notes:{ oracle:"Top-down chariot view: axle, wheels, yoke.",bronze:"Wheels and axle visible.",seal:"Balanced rectangular structure.",clerical:"Traditional \u8eca \u2014 7 strokes.",modern:"\u8f66 (4 strokes) \u2014 most dramatic simplification." } },
-    "\u9f99": { oracle:"\u9f8d",bronze:"\u9f8d",seal:"\u9f8d",clerical:"\u9f8d",regular:"\u9f8d",modern:"\u9f99",
-      notes:{ oracle:"Dragon rearing: head, body, claws, scales.",bronze:"Serpentine body with horns.",seal:"Dragon elements compressed.",clerical:"Traditional \u9f8d \u2014 16 strokes.",modern:"\u9f99 (5 strokes) \u2014 modern marvel." } },
-    "\u7231": { oracle:"\u611b",bronze:"\u611b",seal:"\u611b",clerical:"\u611b",regular:"\u611b",modern:"\u7231",
-      notes:{ oracle:"Walking person (\u5902) + heart (\u5fc3) \u2014 feeling.",bronze:"Hand/gift + heart.",seal:"\u65e1 (person) + \u5fc3 (heart) + \u5902 (foot).",clerical:"Traditional \u611b \u2014 13 strokes.",modern:"\u7231 \u2014 \u5fc3 replaced by \u53cb stroke." } },
-    "\u4e66": { oracle:"\u7c50",bronze:"\u7c50",seal:"\u7c50",clerical:"\u66f8",regular:"\u66f8",modern:"\u4e66",
-      notes:{ oracle:"A hand holding a brush \u2014 pictograph of writing.",bronze:"Brush and bamboo tablet shown.",seal:"Stylised writing implement.",clerical:"Traditional \u66f8 \u2014 10 strokes.",modern:"\u4e66 (4 strokes) \u2014 simplified." } },
-    "\u65f6": { oracle:"\u6642",bronze:"\u6642",seal:"\u6642",clerical:"\u6642",regular:"\u6642",modern:"\u65f6",
-      notes:{ oracle:"\u65e5 (sun) + \u5bfa (temple/time) \u2014 time measured by sun at temple.",seal:"Compound fully formed.",clerical:"Traditional \u6642 \u2014 10 strokes.",modern:"\u65f6 (7 strokes) \u2014 simplified." } },
-    "\u6765": { oracle:"\u4f86",bronze:"\u4f86",seal:"\u4f86",clerical:"\u4f86",regular:"\u4f86",modern:"\u6765",
-      notes:{ oracle:"A wheat stalk \u2014 original meaning: grain coming in.",bronze:"Grain stalk with hanging seeds.",seal:"Stylised stalk form.",clerical:"Traditional \u4f86 \u2014 8 strokes.",modern:"\u6765 (7 strokes) \u2014 simplified." } },
-    "\u4e1c": { oracle:"\u6771",bronze:"\u6771",seal:"\u6771",clerical:"\u6771",regular:"\u6771",modern:"\u4e1c",
-      notes:{ oracle:"Sun rising through a tree \u2014 east is where sun rises.",bronze:"Tree silhouette with rising sun.",seal:"Stylised tree + sun compound.",clerical:"Traditional \u6771 \u2014 8 strokes.",modern:"\u4e1c (5 strokes) \u2014 simplified." } },
-    "\u5f00": { oracle:"\u958b",bronze:"\u958b",seal:"\u958b",clerical:"\u958b",regular:"\u958b",modern:"\u5f00",
-      notes:{ oracle:"Hands pulling a door bolt open.",seal:"Door frame + hands compound.",clerical:"Traditional \u958b \u2014 12 strokes.",modern:"\u5f00 (4 strokes) \u2014 simplified." } },
-    "\u957f": { oracle:"\u9577",bronze:"\u9577",seal:"\u9577",clerical:"\u9577",regular:"\u9577",modern:"\u957f",
-      notes:{ oracle:"An elder with long hair \u2014 \u2018long/elder\u2019.",bronze:"Hair strands flowing from head.",seal:"Stylised long-hair figure.",clerical:"Traditional \u9577 \u2014 8 strokes.",modern:"\u957f (4 strokes) \u2014 simplified." } },
-    "\u5934": { oracle:"\u982d",bronze:"\u982d",seal:"\u982d",clerical:"\u982d",regular:"\u982d",modern:"\u5934",
-      notes:{ oracle:"\u9875 (page/head) + \u8c46 (bean/person shape) \u2014 head.",seal:"Compound head pictograph.",clerical:"Traditional \u982d \u2014 16 strokes.",modern:"\u5934 (5 strokes) \u2014 simplified." } },
-    "\u542c": { oracle:"\u807d",bronze:"\u807d",seal:"\u807d",clerical:"\u807d",regular:"\u807d",modern:"\u542c",
-      notes:{ oracle:"\u8033 (ear) + \u5fb7 (virtue/king listening) \u2014 to hear.",seal:"Ear + directional compound.",clerical:"Traditional \u807d \u2014 22 strokes!",modern:"\u542c (7 strokes) \u2014 dramatically simplified." } },
-    "\u95e8": { oracle:"\u9580",bronze:"\u9580",seal:"\u9580",clerical:"\u9580",regular:"\u9580",modern:"\u95e8",
-      notes:{ oracle:"Double-door gate viewed from the front.",bronze:"Two door panels clearly shown.",seal:"Symmetrical double-door form.",clerical:"Traditional \u9580 \u2014 8 strokes.",modern:"\u95e8 (3 strokes) \u2014 simplified." } },
-    "\u95ee": { oracle:"\u554f",bronze:"\u554f",seal:"\u554f",clerical:"\u554f",regular:"\u554f",modern:"\u95ee",
-      notes:{ oracle:"\u95e8 (door) + \u53e3 (mouth) \u2014 calling through a door.",seal:"Mouth at the door compound.",clerical:"Traditional \u554f \u2014 11 strokes.",modern:"\u95ee (6 strokes) \u2014 simplified." } },
-    "\u8bed": { oracle:"\u8a9e",bronze:"\u8a9e",seal:"\u8a9e",clerical:"\u8a9e",regular:"\u8a9e",modern:"\u8bed",
-      notes:{ oracle:"\u8a00 (speech) + \u543e (I/my) \u2014 my speech/language.",seal:"Speech radical + phonetic.",clerical:"Traditional \u8a9e \u2014 14 strokes.",modern:"\u8bed (9 strokes) \u2014 simplified." } },
-    "\u8bf4": { oracle:"\u8aaa",bronze:"\u8aaa",seal:"\u8aaa",clerical:"\u8aaa",regular:"\u8aaa",modern:"\u8bf4",
-      notes:{ oracle:"\u8a00 (speech) + \u5151 (exchange) \u2014 to speak.",seal:"Speech + phonetic compound.",clerical:"Traditional \u8aaa \u2014 14 strokes.",modern:"\u8bf4 (9 strokes) \u2014 simplified." } },
-    "\u89c1": { oracle:"\u898b",bronze:"\u898b",seal:"\u898b",clerical:"\u898b",regular:"\u898b",modern:"\u89c1",
-      notes:{ oracle:"An eye on top of a person \u2014 to see.",bronze:"Eye perched on human legs.",seal:"Stylised eye-on-person compound.",clerical:"Traditional \u898b \u2014 7 strokes.",modern:"\u89c1 (4 strokes) \u2014 simplified." } },
-    "\u98de": { oracle:"\u98db",bronze:"\u98db",seal:"\u98db",clerical:"\u98db",regular:"\u98db",modern:"\u98de",
-      notes:{ oracle:"A bird in flight with wings spread \u2014 pictograph of flying.",bronze:"Wings and body in dynamic pose.",seal:"Stylised flying form.",clerical:"Traditional \u98db \u2014 9 strokes.",modern:"\u98de (3 strokes) \u2014 simplified." } },
-    "\u98ce": { oracle:"\u98a8",bronze:"\u98a8",seal:"\u98a8",clerical:"\u98a8",regular:"\u98a8",modern:"\u98ce",
-      notes:{ oracle:"\u51e0 (sails) + \u866b (insects swarming, wind-blown) \u2014 wind.",seal:"Sail + insect compound.",clerical:"Traditional \u98a8 \u2014 9 strokes.",modern:"\u98ce (4 strokes) \u2014 simplified." } },
-    "\u4e91": { oracle:"\u96f2",bronze:"\u96f2",seal:"\u96f2",clerical:"\u96f2",regular:"\u96f2",modern:"\u4e91",
-      notes:{ oracle:"Billowing cloud shapes \u2014 natural pictograph.",bronze:"Cloud curves with rain below.",seal:"\u96e8 (rain) + cloud form \u2014 \u96f2.",clerical:"Traditional \u96f2 \u2014 12 strokes.",modern:"\u4e91 (4 strokes) = original cloud-only form." } },
-    "\u6c14": { oracle:"\u6c23",bronze:"\u6c23",seal:"\u6c23",clerical:"\u6c23",regular:"\u6c23",modern:"\u6c14",
-      notes:{ oracle:"Rising vapour/breath lines \u2014 pictograph of air/steam.",bronze:"Three undulating breath-vapour lines.",seal:"Vapour + rice (\u7c73) \u2014 steam from cooking.",clerical:"Traditional \u6c23 \u2014 10 strokes.",modern:"\u6c14 (4 strokes) \u2014 simplified." } },
-    "\u7535": { oracle:"\u96fb",bronze:"\u96fb",seal:"\u96fb",clerical:"\u96fb",regular:"\u96fb",modern:"\u7535",
-      notes:{ oracle:"Lightning bolt beneath a rain cloud \u2014 electricity from lightning.",seal:"Rain + lightning compound \u96fb.",clerical:"Traditional \u96fb \u2014 13 strokes.",modern:"\u7535 (5 strokes) \u2014 simplified." } },
-    "\u5b66": { oracle:"\u5b78",bronze:"\u5b78",seal:"\u5b78",clerical:"\u5b78",regular:"\u5b78",modern:"\u5b66",
-      notes:{ oracle:"Hands teaching a child in a building \u2014 to learn.",bronze:"Teacher + child + roof compound.",seal:"Stylised teaching scene \u5b78.",clerical:"Traditional \u5b78 \u2014 16 strokes.",modern:"\u5b66 (8 strokes) \u2014 simplified." } },
-    "\u4e70": { oracle:"\u8cb7",bronze:"\u8cb7",seal:"\u8cb7",clerical:"\u8cb7",regular:"\u8cb7",modern:"\u4e70",
-      notes:{ oracle:"\u8ca1 (goods) + net \u2014 catch goods in trade.",seal:"Net catching goods \u8cb7.",clerical:"Traditional \u8cb7 \u2014 12 strokes.",modern:"\u4e70 (6 strokes) \u2014 simplified." } },
-    "\u5356": { oracle:"\u8ce3",bronze:"\u8ce3",seal:"\u8ce3",clerical:"\u8ce3",regular:"\u8ce3",modern:"\u5356",
-      notes:{ oracle:"\u58eb (person) + \u8cb7 (buy) \u2014 the other side of trade.",seal:"Seller compound \u8ce3.",clerical:"Traditional \u8ce3 \u2014 15 strokes.",modern:"\u5356 (8 strokes) \u2014 simplified." } },
-    "\u793e": { oracle:"\u793e",bronze:"\u793e",seal:"\u793e",clerical:"\u793e",regular:"\u793e",modern:"\u793e",
-      notes:{ oracle:"\u793a (spirit/altar) + \u571f (earth) \u2014 earth altar/society.",seal:"Altar + earth compound.",modern:"Unchanged across scripts." } },
-    "\u4e07": { oracle:"\u842c",bronze:"\u842c",seal:"\u842c",clerical:"\u842c",regular:"\u842c",modern:"\u4e07",
-      notes:{ oracle:"A scorpion \u2014 originally meant scorpion, borrowed for 10,000.",bronze:"Scorpion body and claws visible.",seal:"Stylised \u842c.",clerical:"Traditional \u842c \u2014 3 strokes (same count).",modern:"\u4e07 \u2014 simplified cursive-derived form." } },
-    "\u4e3a": { oracle:"\u70ba",bronze:"\u70ba",seal:"\u70ba",clerical:"\u70ba",regular:"\u70ba",modern:"\u4e3a",
-      notes:{ oracle:"A hand leading an elephant \u2014 to do/make.",bronze:"Person + elephant compound.",seal:"Stylised \u70ba.",clerical:"Traditional \u70ba \u2014 9 strokes.",modern:"\u4e3a (4 strokes) \u2014 simplified." } },
-    "\u4e0e": { oracle:"\u8207",bronze:"\u8207",seal:"\u8207",clerical:"\u8207",regular:"\u8207",modern:"\u4e0e",
-      notes:{ oracle:"Two hands extending together \u2014 to give/and.",seal:"Hands-together compound \u8207.",clerical:"Traditional \u8207 \u2014 13 strokes.",modern:"\u4e0e (3 strokes) \u2014 simplified." } },
-    "\u4e1a": { oracle:"\u696d",bronze:"\u696d",seal:"\u696d",clerical:"\u696d",regular:"\u696d",modern:"\u4e1a",
-      notes:{ oracle:"A musical instrument frame \u2014 craft and profession.",seal:"Stylised craft/work symbol \u696d.",clerical:"Traditional \u696d \u2014 13 strokes.",modern:"\u4e1a (5 strokes) \u2014 simplified." } },
-    "\u4e2a": { oracle:"\u500b",bronze:"\u500b",seal:"\u500b",clerical:"\u500b",regular:"\u500b",modern:"\u4e2a",
-      notes:{ oracle:"Classifier for individual things.",clerical:"Traditional \u500b \u2014 10 strokes.",modern:"\u4e2a (3 strokes) \u2014 simplified." } },
-    "\u51fa": { oracle:"\u51fa",bronze:"\u51fa",seal:"\u51fa",clerical:"\u51fa",regular:"\u51fa",modern:"\u51fa",
-      notes:{ oracle:"A foot stepping out of an enclosure \u2014 to exit.",seal:"Foot + enclosure compound.",modern:"Unchanged across scripts." } },
-    "\u8fdb": { oracle:"\u9032",bronze:"\u9032",seal:"\u9032",clerical:"\u9032",regular:"\u9032",modern:"\u8fdb",
-      notes:{ oracle:"A bird (\u96bc) moving into a space \u2014 to advance.",seal:"Bird + movement compound \u9032.",clerical:"Traditional \u9032 \u2014 11 strokes.",modern:"\u8fdb (7 strokes) \u2014 simplified." } },
-    "\u8fd0": { oracle:"\u904b",bronze:"\u904b",seal:"\u904b",clerical:"\u904b",regular:"\u904b",modern:"\u8fd0",
-      notes:{ oracle:"A cart (\u8eca) moving along a road \u2014 transport.",seal:"Road + cart compound \u904b.",clerical:"Traditional \u904b \u2014 12 strokes.",modern:"\u8fd0 (7 strokes) \u2014 simplified." } },
-    "\u5173": { oracle:"\u95dc",bronze:"\u95dc",seal:"\u95dc",clerical:"\u95dc",regular:"\u95dc",modern:"\u5173",
-      notes:{ oracle:"Two hands sealing a door \u2014 to close/concern.",seal:"Door-sealing compound \u95dc.",clerical:"Traditional \u95dc \u2014 18 strokes!",modern:"\u5173 (6 strokes) \u2014 simplified." } },
-    "\u5c31": { oracle:"\u5c31",bronze:"\u5c31",seal:"\u5c31",clerical:"\u5c31",regular:"\u5c31",modern:"\u5c31",
-      notes:{ oracle:"A person near a high structure \u2014 to approach/accomplish.",modern:"Unchanged across scripts." } },
-    "\u8c03": { oracle:"\u8abf",bronze:"\u8abf",seal:"\u8abf",clerical:"\u8abf",regular:"\u8abf",modern:"\u8c03",
-      notes:{ oracle:"\u8a00 (speech) + \u5468 (all around) \u2014 to coordinate/tune.",clerical:"Traditional \u8abf \u2014 15 strokes.",modern:"\u8c03 (10 strokes) \u2014 simplified." } },
-    "\u60c5": { oracle:"\u60c5",bronze:"\u60c5",seal:"\u60c5",clerical:"\u60c5",regular:"\u60c5",modern:"\u60c5",
-      notes:{ oracle:"\u5fc3 (heart) + \u9752 (blue/pure) \u2014 feelings from the heart.",modern:"Unchanged across scripts." } },
-    "\u5bf9": { oracle:"\u5c0d",bronze:"\u5c0d",seal:"\u5c0d",clerical:"\u5c0d",regular:"\u5c0d",modern:"\u5bf9",
-      notes:{ oracle:"Two hands meeting \u2014 facing/correct.",seal:"Hands-meeting compound \u5c0d.",clerical:"Traditional \u5c0d \u2014 14 strokes.",modern:"\u5bf9 (5 strokes) \u2014 simplified." } },
-    "\u5f53": { oracle:"\u7576",bronze:"\u7576",seal:"\u7576",clerical:"\u7576",regular:"\u7576",modern:"\u5f53",
-      notes:{ oracle:"Granary (\u7530) + opposing forces \u2014 to serve/be.",clerical:"Traditional \u7576 \u2014 13 strokes.",modern:"\u5f53 (6 strokes) \u2014 simplified." } },
-    "\u70ed": { oracle:"\u71b1",bronze:"\u71b1",seal:"\u71b1",clerical:"\u71b1",regular:"\u71b1",modern:"\u70ed",
-      notes:{ oracle:"Fire (\u706b) heating something \u2014 hot.",seal:"Fire compound \u71b1.",clerical:"Traditional \u71b1 \u2014 15 strokes.",modern:"\u70ed (10 strokes) \u2014 simplified." } },
-    "\u5b9e": { oracle:"\u5be6",bronze:"\u5be6",seal:"\u5be6",clerical:"\u5be6",regular:"\u5be6",modern:"\u5b9e",
-      notes:{ oracle:"Roof (\u5b80) + goods (\u8ca1) \u2014 filled storehouse = real.",seal:"Storehouse of goods \u5be6.",clerical:"Traditional \u5be6 \u2014 14 strokes.",modern:"\u5b9e (8 strokes) \u2014 simplified." } },
-    "\u58f0": { oracle:"\u8072",bronze:"\u8072",seal:"\u8072",clerical:"\u8072",regular:"\u8072",modern:"\u58f0",
-      notes:{ oracle:"\u8033 (ear) + instrument \u2014 sound heard.",seal:"Sound + ear compound \u8072.",clerical:"Traditional \u8072 \u2014 17 strokes.",modern:"\u58f0 (7 strokes) \u2014 simplified." } },
-    "\u8ba4": { oracle:"\u8a8d",bronze:"\u8a8d",seal:"\u8a8d",clerical:"\u8a8d",regular:"\u8a8d",modern:"\u8ba4",
-      notes:{ oracle:"\u8a00 (speech) + \u5fcd (endure) \u2014 to acknowledge.",clerical:"Traditional \u8a8d \u2014 14 strokes.",modern:"\u8ba4 (5 strokes) \u2014 simplified." } },
-    "\u9009": { oracle:"\u9078",bronze:"\u9078",seal:"\u9078",clerical:"\u9078",regular:"\u9078",modern:"\u9009",
-      notes:{ oracle:"\u5df1 (self) + \u8fba (movement/road) \u2014 choose your path.",clerical:"Traditional \u9078 \u2014 15 strokes.",modern:"\u9009 (9 strokes) \u2014 simplified." } },
+    "\u4eba": {
+      oracle: "\ud840\udc89", bronze: "\ud840\udc89", seal: "\u4eba", clerical: "\u4eba", regular: "\u4eba", modern: "\u4eba",
+      notes: { oracle: "Person in side profile, arms at sides.", bronze: "Simplified silhouette.", seal: "Two strokes established.", modern: "Universal modern form." }
+    },
+    "\u65e5": {
+      oracle: "\ud841\uddb8", bronze: "\u65e5", seal: "\u65e5", clerical: "\u65e5", regular: "\u65e5", modern: "\u65e5",
+      notes: { oracle: "Circle with a dot inside \u2014 the sun.", bronze: "Rectangular; dot centred.", seal: "Squared form.", modern: "Square with internal bar." }
+    },
+    "\u56fd": {
+      oracle: "\u6216", bronze: "\u6216", seal: "\u56fd", clerical: "\u570b", regular: "\u570B", modern: "\u56fd",
+      notes: { oracle: "\u6208 (weapon) + \u53e3 (people) \u2014 to defend.", bronze: "Enclosure begins to form.", seal: "Full enclosure: \u56d7 wraps inner element.", clerical: "Traditional \u570B with \u7389 jade inside.", regular: "Full 11-stroke traditional form.", modern: "Simplified: \u738b inside \u56d7 (1956)." }
+    },
+    "\u9a6c": {
+      oracle: "\u99AC", bronze: "\u99AC", seal: "\u99AC", clerical: "\u99AC", regular: "\u99ac", modern: "\u9a6c",
+      notes: { oracle: "Horse in full profile: mane, body, four legs.", bronze: "Mane and legs prominent.", seal: "Legs compressed to parallel strokes.", clerical: "Traditional \u99ac with four leg dots.", regular: "Full traditional form pre-1956.", modern: "\u9a6c (3 strokes) \u2014 dramatic reduction." }
+    },
+    "\u9c7c": {
+      oracle: "\u9b5a", bronze: "\u9b5a", seal: "\u9b5a", clerical: "\u9b5a", regular: "\u9b5a", modern: "\u9c7c",
+      notes: { oracle: "Fish with head, scales, and tail fin.", bronze: "Grid-like scale pattern.", seal: "Stylised fish outline.", clerical: "Traditional \u9b5a with four bottom strokes.", regular: "Full traditional form.", modern: "\u9c7c \u2014 four bottom strokes become one." }
+    },
+    "\u8f66": {
+      oracle: "\u8eca", bronze: "\u8eca", seal: "\u8eca", clerical: "\u8eca", regular: "\u8eca", modern: "\u8f66",
+      notes: { oracle: "Top-down chariot view: axle, wheels, yoke.", bronze: "Wheels and axle visible.", seal: "Balanced rectangular structure.", clerical: "Traditional \u8eca \u2014 7 strokes.", modern: "\u8f66 (4 strokes) \u2014 most dramatic simplification." }
+    },
+    "\u9f99": {
+      oracle: "\u9f8d", bronze: "\u9f8d", seal: "\u9f8d", clerical: "\u9f8d", regular: "\u9f8d", modern: "\u9f99",
+      notes: { oracle: "Dragon rearing: head, body, claws, scales.", bronze: "Serpentine body with horns.", seal: "Dragon elements compressed.", clerical: "Traditional \u9f8d \u2014 16 strokes.", modern: "\u9f99 (5 strokes) \u2014 modern marvel." }
+    },
+    "\u7231": {
+      oracle: "\u611b", bronze: "\u611b", seal: "\u611b", clerical: "\u611b", regular: "\u611b", modern: "\u7231",
+      notes: { oracle: "Walking person (\u5902) + heart (\u5fc3) \u2014 feeling.", bronze: "Hand/gift + heart.", seal: "\u65e1 (person) + \u5fc3 (heart) + \u5902 (foot).", clerical: "Traditional \u611b \u2014 13 strokes.", modern: "\u7231 \u2014 \u5fc3 replaced by \u53cb stroke." }
+    },
+    "\u4e66": {
+      oracle: "\u7c50", bronze: "\u7c50", seal: "\u7c50", clerical: "\u66f8", regular: "\u66f8", modern: "\u4e66",
+      notes: { oracle: "A hand holding a brush \u2014 pictograph of writing.", bronze: "Brush and bamboo tablet shown.", seal: "Stylised writing implement.", clerical: "Traditional \u66f8 \u2014 10 strokes.", modern: "\u4e66 (4 strokes) \u2014 simplified." }
+    },
+    "\u65f6": {
+      oracle: "\u6642", bronze: "\u6642", seal: "\u6642", clerical: "\u6642", regular: "\u6642", modern: "\u65f6",
+      notes: { oracle: "\u65e5 (sun) + \u5bfa (temple/time) \u2014 time measured by sun at temple.", seal: "Compound fully formed.", clerical: "Traditional \u6642 \u2014 10 strokes.", modern: "\u65f6 (7 strokes) \u2014 simplified." }
+    },
+    "\u6765": {
+      oracle: "\u4f86", bronze: "\u4f86", seal: "\u4f86", clerical: "\u4f86", regular: "\u4f86", modern: "\u6765",
+      notes: { oracle: "A wheat stalk \u2014 original meaning: grain coming in.", bronze: "Grain stalk with hanging seeds.", seal: "Stylised stalk form.", clerical: "Traditional \u4f86 \u2014 8 strokes.", modern: "\u6765 (7 strokes) \u2014 simplified." }
+    },
+    "\u4e1c": {
+      oracle: "\u6771", bronze: "\u6771", seal: "\u6771", clerical: "\u6771", regular: "\u6771", modern: "\u4e1c",
+      notes: { oracle: "Sun rising through a tree \u2014 east is where sun rises.", bronze: "Tree silhouette with rising sun.", seal: "Stylised tree + sun compound.", clerical: "Traditional \u6771 \u2014 8 strokes.", modern: "\u4e1c (5 strokes) \u2014 simplified." }
+    },
+    "\u5f00": {
+      oracle: "\u958b", bronze: "\u958b", seal: "\u958b", clerical: "\u958b", regular: "\u958b", modern: "\u5f00",
+      notes: { oracle: "Hands pulling a door bolt open.", seal: "Door frame + hands compound.", clerical: "Traditional \u958b \u2014 12 strokes.", modern: "\u5f00 (4 strokes) \u2014 simplified." }
+    },
+    "\u957f": {
+      oracle: "\u9577", bronze: "\u9577", seal: "\u9577", clerical: "\u9577", regular: "\u9577", modern: "\u957f",
+      notes: { oracle: "An elder with long hair \u2014 \u2018long/elder\u2019.", bronze: "Hair strands flowing from head.", seal: "Stylised long-hair figure.", clerical: "Traditional \u9577 \u2014 8 strokes.", modern: "\u957f (4 strokes) \u2014 simplified." }
+    },
+    "\u5934": {
+      oracle: "\u982d", bronze: "\u982d", seal: "\u982d", clerical: "\u982d", regular: "\u982d", modern: "\u5934",
+      notes: { oracle: "\u9875 (page/head) + \u8c46 (bean/person shape) \u2014 head.", seal: "Compound head pictograph.", clerical: "Traditional \u982d \u2014 16 strokes.", modern: "\u5934 (5 strokes) \u2014 simplified." }
+    },
+    "\u542c": {
+      oracle: "\u807d", bronze: "\u807d", seal: "\u807d", clerical: "\u807d", regular: "\u807d", modern: "\u542c",
+      notes: { oracle: "\u8033 (ear) + \u5fb7 (virtue/king listening) \u2014 to hear.", seal: "Ear + directional compound.", clerical: "Traditional \u807d \u2014 22 strokes!", modern: "\u542c (7 strokes) \u2014 dramatically simplified." }
+    },
+    "\u95e8": {
+      oracle: "\u9580", bronze: "\u9580", seal: "\u9580", clerical: "\u9580", regular: "\u9580", modern: "\u95e8",
+      notes: { oracle: "Double-door gate viewed from the front.", bronze: "Two door panels clearly shown.", seal: "Symmetrical double-door form.", clerical: "Traditional \u9580 \u2014 8 strokes.", modern: "\u95e8 (3 strokes) \u2014 simplified." }
+    },
+    "\u95ee": {
+      oracle: "\u554f", bronze: "\u554f", seal: "\u554f", clerical: "\u554f", regular: "\u554f", modern: "\u95ee",
+      notes: { oracle: "\u95e8 (door) + \u53e3 (mouth) \u2014 calling through a door.", seal: "Mouth at the door compound.", clerical: "Traditional \u554f \u2014 11 strokes.", modern: "\u95ee (6 strokes) \u2014 simplified." }
+    },
+    "\u8bed": {
+      oracle: "\u8a9e", bronze: "\u8a9e", seal: "\u8a9e", clerical: "\u8a9e", regular: "\u8a9e", modern: "\u8bed",
+      notes: { oracle: "\u8a00 (speech) + \u543e (I/my) \u2014 my speech/language.", seal: "Speech radical + phonetic.", clerical: "Traditional \u8a9e \u2014 14 strokes.", modern: "\u8bed (9 strokes) \u2014 simplified." }
+    },
+    "\u8bf4": {
+      oracle: "\u8aaa", bronze: "\u8aaa", seal: "\u8aaa", clerical: "\u8aaa", regular: "\u8aaa", modern: "\u8bf4",
+      notes: { oracle: "\u8a00 (speech) + \u5151 (exchange) \u2014 to speak.", seal: "Speech + phonetic compound.", clerical: "Traditional \u8aaa \u2014 14 strokes.", modern: "\u8bf4 (9 strokes) \u2014 simplified." }
+    },
+    "\u89c1": {
+      oracle: "\u898b", bronze: "\u898b", seal: "\u898b", clerical: "\u898b", regular: "\u898b", modern: "\u89c1",
+      notes: { oracle: "An eye on top of a person \u2014 to see.", bronze: "Eye perched on human legs.", seal: "Stylised eye-on-person compound.", clerical: "Traditional \u898b \u2014 7 strokes.", modern: "\u89c1 (4 strokes) \u2014 simplified." }
+    },
+    "\u98de": {
+      oracle: "\u98db", bronze: "\u98db", seal: "\u98db", clerical: "\u98db", regular: "\u98db", modern: "\u98de",
+      notes: { oracle: "A bird in flight with wings spread \u2014 pictograph of flying.", bronze: "Wings and body in dynamic pose.", seal: "Stylised flying form.", clerical: "Traditional \u98db \u2014 9 strokes.", modern: "\u98de (3 strokes) \u2014 simplified." }
+    },
+    "\u98ce": {
+      oracle: "\u98a8", bronze: "\u98a8", seal: "\u98a8", clerical: "\u98a8", regular: "\u98a8", modern: "\u98ce",
+      notes: { oracle: "\u51e0 (sails) + \u866b (insects swarming, wind-blown) \u2014 wind.", seal: "Sail + insect compound.", clerical: "Traditional \u98a8 \u2014 9 strokes.", modern: "\u98ce (4 strokes) \u2014 simplified." }
+    },
+    "\u4e91": {
+      oracle: "\u96f2", bronze: "\u96f2", seal: "\u96f2", clerical: "\u96f2", regular: "\u96f2", modern: "\u4e91",
+      notes: { oracle: "Billowing cloud shapes \u2014 natural pictograph.", bronze: "Cloud curves with rain below.", seal: "\u96e8 (rain) + cloud form \u2014 \u96f2.", clerical: "Traditional \u96f2 \u2014 12 strokes.", modern: "\u4e91 (4 strokes) = original cloud-only form." }
+    },
+    "\u6c14": {
+      oracle: "\u6c23", bronze: "\u6c23", seal: "\u6c23", clerical: "\u6c23", regular: "\u6c23", modern: "\u6c14",
+      notes: { oracle: "Rising vapour/breath lines \u2014 pictograph of air/steam.", bronze: "Three undulating breath-vapour lines.", seal: "Vapour + rice (\u7c73) \u2014 steam from cooking.", clerical: "Traditional \u6c23 \u2014 10 strokes.", modern: "\u6c14 (4 strokes) \u2014 simplified." }
+    },
+    "\u7535": {
+      oracle: "\u96fb", bronze: "\u96fb", seal: "\u96fb", clerical: "\u96fb", regular: "\u96fb", modern: "\u7535",
+      notes: { oracle: "Lightning bolt beneath a rain cloud \u2014 electricity from lightning.", seal: "Rain + lightning compound \u96fb.", clerical: "Traditional \u96fb \u2014 13 strokes.", modern: "\u7535 (5 strokes) \u2014 simplified." }
+    },
+    "\u5b66": {
+      oracle: "\u5b78", bronze: "\u5b78", seal: "\u5b78", clerical: "\u5b78", regular: "\u5b78", modern: "\u5b66",
+      notes: { oracle: "Hands teaching a child in a building \u2014 to learn.", bronze: "Teacher + child + roof compound.", seal: "Stylised teaching scene \u5b78.", clerical: "Traditional \u5b78 \u2014 16 strokes.", modern: "\u5b66 (8 strokes) \u2014 simplified." }
+    },
+    "\u4e70": {
+      oracle: "\u8cb7", bronze: "\u8cb7", seal: "\u8cb7", clerical: "\u8cb7", regular: "\u8cb7", modern: "\u4e70",
+      notes: { oracle: "\u8ca1 (goods) + net \u2014 catch goods in trade.", seal: "Net catching goods \u8cb7.", clerical: "Traditional \u8cb7 \u2014 12 strokes.", modern: "\u4e70 (6 strokes) \u2014 simplified." }
+    },
+    "\u5356": {
+      oracle: "\u8ce3", bronze: "\u8ce3", seal: "\u8ce3", clerical: "\u8ce3", regular: "\u8ce3", modern: "\u5356",
+      notes: { oracle: "\u58eb (person) + \u8cb7 (buy) \u2014 the other side of trade.", seal: "Seller compound \u8ce3.", clerical: "Traditional \u8ce3 \u2014 15 strokes.", modern: "\u5356 (8 strokes) \u2014 simplified." }
+    },
+    "\u793e": {
+      oracle: "\u793e", bronze: "\u793e", seal: "\u793e", clerical: "\u793e", regular: "\u793e", modern: "\u793e",
+      notes: { oracle: "\u793a (spirit/altar) + \u571f (earth) \u2014 earth altar/society.", seal: "Altar + earth compound.", modern: "Unchanged across scripts." }
+    },
+    "\u4e07": {
+      oracle: "\u842c", bronze: "\u842c", seal: "\u842c", clerical: "\u842c", regular: "\u842c", modern: "\u4e07",
+      notes: { oracle: "A scorpion \u2014 originally meant scorpion, borrowed for 10,000.", bronze: "Scorpion body and claws visible.", seal: "Stylised \u842c.", clerical: "Traditional \u842c \u2014 3 strokes (same count).", modern: "\u4e07 \u2014 simplified cursive-derived form." }
+    },
+    "\u4e3a": {
+      oracle: "\u70ba", bronze: "\u70ba", seal: "\u70ba", clerical: "\u70ba", regular: "\u70ba", modern: "\u4e3a",
+      notes: { oracle: "A hand leading an elephant \u2014 to do/make.", bronze: "Person + elephant compound.", seal: "Stylised \u70ba.", clerical: "Traditional \u70ba \u2014 9 strokes.", modern: "\u4e3a (4 strokes) \u2014 simplified." }
+    },
+    "\u4e0e": {
+      oracle: "\u8207", bronze: "\u8207", seal: "\u8207", clerical: "\u8207", regular: "\u8207", modern: "\u4e0e",
+      notes: { oracle: "Two hands extending together \u2014 to give/and.", seal: "Hands-together compound \u8207.", clerical: "Traditional \u8207 \u2014 13 strokes.", modern: "\u4e0e (3 strokes) \u2014 simplified." }
+    },
+    "\u4e1a": {
+      oracle: "\u696d", bronze: "\u696d", seal: "\u696d", clerical: "\u696d", regular: "\u696d", modern: "\u4e1a",
+      notes: { oracle: "A musical instrument frame \u2014 craft and profession.", seal: "Stylised craft/work symbol \u696d.", clerical: "Traditional \u696d \u2014 13 strokes.", modern: "\u4e1a (5 strokes) \u2014 simplified." }
+    },
+    "\u4e2a": {
+      oracle: "\u500b", bronze: "\u500b", seal: "\u500b", clerical: "\u500b", regular: "\u500b", modern: "\u4e2a",
+      notes: { oracle: "Classifier for individual things.", clerical: "Traditional \u500b \u2014 10 strokes.", modern: "\u4e2a (3 strokes) \u2014 simplified." }
+    },
+    "\u51fa": {
+      oracle: "\u51fa", bronze: "\u51fa", seal: "\u51fa", clerical: "\u51fa", regular: "\u51fa", modern: "\u51fa",
+      notes: { oracle: "A foot stepping out of an enclosure \u2014 to exit.", seal: "Foot + enclosure compound.", modern: "Unchanged across scripts." }
+    },
+    "\u8fdb": {
+      oracle: "\u9032", bronze: "\u9032", seal: "\u9032", clerical: "\u9032", regular: "\u9032", modern: "\u8fdb",
+      notes: { oracle: "A bird (\u96bc) moving into a space \u2014 to advance.", seal: "Bird + movement compound \u9032.", clerical: "Traditional \u9032 \u2014 11 strokes.", modern: "\u8fdb (7 strokes) \u2014 simplified." }
+    },
+    "\u8fd0": {
+      oracle: "\u904b", bronze: "\u904b", seal: "\u904b", clerical: "\u904b", regular: "\u904b", modern: "\u8fd0",
+      notes: { oracle: "A cart (\u8eca) moving along a road \u2014 transport.", seal: "Road + cart compound \u904b.", clerical: "Traditional \u904b \u2014 12 strokes.", modern: "\u8fd0 (7 strokes) \u2014 simplified." }
+    },
+    "\u5173": {
+      oracle: "\u95dc", bronze: "\u95dc", seal: "\u95dc", clerical: "\u95dc", regular: "\u95dc", modern: "\u5173",
+      notes: { oracle: "Two hands sealing a door \u2014 to close/concern.", seal: "Door-sealing compound \u95dc.", clerical: "Traditional \u95dc \u2014 18 strokes!", modern: "\u5173 (6 strokes) \u2014 simplified." }
+    },
+    "\u5c31": {
+      oracle: "\u5c31", bronze: "\u5c31", seal: "\u5c31", clerical: "\u5c31", regular: "\u5c31", modern: "\u5c31",
+      notes: { oracle: "A person near a high structure \u2014 to approach/accomplish.", modern: "Unchanged across scripts." }
+    },
+    "\u8c03": {
+      oracle: "\u8abf", bronze: "\u8abf", seal: "\u8abf", clerical: "\u8abf", regular: "\u8abf", modern: "\u8c03",
+      notes: { oracle: "\u8a00 (speech) + \u5468 (all around) \u2014 to coordinate/tune.", clerical: "Traditional \u8abf \u2014 15 strokes.", modern: "\u8c03 (10 strokes) \u2014 simplified." }
+    },
+    "\u60c5": {
+      oracle: "\u60c5", bronze: "\u60c5", seal: "\u60c5", clerical: "\u60c5", regular: "\u60c5", modern: "\u60c5",
+      notes: { oracle: "\u5fc3 (heart) + \u9752 (blue/pure) \u2014 feelings from the heart.", modern: "Unchanged across scripts." }
+    },
+    "\u5bf9": {
+      oracle: "\u5c0d", bronze: "\u5c0d", seal: "\u5c0d", clerical: "\u5c0d", regular: "\u5c0d", modern: "\u5bf9",
+      notes: { oracle: "Two hands meeting \u2014 facing/correct.", seal: "Hands-meeting compound \u5c0d.", clerical: "Traditional \u5c0d \u2014 14 strokes.", modern: "\u5bf9 (5 strokes) \u2014 simplified." }
+    },
+    "\u5f53": {
+      oracle: "\u7576", bronze: "\u7576", seal: "\u7576", clerical: "\u7576", regular: "\u7576", modern: "\u5f53",
+      notes: { oracle: "Granary (\u7530) + opposing forces \u2014 to serve/be.", clerical: "Traditional \u7576 \u2014 13 strokes.", modern: "\u5f53 (6 strokes) \u2014 simplified." }
+    },
+    "\u70ed": {
+      oracle: "\u71b1", bronze: "\u71b1", seal: "\u71b1", clerical: "\u71b1", regular: "\u71b1", modern: "\u70ed",
+      notes: { oracle: "Fire (\u706b) heating something \u2014 hot.", seal: "Fire compound \u71b1.", clerical: "Traditional \u71b1 \u2014 15 strokes.", modern: "\u70ed (10 strokes) \u2014 simplified." }
+    },
+    "\u5b9e": {
+      oracle: "\u5be6", bronze: "\u5be6", seal: "\u5be6", clerical: "\u5be6", regular: "\u5be6", modern: "\u5b9e",
+      notes: { oracle: "Roof (\u5b80) + goods (\u8ca1) \u2014 filled storehouse = real.", seal: "Storehouse of goods \u5be6.", clerical: "Traditional \u5be6 \u2014 14 strokes.", modern: "\u5b9e (8 strokes) \u2014 simplified." }
+    },
+    "\u58f0": {
+      oracle: "\u8072", bronze: "\u8072", seal: "\u8072", clerical: "\u8072", regular: "\u8072", modern: "\u58f0",
+      notes: { oracle: "\u8033 (ear) + instrument \u2014 sound heard.", seal: "Sound + ear compound \u8072.", clerical: "Traditional \u8072 \u2014 17 strokes.", modern: "\u58f0 (7 strokes) \u2014 simplified." }
+    },
+    "\u8ba4": {
+      oracle: "\u8a8d", bronze: "\u8a8d", seal: "\u8a8d", clerical: "\u8a8d", regular: "\u8a8d", modern: "\u8ba4",
+      notes: { oracle: "\u8a00 (speech) + \u5fcd (endure) \u2014 to acknowledge.", clerical: "Traditional \u8a8d \u2014 14 strokes.", modern: "\u8ba4 (5 strokes) \u2014 simplified." }
+    },
+    "\u9009": {
+      oracle: "\u9078", bronze: "\u9078", seal: "\u9078", clerical: "\u9078", regular: "\u9078", modern: "\u9009",
+      notes: { oracle: "\u5df1 (self) + \u8fba (movement/road) \u2014 choose your path.", clerical: "Traditional \u9078 \u2014 15 strokes.", modern: "\u9009 (9 strokes) \u2014 simplified." }
+    },
   };
 
   // Simplified \u2192 Traditional quick-lookup for characters not in full EVO_DATA.
   // Provides the single most important historical difference: pre-reform form.
   const SIMPLIFIED_TO_TRADITIONAL = {
-    "\u4e86":"\u4e86","\u4e0d":"\u4e0d","\u4e5f":"\u4e5f","\u548c":"\u548c","\u6709":"\u6709","\u6ca1":"\u6c92",
-    "\u8fd9":"\u9019","\u90a3":"\u90a3","\u4ec0":"\u4ec0","\u4e48":"\u9ebc","\u5403":"\u5403","\u559d":"\u559d",
-    "\u770b":"\u770b","\u53bb":"\u53bb","\u60f3":"\u60f3","\u4f1a":"\u6703","\u80fd":"\u80fd","\u8981":"\u8981",
-    "\u53ef":"\u53ef","\u4ee5":"\u4ee5","\u5e74":"\u5e74","\u53f7":"\u865f","\u4eca":"\u4eca","\u660e":"\u660e",
-    "\u6628":"\u6628","\u5929":"\u5929","\u661f":"\u661f","\u671f":"\u671f","\u4e0a":"\u4e0a","\u4e0b":"\u4e0b",
-    "\u5de6":"\u5de6","\u53f3":"\u53f3","\u524d":"\u524d","\u540e":"\u5f8c","\u91cc":"\u88e1","\u5916":"\u5916",
-    "\u591a":"\u591a","\u5c11":"\u5c11","\u597d":"\u597d","\u574f":"\u58de","\u51b7":"\u51b7","\u9ad8":"\u9ad8",
-    "\u4f4e":"\u4f4e","\u8fdc":"\u9060","\u8fd1":"\u8fd1","\u5feb":"\u5feb","\u6162":"\u6162","\u65e9":"\u65e9",
-    "\u665a":"\u665a","\u65b0":"\u65b0","\u65e7":"\u820a","\u5c0f":"\u5c0f","\u5730":"\u5730","\u5bb6":"\u5bb6",
-    "\u623f":"\u623f","\u8def":"\u8def","\u5e97":"\u5e97","\u996d":"\u98ef","\u7236":"\u7236","\u6bcd":"\u6bcd",
-    "\u5144":"\u5144","\u5f1f":"\u5f1f","\u59d0":"\u59d0","\u59b9":"\u59b9","\u513f":"\u5152","\u8001":"\u8001",
-    "\u5e08":"\u5e2b","\u670b":"\u670b","\u53cb":"\u53cb","\u4f60":"\u4f60","\u6211":"\u6211","\u4ed6":"\u4ed6",
-    "\u5979":"\u5979","\u5b83":"\u5b83","\u4eec":"\u5011","\u5728":"\u5728","\u4e0a":"\u4e0a","\u4e2a":"\u500b",
-    "\u751f":"\u751f","\u697c":"\u6a13","\u5c71":"\u5c71","\u5317":"\u5317","\u5357":"\u5357","\u897f":"\u897f",
-    "\u5927":"\u5927","\u9053":"\u9053","\u673a":"\u6a5f","\u9898":"\u984c","\u603b":"\u7e3d","\u7b2c":"\u7b2c",
-    "\u671f":"\u671f","\u5e02":"\u5e02","\u4ea4":"\u4ea4","\u901a":"\u901a","\u516c":"\u516c","\u5171":"\u5171",
-    "\u52a8":"\u52d5","\u73af":"\u74b0","\u5883":"\u5883","\u8ba1":"\u8a08","\u5212":"\u5283","\u5206":"\u5206",
-    "\u6cbb":"\u6cbb","\u7406":"\u7406","\u4ee3":"\u4ee3","\u8868":"\u8868","\u8003":"\u8003","\u8bc6":"\u8b58",
-    "\u5ea6":"\u5ea6","\u80dc":"\u52dd","\u4efb":"\u4efb","\u52a1":"\u52d9","\u5e9f":"\u5ee2","\u5c55":"\u5c55",
-    "\u5185":"\u5167","\u5916":"\u5916","\u5f39":"\u5f48","\u5355":"\u55ae","\u5171":"\u5171","\u56e2":"\u5718",
-    "\u5708":"\u5708","\u753b":"\u756b","\u5199":"\u5beb","\u62a5":"\u5831","\u7f51":"\u7db2","\u7ebf":"\u7dda",
-    "\u8fb9":"\u908a","\u53d1":"\u9aee","\u4e30":"\u8c50","\u4ea7":"\u7522","\u4ece":"\u5f9e","\u5c42":"\u5c64",
-    "\u8ba8":"\u8a0e","\u8bae":"\u8b70","\u8bba":"\u8ad6","\u8bc4":"\u8a55","\u8bfe":"\u8ab2","\u8bcd":"\u8a5e",
-    "\u8bef":"\u8aa4","\u8c01":"\u8ab0","\u8ba9":"\u8b93","\u8bed":"\u8a9e","\u8bf4":"\u8aaa","\u8bfb":"\u8b80",
-    "\u8d26":"\u8cec","\u8d27":"\u8ca8","\u8d39":"\u8cbb","\u8d70":"\u8d70","\u8d77":"\u8d77","\u8d34":"\u8cbc",
-    "\u5c40":"\u5c40","\u5c71":"\u5c71","\u573a":"\u5834","\u5899":"\u7246","\u5929":"\u5929","\u5730":"\u5730",
+    "\u4e86": "\u4e86", "\u4e0d": "\u4e0d", "\u4e5f": "\u4e5f", "\u548c": "\u548c", "\u6709": "\u6709", "\u6ca1": "\u6c92",
+    "\u8fd9": "\u9019", "\u90a3": "\u90a3", "\u4ec0": "\u4ec0", "\u4e48": "\u9ebc", "\u5403": "\u5403", "\u559d": "\u559d",
+    "\u770b": "\u770b", "\u53bb": "\u53bb", "\u60f3": "\u60f3", "\u4f1a": "\u6703", "\u80fd": "\u80fd", "\u8981": "\u8981",
+    "\u53ef": "\u53ef", "\u4ee5": "\u4ee5", "\u5e74": "\u5e74", "\u53f7": "\u865f", "\u4eca": "\u4eca", "\u660e": "\u660e",
+    "\u6628": "\u6628", "\u5929": "\u5929", "\u661f": "\u661f", "\u671f": "\u671f", "\u4e0a": "\u4e0a", "\u4e0b": "\u4e0b",
+    "\u5de6": "\u5de6", "\u53f3": "\u53f3", "\u524d": "\u524d", "\u540e": "\u5f8c", "\u91cc": "\u88e1", "\u5916": "\u5916",
+    "\u591a": "\u591a", "\u5c11": "\u5c11", "\u597d": "\u597d", "\u574f": "\u58de", "\u51b7": "\u51b7", "\u9ad8": "\u9ad8",
+    "\u4f4e": "\u4f4e", "\u8fdc": "\u9060", "\u8fd1": "\u8fd1", "\u5feb": "\u5feb", "\u6162": "\u6162", "\u65e9": "\u65e9",
+    "\u665a": "\u665a", "\u65b0": "\u65b0", "\u65e7": "\u820a", "\u5c0f": "\u5c0f", "\u5730": "\u5730", "\u5bb6": "\u5bb6",
+    "\u623f": "\u623f", "\u8def": "\u8def", "\u5e97": "\u5e97", "\u996d": "\u98ef", "\u7236": "\u7236", "\u6bcd": "\u6bcd",
+    "\u5144": "\u5144", "\u5f1f": "\u5f1f", "\u59d0": "\u59d0", "\u59b9": "\u59b9", "\u513f": "\u5152", "\u8001": "\u8001",
+    "\u5e08": "\u5e2b", "\u670b": "\u670b", "\u53cb": "\u53cb", "\u4f60": "\u4f60", "\u6211": "\u6211", "\u4ed6": "\u4ed6",
+    "\u5979": "\u5979", "\u5b83": "\u5b83", "\u4eec": "\u5011", "\u5728": "\u5728", "\u4e0a": "\u4e0a", "\u4e2a": "\u500b",
+    "\u751f": "\u751f", "\u697c": "\u6a13", "\u5c71": "\u5c71", "\u5317": "\u5317", "\u5357": "\u5357", "\u897f": "\u897f",
+    "\u5927": "\u5927", "\u9053": "\u9053", "\u673a": "\u6a5f", "\u9898": "\u984c", "\u603b": "\u7e3d", "\u7b2c": "\u7b2c",
+    "\u671f": "\u671f", "\u5e02": "\u5e02", "\u4ea4": "\u4ea4", "\u901a": "\u901a", "\u516c": "\u516c", "\u5171": "\u5171",
+    "\u52a8": "\u52d5", "\u73af": "\u74b0", "\u5883": "\u5883", "\u8ba1": "\u8a08", "\u5212": "\u5283", "\u5206": "\u5206",
+    "\u6cbb": "\u6cbb", "\u7406": "\u7406", "\u4ee3": "\u4ee3", "\u8868": "\u8868", "\u8003": "\u8003", "\u8bc6": "\u8b58",
+    "\u5ea6": "\u5ea6", "\u80dc": "\u52dd", "\u4efb": "\u4efb", "\u52a1": "\u52d9", "\u5e9f": "\u5ee2", "\u5c55": "\u5c55",
+    "\u5185": "\u5167", "\u5916": "\u5916", "\u5f39": "\u5f48", "\u5355": "\u55ae", "\u5171": "\u5171", "\u56e2": "\u5718",
+    "\u5708": "\u5708", "\u753b": "\u756b", "\u5199": "\u5beb", "\u62a5": "\u5831", "\u7f51": "\u7db2", "\u7ebf": "\u7dda",
+    "\u8fb9": "\u908a", "\u53d1": "\u9aee", "\u4e30": "\u8c50", "\u4ea7": "\u7522", "\u4ece": "\u5f9e", "\u5c42": "\u5c64",
+    "\u8ba8": "\u8a0e", "\u8bae": "\u8b70", "\u8bba": "\u8ad6", "\u8bc4": "\u8a55", "\u8bfe": "\u8ab2", "\u8bcd": "\u8a5e",
+    "\u8bef": "\u8aa4", "\u8c01": "\u8ab0", "\u8ba9": "\u8b93", "\u8bed": "\u8a9e", "\u8bf4": "\u8aaa", "\u8bfb": "\u8b80",
+    "\u8d26": "\u8cec", "\u8d27": "\u8ca8", "\u8d39": "\u8cbb", "\u8d70": "\u8d70", "\u8d77": "\u8d77", "\u8d34": "\u8cbc",
+    "\u5c40": "\u5c40", "\u5c71": "\u5c71", "\u573a": "\u5834", "\u5899": "\u7246", "\u5929": "\u5929", "\u5730": "\u5730",
   };
 
   // Get the traditional (or best historical) form for a character.
@@ -6317,9 +6632,9 @@ document.addEventListener("DOMContentLoaded", () => {
     grid.innerHTML = pageItems.map(item => {
       const stages = getEvoStages(item.c);
       const ribbonHtml = stages.map(s =>
-        `<div class="evo-ribbon-stage${s.placeholder ? ' placeholder' : ''}" title="${escHtml(s.name)}">`+
-        `<span class="evo-ribbon-glyph">${escHtml(s.glyph)}</span>`+
-        `<span class="evo-ribbon-label">${escHtml(s.name.split(' ')[0])}</span>`+
+        `<div class="evo-ribbon-stage${s.placeholder ? ' placeholder' : ''}" title="${escHtml(s.name)}">` +
+        `<span class="evo-ribbon-glyph">${escHtml(s.glyph)}</span>` +
+        `<span class="evo-ribbon-label">${escHtml(s.name.split(' ')[0])}</span>` +
         `</div>`
       ).join('');
       const hskLabel = item.h && Number(item.h) > 0 ? (Number(item.h) <= 6 ? 'HSK ' + item.h : 'HSK 7-9') : 'Beyond';
@@ -6476,11 +6791,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     comp.innerHTML = components.map(c =>
-      `<button type="button" class="evo-component-chip" data-comp-char="${escHtml(c.hanzi)}">`+
-      `<span class="evo-component-hanzi">${escHtml(c.hanzi)}</span>`+
-      `<span class="evo-component-info">`+
-      `<span class="evo-component-label">${escHtml(c.label)}</span>`+
-      `<span class="evo-component-meaning">${escHtml((c.meaning || '').slice(0, 30))}</span>`+
+      `<button type="button" class="evo-component-chip" data-comp-char="${escHtml(c.hanzi)}">` +
+      `<span class="evo-component-hanzi">${escHtml(c.hanzi)}</span>` +
+      `<span class="evo-component-info">` +
+      `<span class="evo-component-label">${escHtml(c.label)}</span>` +
+      `<span class="evo-component-meaning">${escHtml((c.meaning || '').slice(0, 30))}</span>` +
       `</span></button>`
     ).join('');
 
@@ -6502,10 +6817,10 @@ document.addEventListener("DOMContentLoaded", () => {
       { name: '小學堂', desc: 'Academia Sinica — oracle bone, bronze, and seal script images', url: `https://xiaoxue.iis.sinica.edu.tw/yanbian?kaiOrder=${enc}`, action: 'Open ↗' },
       { name: 'YellowBridge', desc: 'Etymology, stroke order, and related characters', url: `https://www.yellowbridge.com/chinese/character-etymology.php?zi=${enc}`, action: 'Open ↗' },
     ].map(s =>
-      `<a class="evo-source-card" href="${s.url}" target="_blank" rel="noopener">`+
-      `<span class="evo-source-name">${escHtml(s.name)}</span>`+
-      `<span class="evo-source-desc">${escHtml(s.desc)}</span>`+
-      `<span class="evo-source-action">${s.action}</span>`+
+      `<a class="evo-source-card" href="${s.url}" target="_blank" rel="noopener">` +
+      `<span class="evo-source-name">${escHtml(s.name)}</span>` +
+      `<span class="evo-source-desc">${escHtml(s.desc)}</span>` +
+      `<span class="evo-source-action">${s.action}</span>` +
       `</a>`
     ).join('');
   }
@@ -6523,7 +6838,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const extract = data.extract || '';
       if (extract && extract.length > 20) {
         story.innerHTML =
-          `<p>${escHtml(extract)}</p>`+
+          `<p>${escHtml(extract)}</p>` +
           `<blockquote>Source: Wiktionary · <a href="https://en.wiktionary.org/wiki/${enc}#Chinese" target="_blank" rel="noopener" style="color:var(--gold-dark);">Open full entry ↗</a></blockquote>`;
       } else {
         throw new Error('No extract');
@@ -6533,9 +6848,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const item = HANZI_BY_CHAR[evoCurrentChar || char];
       const m = item ? formatDefinition(item.m || '') : '';
       const fallbackText = m
-        ? `<p>The character <strong>${escHtml(char)}</strong> means <em>${escHtml(m)}</em>. `+
-          `Its evolution can be traced through the script stages shown above, from ancient pictographic or ideographic forms to the modern standardised character used in contemporary Chinese.</p>`+
-          `<blockquote>For a full etymology, open the <a href="https://en.wiktionary.org/wiki/${encodeURIComponent(char)}#Chinese" target="_blank" rel="noopener" style="color:var(--gold-dark);">Wiktionary entry ↗</a></blockquote>`
+        ? `<p>The character <strong>${escHtml(char)}</strong> means <em>${escHtml(m)}</em>. ` +
+        `Its evolution can be traced through the script stages shown above, from ancient pictographic or ideographic forms to the modern standardised character used in contemporary Chinese.</p>` +
+        `<blockquote>For a full etymology, open the <a href="https://en.wiktionary.org/wiki/${encodeURIComponent(char)}#Chinese" target="_blank" rel="noopener" style="color:var(--gold-dark);">Wiktionary entry ↗</a></blockquote>`
         : `<p>Etymology data not available offline. Open the source links below for detailed etymology information.</p>`;
       story.innerHTML = fallbackText;
     }
@@ -6590,7 +6905,7 @@ document.addEventListener("DOMContentLoaded", () => {
    END EVOLUTION MODULE
    ============================================================ */
 
-  
+
   /* ============================================================
    PICTOGRAPHS MODULE — 象形画字与绘画工坊
    ============================================================ */
@@ -7456,5 +7771,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  init();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
