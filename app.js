@@ -90,17 +90,68 @@ document.addEventListener("DOMContentLoaded", () => {
 (function () {
   "use strict";
 
-  const HANZI_DATA = window.HANZI_DATA || [];
-  const SENTENCE_DATA = window.SENTENCE_DATA || [];
-  const RADICAL_DATA = window.RADICAL_DATA || [];
-  const HSK_WORDS_DATA = window.HSK_WORDS_DATA || [];
-  const LEVEL_GROUPS = window.LEVEL_GROUPS || [];
-  const RADICAL_DETAILS = window.RADICAL_DETAILS || [];
-  const RADICAL_DATA_URLS = window.RADICAL_DATA_URLS || [];
-  const RADICAL_RSINDEX_URLS = window.RADICAL_RSINDEX_URLS || [];
-  const LEVELS = window.LEVELS || [];
-  const ACHIEVEMENTS = window.ACHIEVEMENTS || [];
-  const PICTOGRAPH_DATA = window.PICTOGRAPH_DATA || [];
+  let HANZI_DATA = window.HANZI_DATA || [];
+  let SENTENCE_DATA = window.SENTENCE_DATA || [];
+  let RADICAL_DATA = window.RADICAL_DATA || [];
+  let HSK_WORDS_DATA = window.HSK_WORDS_DATA || [];
+  let LEVEL_GROUPS = window.LEVEL_GROUPS || [];
+  let RADICAL_DETAILS = window.RADICAL_DETAILS || [];
+  let RADICAL_DATA_URLS = window.RADICAL_DATA_URLS || [];
+  let RADICAL_RSINDEX_URLS = window.RADICAL_RSINDEX_URLS || [];
+  let LEVELS = window.LEVELS || [];
+  let ACHIEVEMENTS = window.ACHIEVEMENTS || [];
+  let PICTOGRAPH_DATA = window.PICTOGRAPH_DATA || [];
+
+  let dataLoadPromise = null;
+  async function loadDataFiles() {
+    if (dataLoadPromise) return dataLoadPromise;
+    dataLoadPromise = (async () => {
+      try {
+        const [dataRes, wordsRes, sentencesRes] = await Promise.all([
+          (window.HANZI_DATA && window.HANZI_DATA.length)
+            ? Promise.resolve(null)
+            : fetch("data.json").then(r => r.ok ? r.json() : null).catch(() => null),
+          (window.HSK_WORDS_DATA && window.HSK_WORDS_DATA.length)
+            ? Promise.resolve(null)
+            : fetch("words.json").then(r => r.ok ? r.json() : null).catch(() => null),
+          (window.SENTENCE_DATA && window.SENTENCE_DATA.length)
+            ? Promise.resolve(null)
+            : fetch("sentences.json").then(r => r.ok ? r.json() : null).catch(() => null)
+        ]);
+
+        if (dataRes) {
+          if (Array.isArray(dataRes)) {
+            HANZI_DATA = dataRes;
+            window.HANZI_DATA = dataRes;
+          } else {
+            if (dataRes.HANZI_DATA) { HANZI_DATA = dataRes.HANZI_DATA; window.HANZI_DATA = dataRes.HANZI_DATA; }
+            if (dataRes.LEVEL_GROUPS) { LEVEL_GROUPS = dataRes.LEVEL_GROUPS; window.LEVEL_GROUPS = dataRes.LEVEL_GROUPS; }
+            if (dataRes.RADICAL_DETAILS) { RADICAL_DETAILS = dataRes.RADICAL_DETAILS; window.RADICAL_DETAILS = dataRes.RADICAL_DETAILS; }
+            if (dataRes.RADICAL_DATA_URLS) { RADICAL_DATA_URLS = dataRes.RADICAL_DATA_URLS; window.RADICAL_DATA_URLS = dataRes.RADICAL_DATA_URLS; }
+            if (dataRes.RADICAL_RSINDEX_URLS) { RADICAL_RSINDEX_URLS = dataRes.RADICAL_RSINDEX_URLS; window.RADICAL_RSINDEX_URLS = dataRes.RADICAL_RSINDEX_URLS; }
+            if (dataRes.LEVELS) { LEVELS = dataRes.LEVELS; window.LEVELS = dataRes.LEVELS; }
+            if (dataRes.ACHIEVEMENTS) { ACHIEVEMENTS = dataRes.ACHIEVEMENTS; window.ACHIEVEMENTS = dataRes.ACHIEVEMENTS; }
+            if (dataRes.PICTOGRAPH_DATA) { PICTOGRAPH_DATA = dataRes.PICTOGRAPH_DATA; window.PICTOGRAPH_DATA = dataRes.PICTOGRAPH_DATA; }
+          }
+        }
+
+        if (wordsRes) {
+          const words = Array.isArray(wordsRes) ? wordsRes : (wordsRes.HSK_WORDS_DATA || []);
+          HSK_WORDS_DATA = words;
+          window.HSK_WORDS_DATA = words;
+        }
+
+        if (sentencesRes) {
+          const sentences = Array.isArray(sentencesRes) ? sentencesRes : (sentencesRes.SENTENCE_DATA || []);
+          SENTENCE_DATA = sentences;
+          window.SENTENCE_DATA = sentences;
+        }
+      } catch (err) {
+        console.warn("[HanziTracker] Error loading JSON datasets:", err);
+      }
+    })();
+    return dataLoadPromise;
+  }
 
   const STORAGE_KEY = "hanzi-tracker-state-v1";
   let state = { progress: {}, sentenceProgress: {}, wordProgress: {}, streak: { count: 0, last: null }, activity: {} };
@@ -1291,9 +1342,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let sentenceLoadPromise = null;
-  function ensureSentenceData() {
-    window.SENTENCE_DATA = window.SENTENCE_DATA || [];
-    return Promise.resolve(window.SENTENCE_DATA);
+  async function ensureSentenceData() {
+    if (SENTENCE_DATA && SENTENCE_DATA.length) {
+      return SENTENCE_DATA;
+    }
+    if (window.SENTENCE_DATA && window.SENTENCE_DATA.length) {
+      SENTENCE_DATA = window.SENTENCE_DATA;
+      return SENTENCE_DATA;
+    }
+    if (!sentenceLoadPromise) {
+      sentenceLoadPromise = fetch("sentences.json")
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+          SENTENCE_DATA = data;
+          window.SENTENCE_DATA = data;
+          return data;
+        })
+        .catch(err => {
+          console.warn("[HanziTracker] Failed to load sentences.json", err);
+          return [];
+        });
+    }
+    return sentenceLoadPromise;
   }
 
   function buildSentenceIndex() {
@@ -6171,6 +6241,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const failsafe = setTimeout(dismissLoading, 2500);
 
     try {
+      await loadDataFiles();
       buildIndexes();
       await loadState();
       wireReadings();
