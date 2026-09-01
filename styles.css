@@ -1356,6 +1356,10 @@ nav.tabs {
   overflow-y: auto;
   grid-column: 1;
   grid-row: 2;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
 }
 
 .tab-btn {
@@ -1400,7 +1404,7 @@ nav.tabs {
 main {
   grid-column: 2;
   grid-row: 2;
-  overflow-y: auto;
+  overflow-y: visible;
   width: 100%;
   padding: 18px clamp(18px, 2.8vw, 52px) 56px;
 }
@@ -1408,7 +1412,7 @@ main {
 .tab-panel {
   display: none;
   flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .tab-panel.active {
@@ -5076,7 +5080,7 @@ main {
   grid-template-columns: auto 1fr;
   grid-template-rows: auto 1fr;
   gap: 0;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 header.topbar {
