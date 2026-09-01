@@ -423,6 +423,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function playBrowserTTS(text) {
+    if (!text || typeof text !== "string") return;
+    const cleanText = text.replace(/[\uFFFD\u0000-\u001F]/g, "").trim();
+    if (!cleanText) return;
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.warn("[HanziTracker] Web Speech API not supported in this browser");
+    }
+  }
+
   /* ---------- indexes ---------- */
   function buildIndexes() {
     HANZI_BY_CHAR = {};
@@ -2167,35 +2185,66 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    reviewRevealed = false;
-    reviewIndex = currentIndex + 1;
+    const cardEl = el("flashcard");
+    const exitClass = rating === "again" ? "card-exit-again" : (rating === "easy" ? "card-exit-easy" : "card-exit-pass");
+    if (cardEl) {
+      cardEl.classList.remove("card-enter-next", "card-exit-again", "card-exit-easy", "card-exit-pass", "card-exit-next");
+      cardEl.classList.add(exitClass);
+    }
 
-    try {
-      updateLiveReviewStats();
-    } catch (e) { console.warn("Review stats update failed", e); }
+    setTimeout(() => {
+      reviewRevealed = false;
+      reviewIndex = currentIndex + 1;
 
-    if (reviewIndex >= reviewQueue.length) {
+      try {
+        updateLiveReviewStats();
+      } catch (e) { console.warn("Review stats update failed", e); }
+
+      if (reviewIndex >= reviewQueue.length) {
+        if (cardEl) cardEl.classList.remove(exitClass, "card-enter-next");
+        window.__reviewRatingBusy = false;
+        finishReview();
+        return;
+      }
+
+      try {
+        showCard();
+        if (cardEl) {
+          cardEl.classList.remove(exitClass);
+          cardEl.classList.add("card-enter-next");
+          setTimeout(() => cardEl.classList.remove("card-enter-next"), 280);
+        }
+      } catch (err) {
+        console.error("Review card render failed", err);
+      }
       window.__reviewRatingBusy = false;
-      finishReview();
-      return;
-    }
-
-    try {
-      showCard();
-    } catch (err) {
-      console.error("Review card render failed", err);
-    }
-    window.__reviewRatingBusy = false;
+    }, 150);
   }
 
   function skipCurrent() {
     if (!reviewQueue.length) return;
     const item = reviewQueue[reviewIndex];
     if (item) sessionStats.skipped.push(item);
-    reviewIndex++;
-    reviewRevealed = false;
-    if (reviewIndex >= reviewQueue.length) finishReview();
-    else showCard();
+    const cardEl = el("flashcard");
+    if (cardEl) {
+      cardEl.classList.remove("card-enter-next");
+      cardEl.classList.add("card-exit-next");
+    }
+    setTimeout(() => {
+      reviewIndex++;
+      reviewRevealed = false;
+      if (reviewIndex >= reviewQueue.length) {
+        if (cardEl) cardEl.classList.remove("card-exit-next");
+        finishReview();
+      } else {
+        showCard();
+        if (cardEl) {
+          cardEl.classList.remove("card-exit-next");
+          cardEl.classList.add("card-enter-next");
+          setTimeout(() => cardEl.classList.remove("card-enter-next"), 280);
+        }
+      }
+    }, 140);
   }
 
   function flagCurrent() {
@@ -2516,6 +2565,7 @@ document.addEventListener("DOMContentLoaded", () => {
           '<div class="word-card-face front">' +
           '<span class="word-level-badge level-' + (word.level || 1) + '">' + escHtml(lvlLabel) + '</span>' +
           '<button type="button" class="tone-audio-btn-sm" data-speak-word="' + escHtml(word.word) + '" title="Listen to ' + escHtml(word.word) + '" style="position:absolute; top:10px; right:10px; z-index:2;">🔊</button>' +
+          '<button type="button" class="tone-audio-btn-sm" data-browser-speak-word="' + escHtml(word.word) + '" title="Browser TTS: ' + escHtml(word.word) + '" style="position:absolute; top:10px; right:50px; z-index:2;">🗣️</button>' +
           '<div class="word-zh">' + escHtml(word.word) + '</div>' +
           '<div class="word-pinyin" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(word.pinyin || "—") + '</div>' +
           '</div>' +
@@ -2569,8 +2619,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    el("word-prev-page")?.addEventListener("click", () => { wordPage--; renderWords(); });
-    el("word-next-page")?.addEventListener("click", () => { wordPage++; renderWords(); });
+    el("word-prev-page")?.addEventListener("click", () => { wordPage--; renderWords(); scrollToActiveGridTop(); });
+    el("word-next-page")?.addEventListener("click", () => { wordPage++; renderWords(); scrollToActiveGridTop(); });
     const showPinyin = el("words-show-pinyin");
     const showEnglish = el("words-show-english");
     showPinyin?.addEventListener("click", () => {
@@ -2604,6 +2654,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (speakBtn) {
         e.stopPropagation();
         playChineseAudio(speakBtn.dataset.speakWord);
+        return;
+      }
+      const browserSpeakBtn = e.target.closest("[data-browser-speak-word]");
+      if (browserSpeakBtn) {
+        e.stopPropagation();
+        playBrowserTTS(browserSpeakBtn.dataset.browserSpeakWord);
         return;
       }
       const statusBtn = e.target.closest("[data-word-set-status]");
@@ -3058,6 +3114,18 @@ document.addEventListener("DOMContentLoaded", () => {
     afterChange();
   }
 
+  function scrollToActiveGridTop() {
+    const panel = document.querySelector(".tab-panel.active");
+    if (panel) {
+      const rect = panel.getBoundingClientRect();
+      const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+      const targetY = currentScroll + rect.top - 70;
+      if (currentScroll > targetY + 60) {
+        window.scrollTo({ top: targetY, behavior: "smooth" });
+      }
+    }
+  }
+
   function wireBrowse() {
     const levelSelect = el("browse-level-select");
     if (levelSelect) levelSelect.addEventListener("change", (e) => {
@@ -3092,8 +3160,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const val = e.target.value;
       searchTimeout = setTimeout(() => { browseFilters.query = val; browsePage = 0; renderBrowse(); }, 150);
     });
-    el("prev-page").addEventListener("click", () => { if (browsePage > 0) { browsePage--; renderBrowse(); } });
-    el("next-page").addEventListener("click", () => { browsePage++; renderBrowse(); });
+    el("prev-page").addEventListener("click", () => { if (browsePage > 0) { browsePage--; renderBrowse(); scrollToActiveGridTop(); } });
+    el("next-page").addEventListener("click", () => { browsePage++; renderBrowse(); scrollToActiveGridTop(); });
     const browsePinyin = el("browse-show-pinyin");
     const browseEnglish = el("browse-show-english");
     browsePinyin?.addEventListener("click", () => { browseShowPinyin = !browseShowPinyin; browsePinyin.classList.toggle("active", browseShowPinyin); renderBrowse(); });
@@ -3102,7 +3170,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const speak = e.target.closest("[data-speak-char]");
       if (speak) {
         e.stopPropagation();
-        playChineseAudio(speak.dataset.speakChar, { rate: 0.88 });
+        speak.classList.add("audio-playing");
+        playChineseAudio(speak.dataset.speakChar, {
+          rate: 0.88,
+          onEnd: () => speak.classList.remove("audio-playing")
+        });
         return;
       }
       const tile = e.target.closest(".tile");
@@ -3434,8 +3506,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let timeout;
     el("sentence-search").addEventListener("input", e => { clearTimeout(timeout); sentencePage = 0; timeout = setTimeout(() => { sentenceFilters.query = e.target.value; renderSentences(); }, 120); });
     ["sentence-hsk-filter", "sentence-srs-filter", "sentence-difficulty-filter", "sentence-sort"].forEach(id => el(id).addEventListener("change", e => { sentenceFilters[id.replace("sentence-", "").replace("-filter", "")] = e.target.value; sentencePage = 0; renderSentences(); }));
-    el("sentence-prev-page").addEventListener("click", () => { if (sentencePage > 0) { sentencePage--; renderSentences(); } });
-    el("sentence-next-page").addEventListener("click", () => { sentencePage++; renderSentences(); });
+    el("sentence-prev-page").addEventListener("click", () => { if (sentencePage > 0) { sentencePage--; renderSentences(); scrollToActiveGridTop(); } });
+    el("sentence-next-page").addEventListener("click", () => { sentencePage++; renderSentences(); scrollToActiveGridTop(); });
     const sentencePinyinBtn = el("sentence-show-pinyin");
     const sentenceEnglishBtn = el("sentence-show-english");
     // Feature 4: persist toggle state, restore on load
@@ -3951,11 +4023,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   // Correct a few stroke-count / metadata entries while keeping the standard Kangxi order.
-  const RADICALS = RADICAL_DETAILS.map((r, i) => ({
-    number: i + 1, char: r[0], meaning: r[1], pinyin: r[2],
-    strokes: Number(r[3]), base: r[4], variants: r[5],
-    position: r[6], examples: r[7].split("、")
-  }));
+  function getRaDICALS() {
+    return RADICAL_DETAILS.map((r, i) => ({
+      number: i + 1, char: r[0], meaning: r[1], pinyin: r[2],
+      strokes: Number(r[3]), base: r[4], variants: r[5],
+      position: r[6], examples: r[7].split("、")
+    }));
+  }
 
   function radicalCodePoint(char) {
     return "U+" + char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
@@ -3983,6 +4057,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderRadicals() {
     const searchEl = el("radical-search");
     const query = searchEl ? (searchEl.value || "").trim().toLowerCase() : "";
+    const RADICALS = getRaDICALS();
     let filtered = RADICALS.filter(r =>
       !query ||
       String(r.number).includes(query) ||
@@ -4253,6 +4328,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   function openRadicalDetail(number) {
+    const RADICALS = getRaDICALS();
     const r = RADICALS[number - 1];
     const panel = el("radical-detail");
     const backdrop = el("radical-detail-backdrop");
@@ -4346,7 +4422,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const audio = e.target.closest("[data-speak-char]");
       if (audio) {
         e.stopPropagation();
-        playChineseAudio(audio.dataset.speakChar, { rate: 0.88 });
+        audio.classList.add("audio-playing");
+        playChineseAudio(audio.dataset.speakChar, {
+          rate: 0.88,
+          onEnd: () => audio.classList.remove("audio-playing")
+        });
         return;
       }
       const card = e.target.closest(".radical-card");
@@ -4361,6 +4441,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     el("detail-radical-audio")?.addEventListener("click", () => {
+      const RADICALS = getRaDICALS();
       const radical = RADICALS[Number(el("detail-radical-number").textContent.replace("#", "")) - 1];
       if (radical) playChineseAudio(radical.base && radical.base !== "—" ? radical.base : radical.char, { rate: 0.88 });
     });
@@ -6226,6 +6307,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function wireScrollAndFloatingActions() {
+    const topbar = document.querySelector(".topbar");
+    const backToTopBtn = el("back-to-top-btn");
+
+    window.addEventListener("scroll", () => {
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+      if (backToTopBtn) {
+        backToTopBtn.classList.toggle("visible", scrollY > 320);
+      }
+    }, { passive: true });
+
+    if (backToTopBtn) {
+      backToTopBtn.addEventListener("click", () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+  }
+
   async function init() {
     const dismissLoading = () => {
       const appEl = el("app");
@@ -6247,6 +6346,7 @@ document.addEventListener("DOMContentLoaded", () => {
       wireReadings();
       wireTabs();
       wireWords();
+      wireScrollAndFloatingActions();
       el("smart-review-btn")?.addEventListener("click", openSmartReview);
       el("progress-review-due")?.addEventListener("click", () => {
         const tab = document.querySelector('.tab-btn[data-tab="review"]');
