@@ -28,7 +28,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="https://unpkg.com/pinyin-pro@3.28.1/dist/index.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" defer></script>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=24">
 
 
 </head>
@@ -149,6 +149,46 @@
         <button class="tab-btn" data-tab="pictographs">Pictographs</button>
         <button class="tab-btn" data-tab="review">Review</button>
         <button class="tab-btn" data-tab="progress">Progress</button>
+
+        <div class="sidebar-hover-dict-wrap">
+          <div class="sidebar-hover-dict-divider"></div>
+          <div class="sidebar-hover-dict-main-row">
+            <button type="button" class="sidebar-hover-dict-btn" id="sidebar-hover-dict-btn" title="Toggle Hover Dictionary across entire web app" aria-pressed="false">
+              <div class="sidebar-hover-dict-info">
+                <span class="sidebar-hover-dict-icon">📖</span>
+                <div class="sidebar-hover-dict-labels">
+                  <span class="sidebar-hover-dict-title">Hover Dict</span>
+                  <span class="sidebar-hover-dict-status" id="sidebar-hover-dict-status">Off</span>
+                </div>
+              </div>
+              <div class="sidebar-hover-dict-switch">
+                <span class="sidebar-hover-dict-knob"></span>
+              </div>
+            </button>
+            <button type="button" class="sidebar-hover-dict-settings-btn" id="sidebar-hover-dict-settings-btn" title="Hover Dictionary Settings (Position)" aria-label="Hover settings" aria-expanded="false">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Settings panel containing position option -->
+          <div class="sidebar-hover-settings-panel hidden" id="sidebar-hover-settings-panel">
+            <div class="sidebar-hover-settings-header">
+              <span class="sidebar-hover-settings-title">⚙️ Hover Settings</span>
+              <button type="button" class="sidebar-hover-settings-close" id="sidebar-hover-settings-close" title="Close settings" aria-label="Close">×</button>
+            </div>
+            <div class="sidebar-dict-pos-wrap">
+              <span class="sidebar-dict-pos-label">📍 Position</span>
+              <div class="sidebar-dict-pos-pills">
+                <button type="button" class="sidebar-dict-pos-btn active" data-pos="cursor" title="Float near cursor">Cursor</button>
+                <button type="button" class="sidebar-dict-pos-btn" data-pos="top-center" title="Fixed in top-center">Top-C</button>
+                <button type="button" class="sidebar-dict-pos-btn" data-pos="bottom-center" title="Fixed in bottom-center">Bottom-C</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </nav>
 
       <main>
@@ -309,11 +349,16 @@
         <!-- REVIEW -->
         <section id="tab-review" class="tab-panel">
           <div id="review-setup" class="review-setup">
+            <div class="review-setup-header-badge">
+              <span class="review-badge-icon">🎯</span>
+              <span>SMART SRS SPACED REPETITION</span>
+            </div>
             <h2>Build your review session</h2>
-            <p class="review-setup-sub">A smarter queue that adapts to what you need most.</p>
+            <p class="review-setup-sub">A smarter queue powered by FSRS spaced repetition that adapts to your learning pace.</p>
+
             <div class="review-setup-grid">
               <div class="review-setup-panel">
-                <div class="review-panel-title">1 · Content</div>
+                <div class="review-panel-title">1 · Content &amp; Direction</div>
                 <div class="review-choice-row" role="group" aria-label="Review content">
                   <button type="button" class="review-choice active" data-review-mode="characters"><span
                       class="review-choice-icon">字</span><span class="review-choice-title">Characters</span><span
@@ -328,6 +373,24 @@
                       class="review-choice-icon">冊</span><span class="review-choice-title">Words</span><span
                       class="review-choice-sub">Generated vocabulary</span></button>
                 </div>
+
+                <!-- Study Direction: Recognition vs Recall -->
+                <div class="review-direction-wrap">
+                  <div class="review-subfield-label">Study Direction</div>
+                  <div class="review-direction-row" role="group" aria-label="Review study direction">
+                    <button type="button" class="review-dir-btn active" data-direction="forward">
+                      <span class="dir-icon">🀄 ➔ 📖</span>
+                      <span class="dir-title">Recognition</span>
+                      <span class="dir-sub">Hanzi ➔ Meaning</span>
+                    </button>
+                    <button type="button" class="review-dir-btn" data-direction="recall">
+                      <span class="dir-icon">📖 ➔ 🀄</span>
+                      <span class="dir-title">Recall (Writing)</span>
+                      <span class="dir-sub">Meaning ➔ Hanzi</span>
+                    </button>
+                  </div>
+                </div>
+
                 <p class="filter-hint" id="review-scope-hint">Tap multiple chips to combine levels</p>
                 <div class="filter-group" id="review-level-chips" style="justify-content:center;">
                   <button class="chip active" data-level="all">All levels</button>
@@ -349,11 +412,11 @@
                 </div>
               </div>
               <div class="review-setup-panel">
-                <div class="review-panel-title">2 · Queue</div>
+                <div class="review-panel-title">2 · Queue Pool</div>
                 <div class="pool-choices">
                   <label class="pool-choice smart"><input type="radio" name="pool" value="smart" checked><span
                       class="pool-dot"></span><span class="pool-copy"><strong>🎯 Smart Review <em
-                          id="smart-count">0</em></strong><small>A mix of due, weak, learning and new
+                          id="smart-count">0</em></strong><small>A smart mix of due, weak, learning and new
                         items.</small></span></label>
                   <label class="pool-choice"><input type="radio" name="pool" value="due"><span
                       class="pool-dot"></span><span class="pool-copy"><strong>🔴 Due now <em
@@ -377,64 +440,192 @@
                 </div>
               </div>
             </div>
-            <div class="review-setup-panel" style="margin-top:14px;text-align:center;">
-              <div class="review-panel-title">3 · Session size</div>
-              <div class="session-size"><span>Cards</span><input type="range" id="session-size" min="5" max="50"
-                  step="5" value="20"><span id="session-size-label">20</span></div>
-              <div class="review-extra-options">
-                <label><input type="checkbox" id="review-show-pinyin" checked> Show pinyin</label>
-                <label><input type="checkbox" id="review-show-english" checked> Show English</label>
+
+            <div class="review-setup-panel review-setup-size-panel">
+              <div class="review-panel-title">3 · Session Size &amp; Settings</div>
+
+              <!-- Quick Presets -->
+              <div class="session-preset-row">
+                <span class="preset-label">Quick Presets:</span>
+                <div class="session-preset-chips" id="session-preset-chips" role="group" aria-label="Quick session presets">
+                  <button type="button" class="preset-chip" data-preset="10">⚡ 10</button>
+                  <button type="button" class="preset-chip active" data-preset="20">🎯 20</button>
+                  <button type="button" class="preset-chip" data-preset="35">🚀 35</button>
+                  <button type="button" class="preset-chip" data-preset="50">🔥 50</button>
+                  <button type="button" class="preset-chip" data-preset="due">🔴 All Due</button>
+                </div>
               </div>
-              <button id="start-review" class="btn-primary">🎯 Start Smart Review</button>
+
+              <div class="session-size">
+                <span>Cards</span>
+                <input type="range" id="session-size" min="5" max="50" step="5" value="20" aria-label="Session size">
+                <span id="session-size-label">20</span>
+              </div>
+
+              <div class="review-extra-options">
+                <label><input type="checkbox" id="review-show-pinyin" checked> Show pinyin on flip</label>
+                <label><input type="checkbox" id="review-show-english" checked> Show English on flip</label>
+                <label><input type="checkbox" id="review-auto-audio" checked> Auto-play pronunciation</label>
+              </div>
+
+              <button id="start-review" class="btn-primary start-review-cta">🎯 Start Smart Review</button>
             </div>
           </div>
 
           <div id="review-session" class="review-session hidden">
+            <!-- Review Header -->
             <div class="review-session-header">
-              <span class="review-session-label">FOCUS REVIEW</span>
+              <div class="review-session-title-wrap">
+                <span class="review-session-label">FOCUS REVIEW</span>
+                <span class="review-direction-badge" id="review-direction-badge">Hanzi ➔ Meaning</span>
+              </div>
               <div class="review-session-live">
                 <span class="review-live-pill"><strong id="live-reviewed">0</strong> reviewed</span>
                 <span class="review-live-pill"><strong id="live-accuracy">—</strong> accuracy</span>
-                <span class="review-live-pill">🔥 <strong id="live-streak">0</strong> streak</span>
+                <span class="review-live-pill streak-pill">🔥 <strong id="live-streak">0</strong> streak</span>
               </div>
-              <button type="button" id="review-focus-toggle" class="review-focus-btn">⛶ Focus</button>
-              <button type="button" id="stop-review" class="review-exit-btn">← Exit</button>
+              <div class="review-header-actions">
+                <button type="button" id="review-shortcuts-btn" class="review-header-icon-btn" title="Keyboard Shortcuts (Key: ?)">⌨️ Shortcuts</button>
+                <button type="button" id="review-focus-toggle" class="review-focus-btn" title="Full Focus Zen Mode">⛶ Focus</button>
+                <button type="button" id="stop-review" class="review-exit-btn" title="Exit Review Session">← Exit</button>
+              </div>
             </div>
+
+            <!-- Keyboard Shortcuts Overlay / Cheatsheet -->
+            <div id="review-shortcuts-modal" class="review-shortcuts-modal hidden" role="dialog" aria-label="Keyboard Shortcuts">
+              <div class="shortcuts-modal-header">
+                <h4>⌨️ Review Shortcuts</h4>
+                <button type="button" id="review-shortcuts-close" class="shortcuts-close-btn" aria-label="Close shortcuts">&times;</button>
+              </div>
+              <div class="shortcuts-modal-grid">
+                <div class="sc-row"><kbd>Space</kbd> / <kbd>Enter</kbd><span>Reveal answer</span></div>
+                <div class="sc-row"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd><span>Rate: Again, Hard, Good, Easy</span></div>
+                <div class="sc-row"><kbd>A</kbd><span>Play audio</span></div>
+                <div class="sc-row"><kbd>Shift</kbd>+<kbd>A</kbd><span>Slow audio</span></div>
+                <div class="sc-row"><kbd>W</kbd><span>Stroke animation / practice</span></div>
+                <div class="sc-row"><kbd>H</kbd><span>Toggle hint clue</span></div>
+                <div class="sc-row"><kbd>Z</kbd><span>Undo previous rating</span></div>
+                <div class="sc-row"><kbd>S</kbd><span>Skip card</span></div>
+                <div class="sc-row"><kbd>F</kbd><span>Flag card</span></div>
+                <div class="sc-row"><kbd>Esc</kbd><span>Close overlay / Exit review</span></div>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
             <div class="review-progress-wrap">
               <div class="review-progress-bar">
                 <div id="review-progress-fill"></div>
-              </div><span id="review-counter">1 / 20</span>
+              </div>
+              <span id="review-counter">1 / 20</span>
             </div>
-            <div class="review-card-reason" id="review-card-reason">Smart queue · prioritized for you</div>
+
+            <div class="review-card-meta-row">
+              <div class="review-card-reason" id="review-card-reason">Smart queue · prioritized for you</div>
+              <button type="button" class="fc-hint-toggle-btn" id="review-hint-toggle-btn" title="Reveal a progressive hint (Key: H)">💡 Peek Hint</button>
+            </div>
+
+            <!-- Hint Box (collapsible) -->
+            <div id="review-hint-banner" class="review-hint-banner hidden">
+              <span class="hint-icon">💡</span>
+              <span id="review-hint-text" class="hint-text"></span>
+            </div>
+
+            <!-- The Flashcard -->
             <div class="flashcard" id="flashcard">
               <div class="flashcard-inner">
+                <!-- FRONT FACE -->
                 <div class="flashcard-face front">
+                  <div class="fc-card-corner-seal" aria-hidden="true">符</div>
+
+                  <!-- Front Context Badges -->
+                  <div class="fc-context-chips" id="fc-context-chips">
+                    <span class="fc-context-chip hsk" id="fc-chip-level">HSK 1</span>
+                    <span class="fc-context-chip freq" id="fc-chip-freq">#1</span>
+                    <span class="fc-context-chip radical" id="fc-chip-radical">部首: —</span>
+                  </div>
+
+                  <!-- Standard Hanzi / Sentence -->
                   <span class="fc-hanzi" id="fc-hanzi">字</span>
                   <span class="fc-sentence" id="fc-sentence-front" hidden></span>
+
+                  <!-- Recall Mode Prompt (shown when reviewDirection === 'recall') -->
+                  <div class="fc-recall-prompt hidden" id="fc-recall-prompt">
+                    <div class="recall-label">WHAT IS THE HANZI FOR:</div>
+                    <div class="recall-meaning" id="fc-recall-meaning">character</div>
+                    <div class="recall-pinyin-hint" id="fc-recall-pinyin-hint">Pinyin hint: zì</div>
+                  </div>
+
+                  <!-- Prompt to flip -->
+                  <div class="fc-flip-prompt">
+                    <span class="pulse-dot"></span> Click card or press <kbd>Space</kbd> to reveal
+                  </div>
                 </div>
+
+                <!-- BACK FACE -->
                 <div class="flashcard-face back">
+                  <div class="fc-back-topbar">
+                    <div class="fc-back-badges" id="fc-back-badges">
+                      <span class="fc-status-pill" id="fc-back-status-pill">New</span>
+                    </div>
+                    <div class="fc-back-audio-actions">
+                      <button type="button" class="fc-card-audio-btn" id="fc-back-audio" title="Pronounce (Key: A)">🔊</button>
+                      <button type="button" class="fc-card-audio-btn slow" id="fc-back-audio-slow" title="Slow Pronounce (Key: Shift+A)">🐢</button>
+                    </div>
+                  </div>
+
                   <span class="fc-hanzi-small" id="fc-hanzi-small">字</span>
                   <span class="fc-pinyin" id="fc-pinyin">zì</span>
                   <span class="fc-meaning" id="fc-meaning">character</span>
+
+                  <!-- Radical & Components Breakdown -->
+                  <div class="fc-radical-breakdown" id="fc-radical-breakdown" hidden>
+                    <div class="fc-breakdown-title">Radical &amp; Composition</div>
+                    <div class="fc-breakdown-body" id="fc-breakdown-body"></div>
+                  </div>
+
+                  <!-- Embedded HanziWriter Canvas for Stroke Practice -->
+                  <div id="fc-writer-wrap" class="fc-writer-wrap hidden">
+                    <div class="fc-writer-header">
+                      <span class="fc-writer-title">Stroke Order &amp; Writing Practice</span>
+                      <div class="fc-writer-controls">
+                        <button type="button" class="fc-stroke-btn active" id="fc-stroke-animate-btn" title="Animate stroke order">🎬 Animate</button>
+                        <button type="button" class="fc-stroke-btn" id="fc-stroke-quiz-btn" title="Test yourself by writing strokes">✍️ Quiz</button>
+                        <button type="button" class="fc-stroke-btn" id="fc-stroke-reset-btn" title="Restart stroke animation">↺ Reset</button>
+                        <button type="button" class="fc-stroke-btn close" id="fc-stroke-close-btn" title="Close stroke canvas">&times;</button>
+                      </div>
+                    </div>
+                    <div class="fc-writer-canvas-stage">
+                      <div id="fc-hanziwriter-canvas" class="fc-hanziwriter-canvas"></div>
+                    </div>
+                    <div id="fc-writer-feedback" class="fc-writer-feedback"></div>
+                  </div>
+
                   <div class="fc-examples" id="fc-examples"></div>
                   <div id="fc-sentence-back" class="fc-sentence-back" hidden></div>
                   <div id="fc-sentence-pinyin" class="fc-sentence-pinyin" hidden></div>
                   <div id="fc-sentence-en" class="fc-sentence-en" hidden></div>
                   <div class="fc-related" id="fc-related" hidden>
-                    <div class="fc-related-title">Related knowledge</div>
+                    <div class="fc-related-title">Related words &amp; vocabulary</div>
                     <div class="fc-related-list" id="fc-related-list"></div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Reveal Tools Toolbar -->
             <div class="review-reveal-tools">
               <button type="button" class="review-reveal-tool" id="review-pinyin-toggle">Show pinyin</button>
               <button type="button" class="review-reveal-tool" id="review-english-toggle">Show English</button>
               <button type="button" class="review-reveal-tool" id="review-example-toggle">Show examples</button>
-              <button type="button" class="review-reveal-tool" id="review-audio-btn" title="Listen (Normal speed)">🔊 Listen</button>
-              <button type="button" class="review-reveal-tool" id="review-audio-slow-btn" title="Listen (Slow speed)">🐢 Slow</button>
+              <button type="button" class="review-reveal-tool highlight" id="review-stroke-toggle" title="Stroke order &amp; handwriting practice (Key: W)">✍️ Practice Strokes</button>
+              <button type="button" class="review-reveal-tool" id="review-audio-btn" title="Listen (Key: A)">🔊 Listen</button>
+              <button type="button" class="review-reveal-tool" id="review-audio-slow-btn" title="Listen slowly (Key: Shift+A)">🐢 Slow</button>
             </div>
-            <button id="reveal-btn" class="btn-secondary">Show answer</button>
+
+            <!-- Reveal Button (on front) -->
+            <button id="reveal-btn" class="btn-secondary reveal-main-btn">Show answer <span class="kbd-hint">[Space]</span></button>
+
+            <!-- FSRS Spaced Repetition Rating Buttons -->
             <div class="rate-buttons fsrs-rate-buttons hidden" id="rate-buttons">
               <button type="button" class="fsrs-rate-btn rate-again" data-rate="again" id="review-rate-again"
                 title="Shortcut: 1">
@@ -461,15 +652,19 @@
                 <span class="fsrs-interval-pill" id="rate-interval-easy">14d</span>
               </button>
             </div>
+
+            <!-- Review Footer with Undo, Skip, Flag -->
             <div class="review-session-footer">
-              <button type="button" class="review-footer-btn" id="review-skip-btn">Skip →</button>
-              <button type="button" class="review-footer-btn" id="review-flag-btn">🚩 Flag</button>
+              <button type="button" class="review-footer-btn" id="review-undo-btn" title="Undo previous card rating (Shortcut: Z)" disabled>↺ Undo <span class="kbd-sub">[Z]</span></button>
+              <button type="button" class="review-footer-btn" id="review-skip-btn" title="Skip to next card without rating (Shortcut: S)">Skip → <span class="kbd-sub">[S]</span></button>
+              <button type="button" class="review-footer-btn" id="review-flag-btn" title="Flag for later review (Shortcut: F)">🚩 Flag <span class="kbd-sub">[F]</span></button>
             </div>
           </div>
 
           <div id="review-summary" class="review-summary hidden">
-            <h2>Session complete 🎉</h2>
-            <div class="review-summary-sub" id="summary-subtitle">Nice work. Your review has been recorded.</div>
+            <div class="summary-celebration-badge">🎉 SESSION COMPLETE</div>
+            <h2>Well done!</h2>
+            <div class="review-summary-sub" id="summary-subtitle">Your reviews and progress have been saved to memory.</div>
             <div class="summary-stats">
               <div class="summary-stat"><strong id="summary-reviewed">0</strong><span>reviewed</span></div>
               <div class="summary-stat"><strong id="summary-known">0</strong><span>newly known</span></div>
@@ -1120,70 +1315,211 @@
           </div>
         </section>
 
-        <!-- READINGS -->
+        <!-- DU CHINESE STYLE READINGS TAB -->
         <section id="tab-readings" class="tab-panel">
-          <div class="readings-layout" style="max-width: 800px; margin: 0 auto; padding: 24px 16px;">
+          <div class="du-reader-container" id="du-reader-container">
+            
+            <!-- Du Header -->
+            <header class="du-header">
+              <div class="du-brand">
+                <span class="du-logo-seal">刻</span>
+                <span class="du-brand-name">Du Chinese</span>
+              </div>
+              <div class="du-header-right">
+                <button type="button" class="du-header-link" id="du-open-library-btn">Stories Library ➔</button>
+                <div class="du-header-art" aria-hidden="true"></div>
+              </div>
+            </header>
 
-            <!-- Library View -->
-            <div id="readings-library-view">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <div>
-                  <h2 style="font-size: 1.8rem; margin-bottom: 8px; color: #fff;">Reading Library</h2>
-                  <p class="subtitle" style="color: var(--text-light); margin: 0;">Your collection of saved Chinese
-                    texts.</p>
+            <!-- Dual Meaning Banners at Top -->
+            <div class="du-meaning-panels">
+              <!-- Sentence Meaning Box -->
+              <div class="du-meaning-box du-sentence-box" id="du-sentence-box">
+                <div class="du-meaning-box-header">
+                  <span class="du-meaning-title">Sentence meaning</span>
+                  <button type="button" class="du-meaning-hide-btn" id="du-hide-sentence-btn">Hide</button>
                 </div>
-                <button id="readings-new-btn" class="btn-primary">Add New Reading</button>
+                <div class="du-meaning-body" id="du-sentence-meaning-text">
+                  Hover or click any sentence below to view its translation, or click Play to listen along.
+                </div>
               </div>
 
-              <div id="readings-list" style="display: flex; flex-direction: column; gap: 12px;">
-                <!-- Reading items will be rendered here -->
+              <!-- Word Meaning Box -->
+              <div class="du-meaning-box du-word-box" id="du-word-box">
+                <div class="du-meaning-box-header">
+                  <span class="du-meaning-title">Word meaning</span>
+                  <button type="button" class="du-word-audio-btn" id="du-word-audio-btn" title="Pronounce word" style="display:none;">🔊</button>
+                </div>
+                <div class="du-meaning-body" id="du-word-meaning-content">
+                  <span class="du-meaning-placeholder">Click any word below to see its pinyin, definition, and HSK level.</span>
+                </div>
               </div>
             </div>
 
-            <!-- Reader View -->
-            <div id="readings-reader-view" class="hidden">
-              <button id="readings-back-btn" class="btn-secondary" style="margin-bottom: 16px;">← Back to
-                Library</button>
-
-              <div id="readings-edit-section">
-                <input type="text" id="readings-title-input" placeholder="Title (optional)"
-                  style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-ui); font-size: 1.2rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); background: rgba(255,255,255,0.05); color: #fff;">
-                <textarea id="readings-input" placeholder="Paste Chinese text here..."
-                  style="width: 100%; height: 150px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-zh); font-size: 1.1rem; resize: vertical; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); background: rgba(255,255,255,0.05); color: #fff;"></textarea>
-                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                  <button id="readings-save-btn" class="btn-primary">Save & Read</button>
-                  <button id="readings-delete-btn" class="btn-secondary"
-                    style="color: #ff6b6b; border-color: #ff6b6b; display: none;">Delete</button>
+            <!-- In-Article Toolbar -->
+            <div class="du-article-toolbar">
+              <div class="du-search-container">
+                <div class="du-search-input-wrap hidden" id="du-search-input-wrap">
+                  <input type="text" id="du-search-input" placeholder="Search word in text..." aria-label="Search in article">
+                  <button type="button" id="du-search-close-btn" class="du-btn-icon" aria-label="Close search">&times;</button>
                 </div>
+                <button type="button" class="du-tool-btn" id="du-search-toggle-btn">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  Search
+                </button>
               </div>
 
-              <div id="readings-stats" class="readings-stats hidden"
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: var(--paper); border-radius: 8px; border: 1px solid var(--line-on-paper);">
-                <div class="readings-comprehension"
-                  style="display: flex; gap: 16px; font-size: 0.95rem; font-weight: 500;">
-                  <span style="color: var(--jade);"><span id="reading-stat-known">0</span> Known</span>
-                  <span style="color: var(--gold-dark);"><span id="reading-stat-learning">0</span> Learning</span>
-                  <span style="color: var(--ink);"><span id="reading-stat-new">0</span> New</span>
-                </div>
-                <div class="readings-controls" style="display: flex; gap: 8px; align-items: center;">
-                  <button id="reading-toggle-pinyin" class="btn-secondary"
-                    style="padding: 6px 12px; font-size: 0.9rem;">Show Pinyin</button>
-                  <label
-                    style="font-size: 0.85rem; color: var(--text-light); display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                    <input type="checkbox" id="reading-pinyin-unknown-only"> Only for New/Learning
-                  </label>
-                  <button id="reading-play-audio" class="btn-secondary"
-                    style="padding: 6px 12px; font-size: 0.9rem; margin-left: 8px;">🔊 Play</button>
-                </div>
-              </div>
+              <button type="button" class="du-tool-btn" id="du-settings-toggle-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                Settings
+              </button>
+            </div>
 
-              <div id="readings-output" class="readings-content"
-                style="font-size: 2.2rem; line-height: 2.5; font-family: var(--font-zh); padding: 24px; background: var(--paper); color: var(--ink); border: 1px solid var(--line-on-paper); border-radius: 12px; min-height: 300px; box-shadow: 0 8px 24px var(--paper-shadow);">
-                <div
-                  style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">
-                  Your parsed text will appear here.</div>
+            <!-- Article Reading Canvas -->
+            <div class="du-article-wrap">
+              <article class="du-article-canvas du-hsk-on du-underline-on" id="du-article-canvas">
+                <!-- Dynamically populated story with title, pinyin, sentences, words, ruby -->
+              </article>
+
+              <!-- Mark Read Widget at bottom right of article -->
+              <div class="du-mark-read-wrap">
+                <button type="button" class="du-mark-read-btn" id="du-mark-read-btn" title="Mark article as read">
+                  <span class="du-mark-read-label">Mark read</span>
+                  <span class="du-mark-read-circle" id="du-mark-read-circle" aria-hidden="true">
+                    <svg class="du-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </span>
+                </button>
               </div>
             </div>
+
+            <!-- Floating Bottom Audio & Control Bar -->
+            <footer class="du-bottom-bar" id="du-bottom-bar">
+              <div class="du-bar-left">
+                <span class="du-bar-level" id="du-bar-level">ELEMENTARY</span>
+                <span class="du-bar-title" id="du-bar-title">Why Do They All Have “Heart”?</span>
+              </div>
+
+              <div class="du-bar-center">
+                <div class="du-speed-wrap">
+                  <span class="du-speed-label">Speed</span>
+                  <button type="button" class="du-speed-btn" id="du-speed-btn" title="Toggle audio playback speed">v1.0</button>
+                </div>
+
+                <button type="button" class="du-play-btn" id="du-play-btn" title="Play / Pause article audio" aria-label="Play audio">
+                  <svg class="du-play-icon" id="du-play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                  <svg class="du-pause-icon hidden" id="du-pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                </button>
+              </div>
+
+              <div class="du-bar-right">
+                <!-- Hsk Toggle -->
+                <button type="button" class="du-toggle-pill active" id="du-toggle-hsk" data-active="true" title="Highlight words by HSK level">
+                  <span class="du-pill-title">Hsk</span>
+                  <span class="du-pill-indicator">On</span>
+                </button>
+
+                <!-- Characters Toggle -->
+                <button type="button" class="du-toggle-pill" id="du-toggle-chars" data-mode="simp" title="Toggle Simplified / Traditional">
+                  <span class="du-pill-title">Characters</span>
+                  <span class="du-pill-indicator">汉</span>
+                </button>
+
+                <!-- Pinyin Toggle -->
+                <button type="button" class="du-toggle-pill active" id="du-toggle-pinyin" data-active="true" title="Toggle Pinyin pronunciation above characters">
+                  <span class="du-pill-title">Pinyin</span>
+                  <span class="du-pill-indicator">On</span>
+                </button>
+              </div>
+            </footer>
+
+            <!-- Stories Library Modal -->
+            <div class="du-modal-overlay hidden" id="du-stories-modal">
+              <div class="du-modal-content">
+                <div class="du-modal-header">
+                  <h3>Du Reader Library &amp; Custom Text</h3>
+                  <button type="button" class="du-modal-close" id="du-stories-close">&times;</button>
+                </div>
+                <div class="du-modal-tabs">
+                  <button type="button" class="du-tab-btn active" data-tab="du-graded-stories">Graded Stories</button>
+                  <button type="button" class="du-tab-btn" data-tab="du-custom-import">Import Any Text</button>
+                </div>
+                <div class="du-modal-body">
+                  <div class="du-tab-panel active" id="du-graded-stories">
+                    <div class="du-library-filter-row">
+                      <div class="du-hsk-filter-chips" id="du-hsk-filter-chips">
+                        <button type="button" class="du-hsk-chip active" data-hsk-level="all">All (60)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="1">HSK 1 (10)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="2">HSK 2 (10)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="3">HSK 3 (10)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="4">HSK 4 (10)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="5">HSK 5 (10)</button>
+                        <button type="button" class="du-hsk-chip" data-hsk-level="6">HSK 6 (10)</button>
+                      </div>
+                      <div class="du-library-search-wrap">
+                        <input type="text" id="du-library-search" placeholder="🔍 Search stories by title or keywords..." aria-label="Search stories">
+                      </div>
+                    </div>
+                    <div class="du-story-cards-grid" id="du-story-cards-grid">
+                      <!-- Dynamically rendered story cards -->
+                    </div>
+                  </div>
+                  <div class="du-tab-panel hidden" id="du-custom-import">
+                    <p class="du-import-tip">Paste any Chinese text, article, or dialogue. The reader will automatically segment words, generate tone-marked pinyin, and provide interactive translation and audio.</p>
+                    <input type="text" id="du-import-title" placeholder="Story Title (e.g. My Chinese Diary)" class="du-input">
+                    <select id="du-import-level" class="du-select">
+                      <option value="NEWBIE">Newbie (HSK 1)</option>
+                      <option value="ELEMENTARY" selected>Elementary (HSK 2)</option>
+                      <option value="INTERMEDIATE">Intermediate (HSK 3-4)</option>
+                      <option value="ADVANCED">Advanced (HSK 5-6)</option>
+                    </select>
+                    <textarea id="du-import-text" placeholder="Paste Chinese text here..." class="du-textarea" rows="6"></textarea>
+                    <button type="button" id="du-import-submit-btn" class="btn-primary" style="margin-top: 12px; width: 100%;">Load Story in Reader</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div class="du-modal-overlay hidden" id="du-settings-modal">
+              <div class="du-modal-content du-settings-content">
+                <div class="du-modal-header">
+                  <h3>Reader Settings</h3>
+                  <button type="button" class="du-modal-close" id="du-settings-close">&times;</button>
+                </div>
+                <div class="du-settings-group">
+                  <label class="du-settings-label">Character Size</label>
+                  <div class="du-settings-options" id="du-font-size-options">
+                    <button type="button" class="du-opt-btn" data-size="sm">Small</button>
+                    <button type="button" class="du-opt-btn active" data-size="md">Standard</button>
+                    <button type="button" class="du-opt-btn" data-size="lg">Large</button>
+                    <button type="button" class="du-opt-btn" data-size="xl">Extra Large</button>
+                  </div>
+                </div>
+                <div class="du-settings-group">
+                  <label class="du-settings-label">Reader Color Theme</label>
+                  <div class="du-settings-options" id="du-theme-options">
+                    <button type="button" class="du-opt-btn active" data-theme="paper">Porcelain White</button>
+                    <button type="button" class="du-opt-btn" data-theme="sepia">Warm Sepia</button>
+                    <button type="button" class="du-opt-btn" data-theme="dark">Midnight Dark</button>
+                  </div>
+                </div>
+                <div class="du-settings-group">
+                  <label class="du-settings-label">Word Underlines</label>
+                  <div class="du-settings-options" id="du-underline-options">
+                    <button type="button" class="du-opt-btn active" data-underline="on">Underline Words</button>
+                    <button type="button" class="du-opt-btn" data-underline="off">No Underlines</button>
+                  </div>
+                </div>
+                <div class="du-settings-group">
+                  <label class="du-settings-label">Auto-scroll Active Sentence</label>
+                  <div class="du-settings-options" id="du-autoscroll-options">
+                    <button type="button" class="du-opt-btn active" data-scroll="on">Auto-scroll</button>
+                    <button type="button" class="du-opt-btn" data-scroll="off">Manual</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </section>
 
@@ -1999,6 +2335,34 @@
     </div>
   </div>
 
+  <!-- GLOBAL CTRL-HOVER DICTIONARY TOOLTIP -->
+  <div id="global-hover-dict" class="global-hover-dict hidden" aria-live="polite" data-pos-mode="cursor">
+    <div class="hover-dict-header">
+      <div class="hover-dict-word-wrap">
+        <span class="hover-dict-word" id="hover-dict-word"></span>
+        <span class="hover-dict-pinyin" id="hover-dict-pinyin"></span>
+        <span class="hover-dict-hsk" id="hover-dict-hsk"></span>
+      </div>
+      <div class="hover-dict-actions">
+        <button type="button" class="hover-dict-pos-btn" id="hover-dict-pos-btn" title="Cycle position (Cursor ➔ Top-Center ➔ Bottom-Center)" aria-label="Change position">
+          <span class="hover-dict-pos-icon">📍</span>
+          <span class="hover-dict-pos-text" id="hover-dict-pos-text">Cursor</span>
+        </button>
+        <button type="button" class="hover-dict-audio-btn" id="hover-dict-audio" title="Play Chinese pronunciation" aria-label="Play pronunciation">🔊</button>
+      </div>
+    </div>
+    <div class="hover-dict-meaning" id="hover-dict-meaning"></div>
+    <div class="hover-dict-breakdown" id="hover-dict-breakdown"></div>
+    <div class="hover-dict-footer">
+      <span class="hover-dict-hint" id="hover-dict-hint">📖 Hover Dict</span>
+      <div class="hover-dict-pos-quick" title="Change popup position">
+        <button type="button" class="hover-pos-opt active" data-pos="cursor" title="Follow cursor">Cursor</button>
+        <button type="button" class="hover-pos-opt" data-pos="top-center" title="Top-center">Top-C</button>
+        <button type="button" class="hover-pos-opt" data-pos="bottom-center" title="Bottom-center">Bottom-C</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FLOATING BACK TO TOP BUTTON -->
   <button type="button" id="back-to-top-btn" class="back-to-top-btn" aria-label="Back to top" title="Back to top">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2006,7 +2370,7 @@
     </svg>
   </button>
 
-  <script src="app.js" defer></script>
+  <script src="app.js?v=24" defer></script>
 </body>
 
 </html>

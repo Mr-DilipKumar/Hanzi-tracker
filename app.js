@@ -1672,6 +1672,11 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- REVIEW ---------- */
   let reviewFilters = { levels: new Set() };
   let reviewMode = "characters";
+  let reviewDirection = localStorage.getItem("hanziReviewDirection") || "forward"; // 'forward' | 'recall'
+  let reviewAutoAudio = localStorage.getItem("hanziReviewAutoAudio") !== "false";
+  let reviewHistoryStack = []; // stores { item, type, prevEntry, prevStats, rating }
+  let reviewHanziWriterInstance = null;
+  let reviewHanziWriterChar = null;
 
   let reviewQueue = [];
   let reviewIndex = 0;
@@ -1686,6 +1691,168 @@ document.addEventListener("DOMContentLoaded", () => {
   let reviewShowEnglish = localStorage.getItem("hanziReviewShowEnglish") !== "false";
   // Track flagged items across sessions in state
   if (!state.flaggedItems) state.flaggedItems = [];
+
+  function findRadicalForChar(char) {
+    if (!char) return null;
+    try {
+      const RADICALS = typeof getRaDICALS === "function" ? getRaDICALS() : [];
+      const direct = RADICALS.find(r => r.char === char || (r.base && r.base === char) || (r.variants && r.variants.includes(char)));
+      if (direct) return direct;
+      if (typeof radicalCharacterIndex !== "undefined" && radicalCharacterIndex) {
+        for (let num = 1; num <= 214; num++) {
+          const list = radicalCharacterIndex[num];
+          if (list && list.some(item => (typeof item === 'string' ? item : item.c) === char)) {
+            return RADICALS[num - 1] || null;
+          }
+        }
+      }
+    } catch (e) { console.warn("[findRadicalForChar]", e); }
+    return null;
+  }
+
+  function initReviewHanziWriter(char, autoAnimate = true) {
+    if (!window.HanziWriter || !char) return;
+    const canvas = el("fc-hanziwriter-canvas");
+    const wrap = el("fc-writer-wrap");
+    if (!canvas || !wrap) return;
+    wrap.classList.remove("hidden");
+    const feedback = el("fc-writer-feedback");
+    if (feedback) feedback.innerHTML = "";
+
+    const size = Math.min(260, Math.max(180, Math.floor(window.innerWidth * 0.4)));
+
+    if (!reviewHanziWriterInstance || reviewHanziWriterChar !== char) {
+      canvas.innerHTML = "";
+      reviewHanziWriterChar = char;
+      try {
+        reviewHanziWriterInstance = HanziWriter.create("fc-hanziwriter-canvas", char, {
+          width: size,
+          height: size,
+          padding: 16,
+          strokeColor: "#38BDF8",
+          radicalColor: "#F43F5E",
+          outlineColor: "rgba(255, 255, 255, 0.18)",
+          drawingColor: "#10B981",
+          drawingWidth: 10,
+          showOutline: true,
+          showCharacter: true,
+          strokeAnimationSpeed: 1.25,
+          delayBetweenStrokes: 160
+        });
+      } catch (err) {
+        console.warn("HanziWriter initialization error:", err);
+      }
+    }
+
+    if (reviewHanziWriterInstance && autoAnimate) {
+      try {
+        reviewHanziWriterInstance.showCharacter();
+        reviewHanziWriterInstance.animateCharacter();
+        el("fc-stroke-animate-btn")?.classList.add("active");
+        el("fc-stroke-quiz-btn")?.classList.remove("active");
+      } catch (e) {}
+    }
+  }
+
+  function startReviewHanziQuiz() {
+    if (!reviewHanziWriterInstance) return;
+    el("fc-stroke-quiz-btn")?.classList.add("active");
+    el("fc-stroke-animate-btn")?.classList.remove("active");
+    const feedback = el("fc-writer-feedback");
+    if (feedback) feedback.innerHTML = '<span class="quiz-instruction">Draw the strokes in order on the grid!</span>';
+    try {
+      reviewHanziWriterInstance.hideCharacter();
+      reviewHanziWriterInstance.quiz({
+        onMistake: function(strokeData) {
+          if (feedback) {
+            feedback.innerHTML = `<span class="quiz-mistake">Incorrect stroke (${strokeData.strokeNum + 1}/${strokeData.totalStrokes}) — try again!</span>`;
+          }
+        },
+        onCorrectStroke: function(strokeData) {
+          if (feedback) {
+            feedback.innerHTML = `<span class="quiz-progress">Stroke ${strokeData.strokeNum + 1} of ${strokeData.totalStrokes} ✓</span>`;
+          }
+        },
+        onComplete: function(summaryData) {
+          if (feedback) {
+            feedback.innerHTML = `<span class="quiz-success">🎉 Excellent! Completed with ${summaryData.totalMistakes} mistake(s).</span>`;
+          }
+          triggerStampFX(el("flashcard"));
+        }
+      });
+    } catch (e) { console.warn("Quiz error", e); }
+  }
+
+  function toggleReviewHint() {
+    const banner = el("review-hint-banner");
+    const hintText = el("review-hint-text");
+    if (!banner || !hintText) return;
+
+    if (!banner.classList.contains("hidden")) {
+      banner.classList.add("hidden");
+      return;
+    }
+
+    const item = reviewQueue[reviewIndex];
+    if (!item) return;
+    const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+
+    let clue = "";
+    if (type === "character") {
+      const radical = findRadicalForChar(item.c);
+      const examples = (item.e || []).slice(0, 2);
+      const maskedEx = examples.length ? examples.map(w => w.replace(new RegExp(item.c, "g"), "___")).join(" · ") : "";
+      clue = `Radical hint: ${radical ? `${radical.char} (${radical.meaning})` : "HSK " + item.h}`;
+      if (maskedEx) clue += ` | Words: ${maskedEx}`;
+    } else if (type === "word") {
+      const chars = Array.from(item.word);
+      const charMeanings = chars.map(c => {
+        const h = HANZI_BY_CHAR[c];
+        return h ? `${c} (${(h.m || "").split(";")[0].slice(0, 15)})` : c;
+      }).join(" + ");
+      clue = `Components: ${charMeanings}`;
+    } else {
+      const py = sentencePinyin(item);
+      const firstWords = py ? py.split(" ").slice(0, 3).join(" ") + "…" : "";
+      clue = `Starts with: "${firstWords}"`;
+    }
+
+    hintText.textContent = clue;
+    banner.classList.remove("hidden");
+  }
+
+  function undoLastReview() {
+    if (!reviewHistoryStack.length) return;
+    const lastAction = reviewHistoryStack.pop();
+    if (!lastAction) return;
+
+    const { item, type, prevEntry, prevStats } = lastAction;
+
+    if (type === "word") {
+      if (prevEntry) state.wordProgress[getWordKey(item.word)] = prevEntry;
+      else delete state.wordProgress[getWordKey(item.word)];
+    } else if (type === "sentence") {
+      if (prevEntry) state.sentenceProgress[String(item.i)] = prevEntry;
+      else delete state.sentenceProgress[String(item.i)];
+    } else {
+      if (prevEntry) state.progress[item.c] = prevEntry;
+      else delete state.progress[item.c];
+    }
+    saveState();
+
+    sessionStats = JSON.parse(JSON.stringify(prevStats));
+    reviewIndex = Math.max(0, reviewIndex - 1);
+    reviewRevealed = false;
+
+    showCard();
+    revealCard();
+
+    const undoBtn = el("review-undo-btn");
+    if (undoBtn) undoBtn.disabled = reviewHistoryStack.length === 0;
+
+    const label = type === "sentence" ? (item.z || "").slice(0, 8) : (type === "word" ? item.word : item.c);
+    showToast(`↺ Undid rating for ${label}`);
+  }
 
   function getScopeData(levelSet) {
     return HANZI_DATA.filter(item => levelSetMatches(item, levelSet));
@@ -1938,6 +2105,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     reviewQueue = queue;
     reviewIndex = 0;
+    reviewHistoryStack = [];
+    if (el("review-undo-btn")) el("review-undo-btn").disabled = true;
     sessionStats = { reviewed: 0, known: 0, correct: 0, streak: 0, bestStreak: 0, characters: 0, sentences: 0, words: 0, mistakes: [], skipped: [], flagged: [] };
     reviewStartedAt = Date.now();
     window.__reviewRatingBusy = false;
@@ -1946,9 +2115,9 @@ document.addEventListener("DOMContentLoaded", () => {
     el("review-setup").classList.add("hidden");
     el("review-summary").classList.add("hidden");
     el("review-session").classList.remove("hidden");
-    // Set per-card reveal prefs from setup checkboxes
     reviewShowPinyin = el("review-show-pinyin")?.checked ?? reviewShowPinyin;
     reviewShowEnglish = el("review-show-english")?.checked ?? reviewShowEnglish;
+    reviewAutoAudio = el("review-auto-audio")?.checked ?? reviewAutoAudio;
     showCard();
   }
 
@@ -1984,10 +2153,49 @@ document.addEventListener("DOMContentLoaded", () => {
     const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
     const sentenceMode = type === "sentence";
     const wordMode = type === "word";
+    const isRecall = reviewDirection === "recall" && !sentenceMode;
+
     el("flashcard").classList.toggle("sentence-flashcard", sentenceMode);
     el("review-session").classList.toggle("sentence-review-active", sentenceMode);
     el("flashcard").classList.remove("revealed");
-    el("fc-hanzi").hidden = sentenceMode || wordMode;
+
+    // Reset hints & HanziWriter canvas
+    el("review-hint-banner")?.classList.add("hidden");
+    el("fc-writer-wrap")?.classList.add("hidden");
+    el("review-stroke-toggle")?.classList.remove("active");
+    if (reviewHanziWriterInstance) {
+      try { reviewHanziWriterInstance.cancelQuiz(); } catch(e){}
+    }
+
+    // Direction badge
+    const dirBadge = el("review-direction-badge");
+    if (dirBadge) {
+      dirBadge.textContent = isRecall ? "Recall: Meaning ➔ Hanzi" : "Recognition: Hanzi ➔ Meaning";
+    }
+
+    // Undo button state
+    if (el("review-undo-btn")) {
+      el("review-undo-btn").disabled = reviewHistoryStack.length === 0;
+    }
+
+    // Recall prompt elements
+    const recallPrompt = el("fc-recall-prompt");
+    const recallMeaning = el("fc-recall-meaning");
+    const recallPyHint = el("fc-recall-pinyin-hint");
+
+    if (isRecall) {
+      el("fc-hanzi").hidden = true;
+      if (recallPrompt) {
+        recallPrompt.classList.remove("hidden");
+        const def = wordMode ? (item.english || "No English translation") : (item.m || "No meaning recorded");
+        if (recallMeaning) recallMeaning.textContent = formatDefinition(def, wordMode ? null : item.c, 2);
+        if (recallPyHint) recallPyHint.textContent = `Pinyin hint: ${wordMode ? (item.pinyin || "—") : (item.p || "—")}`;
+      }
+    } else {
+      if (recallPrompt) recallPrompt.classList.add("hidden");
+      el("fc-hanzi").hidden = sentenceMode || wordMode;
+    }
+
     el("fc-sentence-front").hidden = !sentenceMode;
     el("fc-hanzi-small").hidden = sentenceMode || wordMode;
     el("fc-pinyin").hidden = sentenceMode;
@@ -1997,7 +2205,27 @@ document.addEventListener("DOMContentLoaded", () => {
     el("fc-sentence-pinyin").hidden = true;
     el("fc-sentence-en").hidden = true;
     el("fc-related").hidden = true;
+    if (el("fc-radical-breakdown")) el("fc-radical-breakdown").hidden = true;
     if (el("review-example-toggle")) el("review-example-toggle").style.display = sentenceMode ? "none" : "";
+
+    // Context chips on front
+    const chipLevel = el("fc-chip-level");
+    const chipFreq = el("fc-chip-freq");
+    const chipRadical = el("fc-chip-radical");
+    if (sentenceMode) {
+      if (chipLevel) chipLevel.textContent = sentenceDifficulty(item).toUpperCase();
+      if (chipFreq) chipFreq.textContent = "Sentence";
+      if (chipRadical) chipRadical.textContent = "Context";
+    } else if (wordMode) {
+      if (chipLevel) chipLevel.textContent = "Word";
+      if (chipFreq) chipFreq.textContent = item.corpusCount ? `#${Number(item.corpusCount).toLocaleString()}` : "Vocab";
+      if (chipRadical) chipRadical.textContent = `${item.word.length} chars`;
+    } else {
+      if (chipLevel) chipLevel.textContent = levelLabel(item.h);
+      if (chipFreq) chipFreq.textContent = item.f < 99999 ? `#${Number(item.f).toLocaleString()}` : "Rare";
+      const rad = findRadicalForChar(item.c);
+      if (chipRadical) chipRadical.textContent = rad ? `部首 ${rad.char} (${rad.meaning})` : `HSK ${item.h}`;
+    }
 
     if (sentenceMode) {
       el("fc-sentence-front").textContent = item.z || "";
@@ -2104,12 +2332,46 @@ document.addEventListener("DOMContentLoaded", () => {
     el("review-pinyin-toggle").classList.toggle("active", reviewShowPinyin);
     el("review-english-toggle").classList.toggle("active", reviewShowEnglish);
     updateIntervalPreviews(item);
-    // Auto-play audio on reveal if supported
-    try {
-      const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
-      const sentenceId = type === "sentence" ? item.i : null;
-      playChineseAudio(text, { rate: 0.88, sentenceId });
-    } catch (e) { /* audio not critical */ }
+    // Back status pill
+    const statusPill = el("fc-back-status-pill");
+    if (statusPill) {
+      const entry = type === "sentence" ? getSentenceEntry(item.i) : (type === "word" ? getWordEntry(item.word) : getEntry(item.c));
+      const s = entry?.status || "new";
+      statusPill.textContent = s === "known" ? "Mastered" : (s === "learning" ? "Learning" : "New");
+      statusPill.className = "fc-status-pill " + s;
+    }
+
+    // Radical breakdown on back
+    const breakdownBox = el("fc-radical-breakdown");
+    const breakdownBody = el("fc-breakdown-body");
+    if (breakdownBox && breakdownBody) {
+      if (type === "character") {
+        const radical = findRadicalForChar(item.c);
+        if (radical) {
+          breakdownBox.hidden = false;
+          breakdownBody.innerHTML = `
+            <div class="fc-breakdown-item">
+              <span class="breakdown-tag">Radical</span>
+              <strong class="breakdown-char">${radical.char}</strong>
+              <span class="breakdown-meta">${radical.pinyin} · ${radical.meaning} (${radical.strokes} strokes)</span>
+            </div>
+          `;
+        } else {
+          breakdownBox.hidden = true;
+        }
+      } else {
+        breakdownBox.hidden = true;
+      }
+    }
+
+    // Auto-play audio on reveal if enabled
+    if (reviewAutoAudio) {
+      try {
+        const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+        const sentenceId = type === "sentence" ? item.i : null;
+        playChineseAudio(text, { rate: 0.88, sentenceId });
+      } catch (e) { /* audio not critical */ }
+    }
   }
 
   function updateLiveReviewStats() {
@@ -2135,6 +2397,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const grade = normalizeRatingGrade(rating);
       const isRecallSuccess = grade >= 2;
       let entry = null, prevStatus = "new";
+
+      const prevEntry = type === "word" ? (getWordEntry(item.word) ? JSON.parse(JSON.stringify(getWordEntry(item.word))) : null) :
+                        type === "sentence" ? (getSentenceEntry(item.i) ? JSON.parse(JSON.stringify(getSentenceEntry(item.i))) : null) :
+                        (getEntry(item.c) ? JSON.parse(JSON.stringify(getEntry(item.c))) : null);
+      const prevStats = JSON.parse(JSON.stringify(sessionStats));
+      reviewHistoryStack.push({ item, type, prevEntry, prevStats, rating });
+      if (el("review-undo-btn")) el("review-undo-btn").disabled = false;
 
       if (type === "word") {
         prevStatus = getWordStatus(item.word);
@@ -2836,260 +3105,1514 @@ document.addEventListener("DOMContentLoaded", () => {
     if (b) setTimeout(() => b.click(), 80);
   }
 
+  // ==========================================================================
+  // DU CHINESE STYLE READER ENGINE
+  // Dual meaning panels, word-level pinyin ruby, underlines, HSK highlights,
+  // synchronized audio playback, bottom control bar, settings and library.
+  // ==========================================================================
+
+  let DU_STORIES = [
+    {
+      id: "story-heart",
+      titleEn: "Why Do They All Have “Heart”?",
+      titleZh: "为什么它们都有“心”？",
+      level: "ELEMENTARY",
+      levelLabel: "Elementary",
+      hskLevel: "HSK 2",
+      readTime: "3 min",
+      description: "Explore why characters relating to thinking, feelings, and emotions all contain the heart radical.",
+      sentences: [
+        {
+          zh: "为什么它们都有“心”？",
+          en: "Why do they all have “heart”?",
+          isTitle: true
+        },
+        {
+          zh: "你认识“心”这个字吗？",
+          en: "Do you know the character “心” (heart)?"
+        },
+        {
+          zh: "有时候，“心”自己就是一个字。",
+          en: "Sometimes, “心” itself is a character on its own."
+        },
+        {
+          zh: "有时候，它在别的字里面。",
+          en: "Sometimes, it is inside other characters."
+        },
+        {
+          zh: "你看，“想”和“思”字里就有“心”，“快”和“慢”左边的“忄（竖心旁）”也是“心”变来的。",
+          en: "Look, the characters “想” (think) and “思” (ponder) have “心” inside them, and the “忄” (vertical heart radical) on the left of “快” (fast) and “慢” (slow) is also evolved from “心”."
+        },
+        {
+          zh: "为什么这些字里有“心”呢？因为这些字都和人想什么、怎么想有关系。",
+          en: "Why do these characters have “心”? Because these characters are all related to what people think and how they think."
+        },
+        {
+          zh: "“想”和“思”，说的是心里在想事情。",
+          en: "“想” and “思” mean that one's heart/mind is thinking about things."
+        },
+        {
+          zh: "“快”和“慢”，是你做事情的时候，心里的感觉。",
+          en: "“快” and “慢” describe the feeling in your heart when you do things."
+        },
+        {
+          zh: "“忙”这个字，和心里的事有关系，事情多的时候，心里就会想得多。",
+          en: "The character “忙” (busy) is related to matters in your heart; when there are many things to do, your mind thinks about a lot of things."
+        },
+        {
+          zh: "所以，看到一个字里有“心”，你可以想一想：这个字可能和“心里想的事”有关系。",
+          en: "Therefore, when you see “心” in a character, you can think about it: this character is probably related to “things the heart/mind thinks about”."
+        }
+      ]
+    },
+    {
+      id: "story-tea",
+      titleEn: "A Cup of Jasmine Tea",
+      titleZh: "一杯好喝的茉莉花茶",
+      level: "BEGINNER",
+      levelLabel: "Beginner",
+      hskLevel: "HSK 1-2",
+      readTime: "2 min",
+      description: "A peaceful afternoon in Beijing learning about traditional Chinese tea culture.",
+      sentences: [
+        {
+          zh: "一杯好喝的茉莉花茶",
+          en: "A Cup of Delicious Jasmine Tea",
+          isTitle: true
+        },
+        {
+          zh: "北京的春天非常舒服，阳光温暖，微风轻轻吹着。",
+          en: "Spring in Beijing is very comfortable, with warm sunshine and gentle breezes."
+        },
+        {
+          zh: "今天下午，我和好朋友来到一家安静的茶馆喝茶。",
+          en: "This afternoon, my good friend and I came to a quiet teahouse to drink tea."
+        },
+        {
+          zh: "服务员给我们倒了一杯茉莉花茶，闻起来特别香。",
+          en: "The waiter poured us a cup of jasmine tea; it smelled exceptionally fragrant."
+        },
+        {
+          zh: "在中国，喝茶不仅是一种习惯，更是一种享受生活的方式。",
+          en: "In China, drinking tea is not only a habit, but also a way to enjoy life."
+        },
+        {
+          zh: "看着杯子里的茶叶慢慢舒展，心情也跟着变得平静了。",
+          en: "Watching the tea leaves slowly unfurl in the cup, my heart also became calm."
+        }
+      ]
+    },
+    {
+      id: "story-dumplings",
+      titleEn: "The Legend of Chinese Dumplings",
+      titleZh: "中国饺子的温暖传说",
+      level: "INTERMEDIATE",
+      levelLabel: "Intermediate",
+      hskLevel: "HSK 3",
+      readTime: "4 min",
+      description: "How ancient physician Zhang Zhongjing invented dumplings to cure cold ears during winter.",
+      sentences: [
+        {
+          zh: "中国饺子的温暖传说",
+          en: "The Warm Legend of Chinese Dumplings",
+          isTitle: true
+        },
+        {
+          zh: "在中国北方，每当冬至或者春节的时候，家家户户都要包饺子、吃饺子。",
+          en: "In northern China, whenever the Winter Solstice or Spring Festival arrives, every household makes and eats dumplings."
+        },
+        {
+          zh: "传说在很久以前的东汉时期，著名医生张仲景看到许多穷苦百姓在寒冬里耳朵被冻坏了。",
+          en: "Legend has it that long ago in the Eastern Han Dynasty, the famous doctor Zhang Zhongjing saw many poor people whose ears were frostbitten in the freezing winter."
+        },
+        {
+          zh: "他心里非常同情他们，于是把羊肉、辣椒和温热的药材用面皮包成耳朵的形状，煮熟后送给百姓吃。",
+          en: "Feeling deep sympathy, he wrapped mutton, chili peppers, and warming medicinal herbs into dough shaped like ears, boiled them, and gave them to the people to eat."
+        },
+        {
+          zh: "人们吃了这种热气腾腾的“娇耳”之后，浑身发暖，冻伤的耳朵也慢慢治好了。",
+          en: "After eating these steaming hot dumplings, people's whole bodies grew warm, and their frostbitten ears gradually healed."
+        },
+        {
+          zh: "后来，这种好吃的食物便代代相传，演变成了今天的饺子。",
+          en: "Later on, this delicious food was passed down through generations and evolved into the dumplings of today."
+        }
+      ]
+    }
+  ];
+
+  // Target vocabulary that gets distinctive Du Chinese highlights (cyan/teal tint)
+  const DU_HIGHLIGHT_WORDS = new Set([
+    "为什么", "它们", "都有", "心", "认识", "这个字", "有时候", "自己", "就是", "一个字",
+    "它", "别的", "里面", "你看", "想", "思", "就", "快", "慢", "左边", "竖心旁", "也是",
+    "变来", "因为", "这些字", "都", "和", "人", "什么", "怎么", "有关系", "说", "心里",
+    "在", "事情", "是你", "做事情", "时候", "感觉", "忙", "事", "多", "就会", "得多",
+    "所以", "看到", "可以", "想一想", "可能"
+  ]);
+
+  let duActiveStoryId = "story-heart";
+  let duActiveSentenceIndex = -1;
+  let duActiveWord = null;
+  let duPlaying = false;
+  let duSpeed = 1.0;
+  let duPinyinOn = true;
+  let duHskOn = true;
+  let duTradMode = "simp"; // "simp" or "trad"
+  let duSentenceMeaningHidden = false;
+  let duFontSize = "md"; // "sm", "md", "lg", "xl"
+  let duTheme = "paper"; // "paper", "sepia", "dark"
+  let duUnderline = "on"; // "on", "off"
+  let duAutoScroll = "on"; // "on", "off"
+
   function wireReadings() {
-    const parseBtn = el('readings-parse-btn');
-    const input = el('readings-input');
-    const output = el('readings-output');
-    const statsContainer = el('readings-stats');
-    const pinyinUnknownOnlyCheckbox = el('reading-pinyin-unknown-only');
-    const libraryView = el('readings-library-view');
-    const readerView = el('readings-reader-view');
-    const readingsList = el('readings-list');
-    const titleInput = el('readings-title-input');
-    const saveBtn = el('readings-save-btn');
-    const newBtn = el('readings-new-btn');
-    const backBtn = el('readings-back-btn');
-    const deleteBtn = el('readings-delete-btn');
+    const container = el("du-reader-container");
+    if (!container) return;
 
-    let currentReadingText = '';
-    let currentReadingId = null;
-    let readingShowPinyin = false;
-    let readingPinyinUnknownOnly = false;
-    let wordDict = new Set();
-    let maxWordLen = 1;
+    // Load saved preferences if any
+    try {
+      const savedPrefs = localStorage.getItem("hanzi_du_reader_prefs");
+      if (savedPrefs) {
+        const p = JSON.parse(savedPrefs);
+        if (p.pinyinOn !== undefined) duPinyinOn = p.pinyinOn;
+        if (p.hskOn !== undefined) duHskOn = p.hskOn;
+        if (p.tradMode) duTradMode = p.tradMode;
+        if (p.fontSize) duFontSize = p.fontSize;
+        if (p.theme) duTheme = p.theme;
+        if (p.underline) duUnderline = p.underline;
+        if (p.autoScroll) duAutoScroll = p.autoScroll;
+        if (p.speed) duSpeed = p.speed;
+      }
+    } catch(e){}
 
-    // Build dict for MaxMatch
-    if (typeof WORD_DATA !== "undefined" && WORD_DATA) {
-      wordDict = new Set(WORD_DATA.map(w => w.word));
-      maxWordLen = Math.max(...WORD_DATA.map(w => Array.from(w.word).length));
+    // Build word segmentation dictionary
+    let duWordDict = new Set();
+    let duMaxWordLen = 4;
+    if (typeof WORD_DATA !== "undefined" && WORD_DATA && WORD_DATA.length) {
+      WORD_DATA.forEach(w => {
+        if (w.word) {
+          duWordDict.add(w.word);
+          if (w.word.length > duMaxWordLen) duMaxWordLen = w.word.length;
+        }
+      });
+    }
+    // Also include highlighted words in dict
+    DU_HIGHLIGHT_WORDS.forEach(w => duWordDict.add(w));
+
+    // Helper: Segment Chinese sentence into words
+    function segmentSentence(text) {
+      const tokens = [];
+      let i = 0;
+      const chars = Array.from(text);
+      const isChinesePunct = ch => /[\s，。！？、“”‘’（）《》；：…—\?\!,\.]/.test(ch);
+
+      while (i < chars.length) {
+        const ch = chars[i];
+        if (isChinesePunct(ch)) {
+          tokens.push({ type: "punct", text: ch });
+          i++;
+          continue;
+        }
+
+        // Try MaxMatch forward
+        let matched = false;
+        for (let len = Math.min(duMaxWordLen, chars.length - i); len >= 2; len--) {
+          const candidate = chars.slice(i, i + len).join("");
+          if (duWordDict.has(candidate)) {
+            tokens.push({ type: "word", text: candidate });
+            i += len;
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          tokens.push({ type: "word", text: ch });
+          i++;
+        }
+      }
+      return tokens;
     }
 
-    function renderLibrary() {
-      if (!state.readings) state.readings = [];
-      readingsList.innerHTML = state.readings.length === 0
-        ? '<div style="color: var(--text-light); font-style: italic;">No saved readings yet. Click "Add New Reading" to get started.</div>'
-        : state.readings.map(r =>
-          '<div class="reading-item" data-id="' + r.id + '" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s;">' +
-          '<h3 style="margin: 0 0 8px 0; color: var(--gold-bright);">' + escHtml(r.title || 'Untitled Reading') + '</h3>' +
-          '<p style="margin: 0; color: var(--text-light); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escHtml((r.text || "").substring(0, 50)) + '...</p>' +
-          '</div>'
-        ).join('');
+    // Helper: Lookup word definition
+    function getWordInfo(word) {
+      if (!word) return null;
+      let match = null;
+      if (typeof WORD_DATA !== "undefined" && WORD_DATA) {
+        match = WORD_DATA.find(w => w.word === word);
+      }
+      if (!match && typeof HANZI_BY_CHAR !== "undefined" && word.length === 1 && HANZI_BY_CHAR[word]) {
+        const h = HANZI_BY_CHAR[word];
+        return {
+          word,
+          pinyin: h.p || "",
+          meaning: h.m || "",
+          level: h.l ? ("HSK " + h.l) : "New",
+          chars: [{ char: word, pinyin: h.p || "", meaning: h.m || "" }]
+        };
+      }
 
-      // Bind clicks
-      readingsList.querySelectorAll('.reading-item').forEach(e => {
-        e.addEventListener('click', () => {
-          const id = e.dataset.id;
-          const reading = state.readings.find(r => r.id === id);
-          if (reading) {
-            currentReadingId = id;
-            titleInput.value = reading.title || '';
-            input.value = reading.text || '';
-            currentReadingText = reading.text || '';
-            deleteBtn.style.display = 'block';
-            libraryView.classList.add('hidden');
-            readerView.classList.remove('hidden');
-            renderReadingOutput();
+      // Compute character breakdowns
+      const charBreakdowns = Array.from(word).map(c => {
+        const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c] : null;
+        return {
+          char: c,
+          pinyin: h?.p || (window.pinyinPro ? window.pinyinPro.pinyin(c, { type: "string" }) : ""),
+          meaning: h?.m || ""
+        };
+      });
+
+      let py = match ? match.pinyin : (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : "");
+      let meaning = match ? match.meaning : "";
+      let level = match ? ("HSK " + (match.level || "2")) : (charBreakdowns[0]?.meaning ? "HSK 2" : "Vocabulary");
+
+      return {
+        word,
+        pinyin: py,
+        meaning: meaning || "Common vocabulary in this lesson",
+        level: level,
+        chars: charBreakdowns
+      };
+    }
+
+    // Helper: Convert Simplified to Traditional if needed
+    function toDisplayChar(char) {
+      if (duTradMode === "trad") {
+        if (typeof getTraditionalForm === "function") {
+          const trad = getTraditionalForm(char);
+          if (trad) return trad;
+        }
+        if (typeof SIMPLIFIED_TO_TRADITIONAL !== "undefined" && SIMPLIFIED_TO_TRADITIONAL[char]) {
+          return SIMPLIFIED_TO_TRADITIONAL[char];
+        }
+      }
+      return char;
+    }
+
+    function toDisplayWord(word) {
+      return Array.from(word).map(toDisplayChar).join("");
+    }
+
+    // Render active story to canvas
+    function renderDuStory(story) {
+      if (!story) return;
+      duActiveStoryId = story.id;
+      duActiveSentenceIndex = -1;
+      duActiveWord = null;
+
+      const canvas = el("du-article-canvas");
+      if (!canvas) return;
+
+      // Update Bottom Bar Info
+      const barLevel = el("du-bar-level");
+      const barTitle = el("du-bar-title");
+      if (barLevel) barLevel.textContent = story.level || "ELEMENTARY";
+      if (barTitle) barTitle.textContent = story.titleEn || story.titleZh;
+
+      // Reset sentence meaning panel
+      const sText = el("du-sentence-meaning-text");
+      if (sText) {
+        sText.textContent = story.sentences[0]?.en || "Click any sentence to see its English meaning.";
+      }
+
+      // Reset word meaning panel
+      const wContent = el("du-word-meaning-content");
+      if (wContent) {
+        wContent.innerHTML = '<span class="du-meaning-placeholder">Click any word below to see its pinyin, definition, and HSK level.</span>';
+      }
+      const wAudioBtn = el("du-word-audio-btn");
+      if (wAudioBtn) wAudioBtn.style.display = "none";
+
+      // Check Mark Read status
+      const isRead = state.duReadStories && state.duReadStories.includes(story.id);
+      updateMarkReadVisual(isRead);
+
+      let html = '';
+
+      story.sentences.forEach((sent, sentIdx) => {
+        const tokens = segmentSentence(sent.zh);
+        const isTitle = sent.isTitle;
+
+        let sentHtml = '<span class="du-sentence ' + (isTitle ? 'du-title-sentence' : '') + '" data-sentence-index="' + sentIdx + '" data-translation="' + escHtml(sent.en) + '">';
+
+        tokens.forEach(tok => {
+          if (tok.type === "punct") {
+            sentHtml += '<span class="du-punct"><ruby class="du-ruby"><span class="du-char du-punct-char">' + escHtml(tok.text) + '</span><rt>&nbsp;</rt></ruby></span>';
+          } else {
+            const word = tok.text;
+            const wordInfo = getWordInfo(word);
+            const isHighlighted = DU_HIGHLIGHT_WORDS.has(word) || (wordInfo && wordInfo.level && wordInfo.level.includes("HSK"));
+
+            // Calculate per-character pinyin
+            let pinyins = [];
+            if (window.pinyinPro && typeof window.pinyinPro.pinyin === "function") {
+              try {
+                pinyins = window.pinyinPro.pinyin(word, { type: "array" });
+              } catch(e){}
+            }
+            if (!pinyins || pinyins.length !== Array.from(word).length) {
+              pinyins = Array.from(word).map(c => (HANZI_BY_CHAR && HANZI_BY_CHAR[c]?.p) || "");
+            }
+
+            const charsHtml = Array.from(word).map((c, cIdx) => {
+              const dispChar = toDisplayChar(c);
+              const py = pinyins[cIdx] || "";
+              return '<ruby class="du-ruby"><span class="du-char">' + escHtml(dispChar) + '</span><rt>' + escHtml(py) + '</rt></ruby>';
+            }).join("");
+
+            const highlightClass = isHighlighted ? " hsk-highlight" : "";
+            sentHtml += '<span class="du-word' + highlightClass + '" data-word="' + escHtml(word) + '" data-sentence-index="' + sentIdx + '" title="' + escHtml(wordInfo?.meaning || "") + '">' + charsHtml + '</span>';
+          }
+        });
+
+        sentHtml += '</span>';
+
+        if (isTitle) {
+          html += '<div class="du-article-title-row">' + sentHtml + '</div>';
+        } else {
+          // If first sentence after title or paragraph break
+          if (sentIdx === 1 || sentIdx === 5 || sentIdx === 9) {
+            html += '<p class="du-paragraph">' + sentHtml;
+          } else if (sentIdx === 4 || sentIdx === 8 || sentIdx === story.sentences.length - 1) {
+            html += sentHtml + '</p>';
+          } else {
+            html += sentHtml;
+          }
+        }
+      });
+
+      canvas.innerHTML = html;
+      applyPreferencesToCanvas();
+    }
+
+    // Apply font size, underlines, HSK highlights, pinyin toggles
+    function applyPreferencesToCanvas() {
+      const canvas = el("du-article-canvas");
+      if (!canvas) return;
+
+      canvas.classList.toggle("du-pinyin-off", !duPinyinOn);
+      canvas.classList.toggle("du-hsk-on", duHskOn);
+      canvas.classList.toggle("du-underline-on", duUnderline === "on");
+
+      // Font size
+      canvas.classList.remove("du-size-sm", "du-size-md", "du-size-lg", "du-size-xl");
+      canvas.classList.add("du-size-" + duFontSize);
+
+      // Reader Theme
+      const wrap = document.querySelector(".du-article-wrap");
+      if (wrap) {
+        wrap.classList.remove("du-theme-paper", "du-theme-sepia", "du-theme-dark");
+        wrap.classList.add("du-theme-" + duTheme);
+      }
+
+      // Bottom bar toggle pills state
+      const hskPill = el("du-toggle-hsk");
+      if (hskPill) {
+        hskPill.classList.toggle("active", duHskOn);
+        hskPill.querySelector(".du-pill-indicator").textContent = duHskOn ? "On" : "Off";
+      }
+
+      const pinyinPill = el("du-toggle-pinyin");
+      if (pinyinPill) {
+        pinyinPill.classList.toggle("active", duPinyinOn);
+        pinyinPill.querySelector(".du-pill-indicator").textContent = duPinyinOn ? "On" : "Off";
+      }
+
+      const charPill = el("du-toggle-chars");
+      if (charPill) {
+        charPill.querySelector(".du-pill-indicator").textContent = duTradMode === "trad" ? "繁" : "汉";
+      }
+
+      const speedBtn = el("du-speed-btn");
+      if (speedBtn) speedBtn.textContent = "v" + duSpeed.toFixed(1);
+    }
+
+    // Save preferences
+    function saveDuPrefs() {
+      try {
+        localStorage.setItem("hanzi_du_reader_prefs", JSON.stringify({
+          pinyinOn: duPinyinOn,
+          hskOn: duHskOn,
+          tradMode: duTradMode,
+          fontSize: duFontSize,
+          theme: duTheme,
+          underline: duUnderline,
+          autoScroll: duAutoScroll,
+          speed: duSpeed
+        }));
+      } catch(e){}
+    }
+
+    // Highlight and inspect sentence
+    function selectSentence(sentIdx, fromHover = false) {
+      if (sentIdx < 0) return;
+      
+      if (duActiveSentenceIndex !== sentIdx) {
+        duActiveSentenceIndex = sentIdx;
+
+        document.querySelectorAll(".du-sentence").forEach(s => {
+          const idx = Number(s.dataset.sentenceIndex);
+          s.classList.toggle("du-active-sentence", idx === sentIdx);
+        });
+
+        const activeSent = document.querySelector('.du-sentence[data-sentence-index="' + sentIdx + '"]');
+        if (activeSent) {
+          const trans = activeSent.dataset.translation || "";
+          const sText = el("du-sentence-meaning-text");
+          if (sText) sText.textContent = trans;
+        }
+      }
+
+      if (duAutoScroll === "on" && !fromHover) {
+        const activeSent = document.querySelector('.du-sentence[data-sentence-index="' + sentIdx + '"]');
+        if (activeSent) {
+          activeSent.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
+
+    // Inspect Word details
+    function inspectWord(word) {
+      if (!word) return;
+      if (duActiveWord === word) return;
+      duActiveWord = word;
+
+      document.querySelectorAll(".du-word").forEach(w => {
+        w.classList.toggle("active", w.dataset.word === word);
+      });
+
+      const info = getWordInfo(word);
+      const content = el("du-word-meaning-content");
+      const audioBtn = el("du-word-audio-btn");
+
+      if (content && info) {
+        let breakdownHtml = "";
+        if (info.chars && info.chars.length > 1) {
+          breakdownHtml = '<div class="du-wm-breakdown">' +
+            info.chars.map(c => '<span class="du-wm-char-chip"><b>' + escHtml(toDisplayChar(c.char)) + '</b> <i>' + escHtml(c.pinyin) + '</i> (' + escHtml(c.meaning || "—") + ')</span>').join(" · ") +
+            '</div>';
+        }
+
+        content.innerHTML =
+          '<div class="du-wm-headline">' +
+            '<span class="du-wm-word">' + escHtml(toDisplayWord(word)) + '</span>' +
+            '<span class="du-wm-pinyin">' + escHtml(info.pinyin) + '</span>' +
+            '<span class="du-wm-badge">' + escHtml(info.level) + '</span>' +
+          '</div>' +
+          '<div class="du-wm-meaning">' + escHtml(info.meaning) + '</div>' +
+          breakdownHtml;
+
+        if (audioBtn) {
+          audioBtn.style.display = "inline-flex";
+          audioBtn.onclick = () => playChineseAudio(word, { rate: duSpeed });
+        }
+      }
+    }
+
+    // Audio Playback Engine (Sentence by Sentence Karaoke)
+    function startDuAudio(startIndex = 0) {
+      const story = DU_STORIES.find(s => s.id === duActiveStoryId);
+      if (!story || !story.sentences.length) return;
+
+      duPlaying = true;
+      updatePlayBtnVisual();
+
+      let currentIdx = (startIndex >= 0 && startIndex < story.sentences.length) ? startIndex : 0;
+
+      function playNext() {
+        if (!duPlaying) return;
+        if (currentIdx >= story.sentences.length) {
+          // Finished story!
+          duPlaying = false;
+          updatePlayBtnVisual();
+          markCurrentStoryRead();
+          showToast("🎉 Completed reading " + (story.titleEn || story.titleZh) + "!");
+          return;
+        }
+
+        const sent = story.sentences[currentIdx];
+        selectSentence(currentIdx);
+
+        playChineseAudio(sent.zh, {
+          rate: duSpeed,
+          onStart: () => {
+            selectSentence(currentIdx);
+          },
+          onEnd: () => {
+            if (!duPlaying) return;
+            currentIdx++;
+            setTimeout(playNext, 400);
+          }
+        });
+      }
+
+      playNext();
+    }
+
+    function pauseDuAudio() {
+      duPlaying = false;
+      updatePlayBtnVisual();
+      if (typeof currentActiveAudio !== "undefined" && currentActiveAudio) {
+        try { currentActiveAudio.pause(); } catch(e){}
+      }
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch(e){}
+      }
+    }
+
+    function togglePlayAudio() {
+      if (duPlaying) {
+        pauseDuAudio();
+      } else {
+        startDuAudio(duActiveSentenceIndex >= 0 ? duActiveSentenceIndex : 0);
+      }
+    }
+
+    function updatePlayBtnVisual() {
+      const playIcon = el("du-play-icon");
+      const pauseIcon = el("du-pause-icon");
+      if (playIcon && pauseIcon) {
+        playIcon.classList.toggle("hidden", duPlaying);
+        pauseIcon.classList.toggle("hidden", !duPlaying);
+      }
+    }
+
+    // Mark Read Visual & Action
+    function updateMarkReadVisual(isRead) {
+      const circle = el("du-mark-read-circle");
+      const btn = el("du-mark-read-btn");
+      if (circle && btn) {
+        circle.classList.toggle("read", !!isRead);
+        btn.classList.toggle("read", !!isRead);
+      }
+    }
+
+    function markCurrentStoryRead() {
+      if (!state.duReadStories) state.duReadStories = [];
+      if (!state.duReadStories.includes(duActiveStoryId)) {
+        state.duReadStories.push(duActiveStoryId);
+        saveState();
+        if (typeof addExp === "function") {
+          addExp(50, "Read story: " + duActiveStoryId);
+        }
+        showToast("🎉 Story marked as read! +50 XP");
+      }
+      updateMarkReadVisual(true);
+    }
+
+    // Stories Library Modal State & Filtering
+    let duLibraryFilterLevel = "all";
+    let duLibrarySearchQuery = "";
+
+    function renderLibraryModal() {
+      const grid = el("du-story-cards-grid");
+      if (!grid) return;
+
+      const userStories = (state.readings || []).map(r => ({
+        id: r.id,
+        titleEn: r.title || "Custom Story",
+        titleZh: r.title || "自定义短文",
+        hskLevel: 0,
+        level: "CUSTOM",
+        levelLabel: "Custom",
+        readTime: "2 min",
+        description: (r.text || "").slice(0, 75) + "...",
+        sentences: (r.text || "").split(/[。！？\n]/).filter(s => s.trim().length > 0).map(s => ({
+          zh: s.trim() + "。",
+          en: "Custom user sentence."
+        }))
+      }));
+
+      const allStories = [...DU_STORIES, ...userStories];
+
+      // Update chip counts
+      const counts = { all: allStories.length, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      allStories.forEach(s => {
+        const lvl = s.hskLevel || (s.level === "NEWBIE" ? 1 : s.level === "ELEMENTARY" ? 2 : s.level === "INTERMEDIATE" ? 3 : s.level === "UPPER_INTERMEDIATE" ? 5 : s.level === "ADVANCED" ? 6 : null);
+        if (lvl && counts[lvl] !== undefined) counts[lvl]++;
+      });
+
+      document.querySelectorAll(".du-hsk-chip").forEach(chip => {
+        const chipLvl = chip.dataset.hskLevel;
+        if (chipLvl === "all") {
+          chip.textContent = `All (${counts.all})`;
+        } else if (counts[chipLvl] !== undefined) {
+          chip.textContent = `HSK ${chipLvl} (${counts[chipLvl]})`;
+        }
+        chip.classList.toggle("active", chipLvl === duLibraryFilterLevel);
+      });
+
+      // Filter stories
+      let filtered = allStories;
+      if (duLibraryFilterLevel !== "all") {
+        const targetLvl = Number(duLibraryFilterLevel);
+        filtered = filtered.filter(s => {
+          const sLvl = s.hskLevel || (s.level === "NEWBIE" ? 1 : s.level === "ELEMENTARY" ? 2 : s.level === "INTERMEDIATE" ? 3 : s.level === "UPPER_INTERMEDIATE" ? 5 : s.level === "ADVANCED" ? 6 : 0);
+          return sLvl === targetLvl;
+        });
+      }
+
+      if (duLibrarySearchQuery) {
+        const q = duLibrarySearchQuery.toLowerCase();
+        filtered = filtered.filter(s =>
+          (s.titleEn && s.titleEn.toLowerCase().includes(q)) ||
+          (s.titleZh && s.titleZh.includes(q)) ||
+          (s.description && s.description.toLowerCase().includes(q))
+        );
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="du-library-empty"><p>No stories found matching your filter.</p></div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(s => {
+        const isRead = state.duReadStories && state.duReadStories.includes(s.id);
+        const isActive = s.id === duActiveStoryId;
+        const sLvl = s.hskLevel ? `hsk${s.hskLevel}` : (s.level || "elementary").toLowerCase();
+        const badgeText = s.levelLabel || (s.hskLevel ? `HSK ${s.hskLevel}` : s.level);
+        return (
+          '<div class="du-story-card ' + (isActive ? 'active ' : '') + (isRead ? 'is-read' : '') + '" data-story-id="' + s.id + '">' +
+            '<div class="du-story-card-top">' +
+              '<span class="du-story-card-level ' + sLvl + '">' + badgeText + '</span>' +
+              (isRead ? '<span class="du-story-card-badge read">✓ Read</span>' : '<span class="du-story-card-time">' + (s.readTime || "3 min") + '</span>') +
+            '</div>' +
+            '<h4 class="du-story-card-title">' + escHtml(s.titleEn) + '</h4>' +
+            '<div class="du-story-card-zh">' + escHtml(s.titleZh) + '</div>' +
+            '<p class="du-story-card-desc">' + escHtml(s.description) + '</p>' +
+            '<div class="du-story-card-footer">' +
+              '<span class="du-story-sentences-count">' + (s.sentences ? s.sentences.length : 0) + ' sentences</span>' +
+              '<button type="button" class="du-story-select-btn">' + (isActive ? 'Currently Reading' : 'Read Story ➔') + '</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+
+      grid.querySelectorAll(".du-story-card").forEach(card => {
+        card.addEventListener("click", () => {
+          const sId = card.dataset.storyId;
+          const story = allStories.find(s => s.id === sId);
+          if (story) {
+            pauseDuAudio();
+            renderDuStory(story);
+            el("du-stories-modal")?.classList.add("hidden");
+            showToast("📖 Loaded " + (story.titleEn || story.titleZh));
           }
         });
       });
     }
 
-    newBtn?.addEventListener('click', () => {
-      currentReadingId = null;
-      titleInput.value = '';
-      input.value = '';
-      currentReadingText = '';
-      output.innerHTML = '<div style="color: var(--ink-soft); text-align: center; font-size: 1.1rem; margin-top: 40px; font-family: var(--font-ui);">Your parsed text will appear here.</div>';
-      statsContainer?.classList.add('hidden');
-      deleteBtn.style.display = 'none';
-      libraryView.classList.add('hidden');
-      readerView.classList.remove('hidden');
-    });
-
-    backBtn?.addEventListener('click', () => {
-      libraryView.classList.remove('hidden');
-      readerView.classList.add('hidden');
-      renderLibrary();
-    });
-
-    deleteBtn?.addEventListener('click', () => {
-      if (!currentReadingId) return;
-      state.readings = state.readings.filter(r => r.id !== currentReadingId);
-      saveState();
-      libraryView.classList.remove('hidden');
-      readerView.classList.add('hidden');
-      renderLibrary();
-    });
-
-    saveBtn?.addEventListener('click', () => {
-      const text = input.value.trim();
-      if (!text) return;
-
-      currentReadingText = text;
-      const title = titleInput.value.trim();
-
-      if (currentReadingId) {
-        const reading = state.readings.find(r => r.id === currentReadingId);
-        if (reading) {
-          reading.text = text;
-          reading.title = title;
+    // Wire HSK filter chips and search input once
+    const hskChipsContainer = el("du-hsk-filter-chips");
+    if (hskChipsContainer && !hskChipsContainer.dataset.wired) {
+      hskChipsContainer.dataset.wired = "true";
+      hskChipsContainer.addEventListener("click", e => {
+        const chip = e.target.closest(".du-hsk-chip");
+        if (chip) {
+          duLibraryFilterLevel = chip.dataset.hskLevel || "all";
+          renderLibraryModal();
         }
-      } else {
-        currentReadingId = Date.now().toString();
-        state.readings.push({ id: currentReadingId, title, text, date: Date.now() });
-      }
-
-      saveState();
-      renderReadingOutput();
-    });
-
-    parseBtn?.addEventListener("click", () => {
-      const text = input.value;
-      if (!text.trim()) return;
-      currentReadingText = text;
-      renderReadingOutput();
-    });
-
-    pinyinUnknownOnlyCheckbox?.addEventListener('change', (e) => {
-      readingPinyinUnknownOnly = e.target.checked;
-      renderReadingOutput();
-    });
-
-    function renderReadingOutput() {
-      if (!currentReadingText) return;
-
-      let known = 0, learning = 0, newCount = 0;
-
-      // Tokenizer: MaxMatch
-      const chars = Array.from(currentReadingText);
-      let tokens = [];
-      let i = 0;
-      while (i < chars.length) {
-        let matched = false;
-        for (let len = maxWordLen; len >= 1; len--) {
-          if (i + len <= chars.length) {
-            const candidate = chars.slice(i, i + len).join('');
-            if (wordDict.has(candidate)) {
-              tokens.push({ text: candidate, isWord: true });
-              i += len;
-              matched = true;
-              break;
-            }
-          }
-        }
-        if (!matched) {
-          tokens.push({ text: chars[i], isWord: false });
-          i++;
-        }
-      }
-
-      output.innerHTML = tokens.map(token => {
-        if (token.isWord) {
-          // Multi-char word
-          let wordHtml = '';
-          let allKnown = true;
-
-          const charSpans = Array.from(token.text).map(ch => {
-            if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
-              const status = getStatus(ch);
-              if (status === 'known') known++;
-              else if (status === 'learning') { learning++; allKnown = false; }
-              else { newCount++; allKnown = false; }
-
-              const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-              return '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
-            } else {
-              return escHtml(ch);
-            }
-          }).join('');
-
-          if (readingShowPinyin) {
-            let showThisPinyin = true;
-            if (readingPinyinUnknownOnly && allKnown) showThisPinyin = false;
-
-            const wordObj = WORD_DATA.find(w => w.word === token.text);
-            const py = wordObj ? wordObj.pinyin : sentencePinyin(token.text);
-            const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
-            wordHtml = '<ruby class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="display:inline-flex; flex-direction:column-reverse; align-items:center; cursor:pointer;" title="' + escHtml(wordObj?.meaning || '') + '">' + charSpans + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
-          } else {
-            wordHtml = '<span class="sentence-word" data-sentence-word="' + escHtml(token.text) + '" style="cursor:pointer; display:inline-block;" title="' + escHtml(WORD_DATA.find(w => w.word === token.text)?.meaning || '') + '">' + charSpans + '</span>';
-          }
-          return wordHtml;
-
-        } else {
-          // Single char
-          const ch = token.text;
-          if (HANZI_BY_CHAR && HANZI_BY_CHAR[ch]) {
-            const status = getStatus(ch);
-            if (status === 'known') known++;
-            else if (status === 'learning') learning++;
-            else newCount++;
-
-            const statusClass = status === 'known' ? 'status-known' : status === 'learning' ? 'status-learning' : 'status-new';
-            let html = '<span class="sentence-char ' + statusClass + '" style="display:inline-block; padding: 0 1px;">' + escHtml(ch) + '</span>';
-
-            if (readingShowPinyin) {
-              let showThisPinyin = true;
-              if (readingPinyinUnknownOnly && status === 'known') showThisPinyin = false;
-              const py = sentencePinyin(ch);
-              const rtContent = showThisPinyin ? escHtml(py) : '&nbsp;';
-              html = '<ruby style="display:inline-flex; flex-direction:column-reverse; align-items:center;">' + html + '<rt style="font-size:0.5em; color:var(--text-light); line-height:1; transform:translateY(2px); visibility:' + (showThisPinyin ? 'visible' : 'hidden') + ';">' + rtContent + '</rt></ruby>';
-            }
-            return html;
-          }
-          return escHtml(ch);
-        }
-      }).join('');
-
-      if (statsContainer) {
-        statsContainer.classList.remove('hidden');
-        el('reading-stat-known').textContent = known;
-        el('reading-stat-learning').textContent = learning;
-        el('reading-stat-new').textContent = newCount;
-      }
+      });
     }
 
-    if (output) {
-      output.addEventListener('click', e => {
-        const word = e.target.closest('[data-sentence-word]');
-        if (word) {
+    const librarySearchInput = el("du-library-search");
+    if (librarySearchInput && !librarySearchInput.dataset.wired) {
+      librarySearchInput.dataset.wired = "true";
+      librarySearchInput.addEventListener("input", e => {
+        duLibrarySearchQuery = e.target.value.trim();
+        renderLibraryModal();
+      });
+    }
+
+    // ==========================================
+    // Event Wiring
+    // ==========================================
+
+    // Canvas click delegation (Sentence & Word)
+    const canvas = el("du-article-canvas");
+    if (canvas) {
+      canvas.addEventListener("click", e => {
+        const wordEl = e.target.closest(".du-word");
+        if (wordEl) {
           e.stopPropagation();
-          openWordDetail(word.dataset.sentenceWord);
+          const word = wordEl.dataset.word;
+          const sentIdx = Number(wordEl.dataset.sentenceIndex);
+          selectSentence(sentIdx, false);
+          inspectWord(word);
+          playChineseAudio(word, { rate: duSpeed });
           return;
         }
-        const char = e.target.closest('[data-sentence-char]');
-        if (char) {
-          e.stopPropagation();
-          openDetail(char.dataset.sentenceChar);
+
+        const sentEl = e.target.closest(".du-sentence");
+        if (sentEl) {
+          const sentIdx = Number(sentEl.dataset.sentenceIndex);
+          selectSentence(sentIdx, false);
+        }
+      });
+
+      // Canvas hover delegation
+      canvas.addEventListener("mouseover", e => {
+        const wordEl = e.target.closest(".du-word");
+        if (wordEl) {
+          const word = wordEl.dataset.word;
+          const sentIdx = Number(wordEl.dataset.sentenceIndex);
+          selectSentence(sentIdx, true);
+          inspectWord(word);
+          return;
+        }
+
+        const sentEl = e.target.closest(".du-sentence");
+        if (sentEl) {
+          const sentIdx = Number(sentEl.dataset.sentenceIndex);
+          selectSentence(sentIdx, true);
         }
       });
     }
 
-    const toggleBtn = el('reading-toggle-pinyin');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        readingShowPinyin = !readingShowPinyin;
-        toggleBtn.classList.toggle('active', readingShowPinyin);
-        renderReadingOutput();
-      });
-    }
+    // Dual Meaning Banners
+    el("du-hide-sentence-btn")?.addEventListener("click", () => {
+      duSentenceMeaningHidden = !duSentenceMeaningHidden;
+      const sBox = el("du-sentence-box");
+      const btn = el("du-hide-sentence-btn");
+      if (sBox) sBox.classList.toggle("collapsed", duSentenceMeaningHidden);
+      if (btn) btn.textContent = duSentenceMeaningHidden ? "Show" : "Hide";
+    });
 
-    const playBtn = el('reading-play-audio');
-    if (playBtn) {
-      playBtn.addEventListener('click', () => {
-        if (currentReadingText) {
-          playChineseAudio(currentReadingText, { rate: 0.9 });
-        }
-      });
-    }
+    // Mark Read Button
+    el("du-mark-read-btn")?.addEventListener("click", () => {
+      markCurrentStoryRead();
+    });
 
-    // Initial render
-    setTimeout(() => {
-      if (libraryView && !libraryView.classList.contains('hidden')) {
-        renderLibrary();
+    // Bottom Bar - Play/Pause
+    el("du-play-btn")?.addEventListener("click", () => {
+      togglePlayAudio();
+    });
+
+    // Bottom Bar - Speed Toggle
+    el("du-speed-btn")?.addEventListener("click", () => {
+      const speeds = [1.0, 1.25, 1.5, 0.75];
+      const curIdx = speeds.indexOf(duSpeed);
+      duSpeed = speeds[(curIdx + 1) % speeds.length];
+      const speedBtn = el("du-speed-btn");
+      if (speedBtn) speedBtn.textContent = "v" + duSpeed.toFixed(1);
+      saveDuPrefs();
+      showToast("Audio speed set to " + duSpeed.toFixed(2) + "x");
+    });
+
+    // Bottom Bar - HSK Toggle
+    el("du-toggle-hsk")?.addEventListener("click", () => {
+      duHskOn = !duHskOn;
+      applyPreferencesToCanvas();
+      saveDuPrefs();
+      showToast(duHskOn ? "HSK word highlight enabled" : "HSK highlight hidden");
+    });
+
+    // Bottom Bar - Pinyin Toggle
+    el("du-toggle-pinyin")?.addEventListener("click", () => {
+      duPinyinOn = !duPinyinOn;
+      applyPreferencesToCanvas();
+      saveDuPrefs();
+      showToast(duPinyinOn ? "Pinyin pronunciation shown" : "Pinyin hidden");
+    });
+
+    // Bottom Bar - Characters (Simplified vs Traditional) Toggle
+    el("du-toggle-chars")?.addEventListener("click", () => {
+      duTradMode = duTradMode === "simp" ? "trad" : "simp";
+      const story = DU_STORIES.find(s => s.id === duActiveStoryId);
+      if (story) renderDuStory(story);
+      saveDuPrefs();
+      showToast(duTradMode === "trad" ? "Switched to Traditional Characters (繁体字)" : "Switched to Simplified Characters (简体字)");
+    });
+
+    // Stories Library Modal
+    el("du-open-library-btn")?.addEventListener("click", () => {
+      renderLibraryModal();
+      el("du-stories-modal")?.classList.remove("hidden");
+    });
+    el("du-stories-close")?.addEventListener("click", () => {
+      el("du-stories-modal")?.classList.add("hidden");
+    });
+
+    // Story Modal Tabs
+    document.querySelectorAll(".du-modal-tabs .du-tab-btn").forEach(tabBtn => {
+      tabBtn.addEventListener("click", () => {
+        document.querySelectorAll(".du-modal-tabs .du-tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".du-modal-body .du-tab-panel").forEach(p => p.classList.add("hidden"));
+        tabBtn.classList.add("active");
+        el(tabBtn.dataset.tab)?.classList.remove("hidden");
+      });
+    });
+
+    // Custom Import Submit
+    el("du-import-submit-btn")?.addEventListener("click", () => {
+      const text = el("du-import-text")?.value.trim();
+      const title = el("du-import-title")?.value.trim() || "My Custom Reading";
+      const level = el("du-import-level")?.value || "ELEMENTARY";
+
+      if (!text) {
+        showToast("Please enter or paste Chinese text to read");
+        return;
       }
-    }, 100);
+
+      const sentences = text.split(/[。！？\n]/).filter(s => s.trim().length > 0).map((s, idx) => ({
+        zh: s.trim() + "。",
+        en: "Sentence " + (idx + 1) + ": " + s.trim(),
+        isTitle: idx === 0 && s.length < 20
+      }));
+
+      const newStory = {
+        id: "custom-" + Date.now(),
+        titleEn: title,
+        titleZh: title,
+        level: level,
+        levelLabel: level,
+        hskLevel: "Custom",
+        readTime: "3 min",
+        description: text.slice(0, 80) + "...",
+        sentences: sentences
+      };
+
+      if (!state.readings) state.readings = [];
+      state.readings.unshift({ id: newStory.id, title, text, date: Date.now() });
+      saveState();
+
+      pauseDuAudio();
+      renderDuStory(newStory);
+      el("du-stories-modal")?.classList.add("hidden");
+      showToast("📖 Custom reading parsed and loaded!");
+    });
+
+    // Settings Modal
+    el("du-settings-toggle-btn")?.addEventListener("click", () => {
+      el("du-settings-modal")?.classList.remove("hidden");
+    });
+    el("du-settings-close")?.addEventListener("click", () => {
+      el("du-settings-modal")?.classList.add("hidden");
+    });
+
+    // Settings - Font Size
+    document.querySelectorAll("#du-font-size-options .du-opt-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#du-font-size-options .du-opt-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        duFontSize = btn.dataset.size;
+        applyPreferencesToCanvas();
+        saveDuPrefs();
+      });
+    });
+
+    // Settings - Color Theme
+    document.querySelectorAll("#du-theme-options .du-opt-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#du-theme-options .du-opt-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        duTheme = btn.dataset.theme;
+        applyPreferencesToCanvas();
+        saveDuPrefs();
+      });
+    });
+
+    // Settings - Underlines
+    document.querySelectorAll("#du-underline-options .du-opt-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#du-underline-options .du-opt-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        duUnderline = btn.dataset.underline;
+        applyPreferencesToCanvas();
+        saveDuPrefs();
+      });
+    });
+
+    // Settings - Auto-scroll
+    document.querySelectorAll("#du-autoscroll-options .du-opt-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#du-autoscroll-options .du-opt-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        duAutoScroll = btn.dataset.scroll;
+        saveDuPrefs();
+      });
+    });
+
+    // Search Toggle
+    el("du-search-toggle-btn")?.addEventListener("click", () => {
+      const wrap = el("du-search-input-wrap");
+      if (wrap) {
+        wrap.classList.toggle("hidden");
+        if (!wrap.classList.contains("hidden")) {
+          el("du-search-input")?.focus();
+        }
+      }
+    });
+    el("du-search-close-btn")?.addEventListener("click", () => {
+      el("du-search-input-wrap")?.classList.add("hidden");
+      document.querySelectorAll(".du-search-match").forEach(el => el.classList.remove("du-search-match"));
+    });
+
+    // Search Input
+    el("du-search-input")?.addEventListener("input", e => {
+      const query = (e.target.value || "").trim().toLowerCase();
+      document.querySelectorAll(".du-search-match").forEach(el => el.classList.remove("du-search-match"));
+      if (!query) return;
+
+      document.querySelectorAll(".du-word, .du-char").forEach(el => {
+        const text = (el.textContent || "").toLowerCase();
+        if (text.includes(query)) {
+          el.classList.add("du-search-match");
+        }
+      });
+    });
+
+    // Fetch 60 graded readings as per HSK levels
+    fetch("readings.json")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          DU_STORIES = data;
+          // If the default active story exists in newly loaded data, ensure it's loaded
+          const cur = DU_STORIES.find(s => s.id === duActiveStoryId) || DU_STORIES[0];
+          if (cur && (!duActiveStoryId || duActiveStoryId === "story-heart" || duActiveStoryId === "hsk2-01-heart")) {
+            renderDuStory(cur);
+          }
+          // If library modal is currently open, refresh it
+          const modal = el("du-stories-modal");
+          if (modal && !modal.classList.contains("hidden")) {
+            renderLibraryModal();
+          }
+        }
+      })
+      .catch(err => console.warn("[HanziTracker] Failed to load readings.json:", err));
+
+    // Initial Story Load
+    const defaultStory = DU_STORIES[0];
+    renderDuStory(defaultStory);
   }
+
+
+
+  // ==========================================================================
+  // Global Ctrl + Mouse Hover Dictionary (Zhongwen / Yomitan-style Lookup)
+  // ==========================================================================
+  function initGlobalCtrlHoverDictionary() {
+    const tooltip = el("global-hover-dict");
+    const wordEl = el("hover-dict-word");
+    const pinyinEl = el("hover-dict-pinyin");
+    const hskEl = el("hover-dict-hsk");
+    const meaningEl = el("hover-dict-meaning");
+    const breakdownEl = el("hover-dict-breakdown");
+    const audioBtn = el("hover-dict-audio");
+    const sidebarToggleBtn = el("sidebar-hover-dict-btn");
+    const sidebarStatusEl = el("sidebar-hover-dict-status");
+    const posCycleBtn = el("hover-dict-pos-btn");
+    const posTextEl = el("hover-dict-pos-text");
+
+    if (!tooltip || !wordEl) return;
+
+    // Persisted enable state: default to true on initial use
+    let isHoverDictEnabled = localStorage.getItem("hanzi_hover_dict_enabled");
+    isHoverDictEnabled = (isHoverDictEnabled === null) ? true : (isHoverDictEnabled === "true");
+
+    // Persisted position mode: 'cursor' | 'top-center' | 'bottom-center'
+    let dictPosMode = localStorage.getItem("hanzi_hover_dict_pos") || "cursor";
+
+    function updateSidebarVisual() {
+      if (sidebarToggleBtn) {
+        sidebarToggleBtn.classList.toggle("active", isHoverDictEnabled);
+        sidebarToggleBtn.setAttribute("aria-pressed", isHoverDictEnabled ? "true" : "false");
+      }
+      if (sidebarStatusEl) {
+        sidebarStatusEl.textContent = isHoverDictEnabled ? "On" : "Off";
+      }
+      const hint = el("hover-dict-hint");
+      if (hint) {
+        hint.textContent = isHoverDictEnabled ? "📖 Hover Dict" : "⌨️ Hold [Ctrl]";
+      }
+    }
+
+    function setDictPositionMode(mode, notify = true) {
+      if (!["cursor", "top-center", "bottom-center"].includes(mode)) mode = "cursor";
+      dictPosMode = mode;
+      localStorage.setItem("hanzi_hover_dict_pos", mode);
+
+      tooltip.setAttribute("data-pos-mode", mode);
+
+      // Update label in header button
+      if (posTextEl) {
+        posTextEl.textContent = (mode === "top-center") ? "Top-C" : (mode === "bottom-center" ? "Bottom-C" : "Cursor");
+      }
+
+      // Update pills in tooltip footer
+      document.querySelectorAll(".hover-pos-opt").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.pos === mode);
+      });
+
+      // Update pills in sidebar
+      document.querySelectorAll(".sidebar-dict-pos-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.pos === mode);
+      });
+
+      // If tooltip currently visible, reposition immediately
+      if (!tooltip.classList.contains("hidden")) {
+        applyTooltipPosition(lastMouseX, lastMouseY);
+      }
+
+      if (notify) {
+        const labels = {
+          "cursor": "Near Cursor",
+          "top-center": "Top-Center",
+          "bottom-center": "Bottom-Center"
+        };
+        showToast("📍 Hover dict position: " + (labels[mode] || mode));
+      }
+    }
+
+    updateSidebarVisual();
+    setDictPositionMode(dictPosMode, false);
+
+    sidebarToggleBtn?.addEventListener("click", () => {
+      isHoverDictEnabled = !isHoverDictEnabled;
+      localStorage.setItem("hanzi_hover_dict_enabled", isHoverDictEnabled ? "true" : "false");
+      updateSidebarVisual();
+      if (!isHoverDictEnabled) {
+        hideDictionaryTooltip();
+        showToast("📖 Hover Dictionary disabled");
+      } else {
+        showToast("📖 Hover Dictionary enabled! Hover over any Chinese text");
+      }
+    });
+
+    // Cycle position on header button click
+    posCycleBtn?.addEventListener("click", e => {
+      e.stopPropagation();
+      const cycle = { "cursor": "top-center", "top-center": "bottom-center", "bottom-center": "cursor" };
+      setDictPositionMode(cycle[dictPosMode] || "cursor");
+    });
+
+    // Tooltip footer position pills
+    document.querySelectorAll(".hover-pos-opt").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        if (btn.dataset.pos) setDictPositionMode(btn.dataset.pos);
+      });
+    });
+
+    // Settings button & panel in sidebar
+    const settingsToggleBtn = el("sidebar-hover-dict-settings-btn");
+    const settingsPanel = el("sidebar-hover-settings-panel");
+    const settingsCloseBtn = el("sidebar-hover-settings-close");
+
+    settingsToggleBtn?.addEventListener("click", e => {
+      e.stopPropagation();
+      const isHidden = settingsPanel?.classList.toggle("hidden");
+      settingsToggleBtn.classList.toggle("active", !isHidden);
+      settingsToggleBtn.setAttribute("aria-expanded", !isHidden ? "true" : "false");
+    });
+
+    settingsCloseBtn?.addEventListener("click", e => {
+      e.stopPropagation();
+      settingsPanel?.classList.add("hidden");
+      settingsToggleBtn?.classList.remove("active");
+      settingsToggleBtn?.setAttribute("aria-expanded", "false");
+    });
+
+    document.addEventListener("click", e => {
+      if (settingsPanel && !settingsPanel.classList.contains("hidden")) {
+        if (!settingsPanel.contains(e.target) && !settingsToggleBtn?.contains(e.target)) {
+          settingsPanel.classList.add("hidden");
+          settingsToggleBtn?.classList.remove("active");
+          settingsToggleBtn?.setAttribute("aria-expanded", "false");
+        }
+      }
+    });
+
+    // Sidebar position pills
+    document.querySelectorAll(".sidebar-dict-pos-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        if (btn.dataset.pos) setDictPositionMode(btn.dataset.pos);
+      });
+    });
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialTooltipX = 0;
+    let initialTooltipY = 0;
+    const dragHandle = el("hover-dict-drag-handle");
+
+    dragHandle?.addEventListener("mousedown", (e) => {
+      if (dictPosMode !== "drag") return;
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const rect = tooltip.getBoundingClientRect();
+      initialTooltipX = rect.left;
+      initialTooltipY = rect.top;
+      tooltip.style.transition = "none";
+      e.preventDefault();
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (isDragging) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        let newX = initialTooltipX + dx;
+        let newY = initialTooltipY + dy;
+        
+        const maxX = window.innerWidth - tooltip.offsetWidth;
+        const maxY = window.innerHeight - tooltip.offsetHeight;
+        newX = Math.max(0, Math.min(maxX, newX));
+        newY = Math.max(0, Math.min(maxY, newY));
+
+        tooltip.style.left = newX + "px";
+        tooltip.style.top = newY + "px";
+        localStorage.setItem("hanzi_hover_dict_drag_pos", JSON.stringify({ left: newX, top: newY }));
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        tooltip.style.transition = "";
+      }
+    });
+
+    let isCtrlPressed = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let currentLookupWord = null;
+    let hideTimeout = null;
+
+    function isChineseChar(ch) {
+      if (!ch) return false;
+      return /[\u4e00-\u9fa5]/.test(ch);
+    }
+
+    function lookupDetails(word) {
+      if (!word) return null;
+      let match = null;
+      if (typeof WORD_DATA !== "undefined" && Array.isArray(WORD_DATA)) {
+        match = WORD_DATA.find(w => w.word === word);
+      }
+      if (!match && typeof WORDS_BY_SIMP !== "undefined" && WORDS_BY_SIMP) {
+        match = WORDS_BY_SIMP[word];
+      }
+
+      // If single character, check HANZI_BY_CHAR
+      if (word.length === 1 && typeof HANZI_BY_CHAR !== "undefined" && HANZI_BY_CHAR[word]) {
+        const h = HANZI_BY_CHAR[word];
+        return {
+          word,
+          pinyin: h.p || (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : ""),
+          meaning: h.m || match?.meaning || "",
+          level: h.l ? ("HSK " + h.l) : (match?.level ? ("HSK " + match.level) : "HSK 1"),
+          radical: h.r || "",
+          strokes: h.s || null,
+          rank: h.rn || null,
+          chars: [{ char: word, pinyin: h.p, meaning: h.m }]
+        };
+      }
+
+      // Compound word breakdowns
+      const charBreakdowns = Array.from(word).map(c => {
+        const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c] : null;
+        return {
+          char: c,
+          pinyin: h?.p || (window.pinyinPro ? window.pinyinPro.pinyin(c, { type: "string" }) : ""),
+          meaning: h?.m || ""
+        };
+      });
+
+      const py = match?.pinyin || (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : "");
+      let level = match?.level ? ("HSK " + match.level) : null;
+      if (!level) {
+        const charLvls = charBreakdowns.map(c => {
+          const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c.char] : null;
+          return h?.l ? Number(h.l) : null;
+        }).filter(Boolean);
+        level = charLvls.length > 0 ? ("HSK " + Math.max(...charLvls)) : "Vocabulary";
+      }
+
+      return {
+        word,
+        pinyin: py,
+        meaning: match?.meaning || (charBreakdowns.map(c => c.meaning).filter(Boolean).join("; ") || "Chinese vocabulary"),
+        level,
+        chars: charBreakdowns
+      };
+    }
+
+    function extractChineseTextAtPoint(x, y) {
+      const target = document.elementFromPoint(x, y);
+      if (!target || tooltip.contains(target) || sidebarToggleBtn?.contains(target) || settingsToggleBtn?.contains(target) || settingsPanel?.contains(target)) return null;
+
+      // 1. Priority: Elements with data-char attribute (.tile, .radical-card, .seal-chip, etc.)
+      const charEl = target.closest("[data-char]");
+      if (charEl && charEl.dataset.char) {
+        const c = charEl.dataset.char.trim();
+        if (c && isChineseChar(c[0])) return c.slice(0, 1);
+      }
+
+      // 2. Priority: Elements with data-word attribute (.du-word, .word-card, etc.)
+      const wordEl = target.closest("[data-word]");
+      if (wordEl && wordEl.dataset.word) {
+        const w = wordEl.dataset.word.trim();
+        if (w && isChineseChar(w[0])) return w;
+      }
+
+      // 3. Du Chinese ruby character or word
+      const duWord = target.closest(".du-word");
+      if (duWord && duWord.dataset.word) return duWord.dataset.word.trim();
+
+      const duChar = target.closest(".du-char");
+      if (duChar && isChineseChar(duChar.textContent.trim())) return duChar.textContent.trim();
+
+      // 4. Word cards & items
+      const wordCard = target.closest(".word-card, .word-item");
+      if (wordCard) {
+        const w = wordCard.dataset.word || wordCard.querySelector(".word-simp, .word-chinese, .word-text")?.textContent.trim();
+        if (w && isChineseChar(w[0])) return w;
+      }
+
+      // 5. Radical cards
+      const radCard = target.closest(".radical-card, .rad-cell");
+      if (radCard) {
+        const r = radCard.dataset.char || radCard.dataset.radical || radCard.querySelector(".radical-char")?.textContent.trim();
+        if (r && isChineseChar(r[0])) return r.slice(0, 1);
+      }
+
+      // 6. Generic caretRangeFromPoint / caretPositionFromPoint
+      let textNode = null;
+      let offset = 0;
+      if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(x, y);
+        if (range) {
+          textNode = range.startContainer;
+          offset = range.startOffset;
+        }
+      } else if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(x, y);
+        if (pos) {
+          textNode = pos.offsetNode;
+          offset = pos.offset;
+        }
+      }
+
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const fullText = textNode.textContent || "";
+        let idx = offset;
+        if (!isChineseChar(fullText[idx]) && isChineseChar(fullText[idx - 1])) {
+          idx = idx - 1;
+        }
+
+        if (isChineseChar(fullText[idx])) {
+          const slice = fullText.slice(idx, idx + 4);
+          if (typeof WORD_DATA !== "undefined" && Array.isArray(WORD_DATA)) {
+            for (let len = Math.min(slice.length, 4); len >= 2; len--) {
+              const sub = slice.slice(0, len);
+              if (WORD_DATA.some(w => w.word === sub)) {
+                return sub;
+              }
+            }
+          }
+          if (idx > 0) {
+            const prevSlice = fullText.slice(idx - 1, idx + 3);
+            if (typeof WORD_DATA !== "undefined" && Array.isArray(WORD_DATA)) {
+              for (let len = Math.min(prevSlice.length, 4); len >= 2; len--) {
+                const sub = prevSlice.slice(0, len);
+                if (WORD_DATA.some(w => w.word === sub)) {
+                  return sub;
+                }
+              }
+            }
+          }
+          return fullText[idx];
+        }
+      }
+
+      // 7. Fallback: Concise Chinese text inside element
+      const directText = (target.innerText || target.textContent || "").trim();
+      if (directText.length >= 1 && directText.length <= 6 && Array.from(directText).every(isChineseChar)) {
+        return directText;
+      }
+
+      return null;
+    }
+
+    function showDictionaryTooltip(word, x, y) {
+      if (!word) {
+        hideDictionaryTooltip();
+        return;
+      }
+
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
+        hideTimeout = null;
+      }
+
+      currentLookupWord = word;
+      const info = lookupDetails(word);
+
+      wordEl.textContent = word;
+      pinyinEl.textContent = info?.pinyin || (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : "");
+      hskEl.textContent = info?.level || (word.length === 1 ? "Character" : "Word");
+
+      let meaning = info?.meaning || "";
+      meaningEl.textContent = meaning || "Chinese vocabulary";
+
+      if (word.length > 1 && info?.chars && info.chars.length > 1) {
+        const parts = info.chars
+          .map(c => `<strong style="color:#ffffff;">${c.char}</strong> <span style="color:#38bdf8;">${c.pinyin}</span>${c.meaning ? ' · ' + c.meaning : ''}`)
+          .join("<br>");
+        breakdownEl.innerHTML = parts;
+        breakdownEl.style.display = "block";
+      } else if (word.length === 1 && info) {
+        const extras = [];
+        if (info.radical) extras.push(`Radical: <strong style="color:#ffffff;">${info.radical}</strong>`);
+        if (info.strokes) extras.push(`Strokes: ${info.strokes}`);
+        if (info.rank) extras.push(`Freq Rank: #${info.rank}`);
+        breakdownEl.innerHTML = extras.join(" · ");
+        breakdownEl.style.display = extras.length > 0 ? "block" : "none";
+      } else {
+        breakdownEl.innerHTML = "";
+        breakdownEl.style.display = "none";
+      }
+
+      // Make tooltip visible
+      tooltip.classList.remove("hidden");
+      tooltip.style.display = "block";
+      tooltip.style.opacity = "1";
+      tooltip.style.visibility = "visible";
+
+      applyTooltipPosition(x, y);
+    }
+
+    function applyTooltipPosition(x, y) {
+      if (dictPosMode === "top-center") {
+        tooltip.style.left = "auto";
+        tooltip.style.top = "24px";
+        tooltip.style.right = "24px";
+        tooltip.style.bottom = "auto";
+      } else if (dictPosMode === "bottom-center") {
+        tooltip.style.left = "auto";
+        tooltip.style.top = "auto";
+        tooltip.style.right = "24px";
+        tooltip.style.bottom = "88px";
+      } else if (dictPosMode === "drag") {
+        tooltip.style.right = "auto";
+        tooltip.style.bottom = "auto";
+        const savedStr = localStorage.getItem("hanzi_hover_dict_drag_pos");
+        if (savedStr) {
+          try {
+            const saved = JSON.parse(savedStr);
+            let newX = saved.left;
+            let newY = saved.top;
+            const tipWidth = tooltip.offsetWidth || 300;
+            const tipHeight = tooltip.offsetHeight || 150;
+            const maxX = window.innerWidth - tipWidth;
+            const maxY = window.innerHeight - tipHeight;
+            newX = Math.max(0, Math.min(maxX, newX));
+            newY = Math.max(0, Math.min(maxY, newY));
+            tooltip.style.left = newX + "px";
+            tooltip.style.top = newY + "px";
+          } catch(e) {
+            tooltip.style.left = ((window.innerWidth - 300) / 2) + "px";
+            tooltip.style.top = ((window.innerHeight - 150) / 2) + "px";
+          }
+        } else {
+            tooltip.style.left = ((window.innerWidth - (tooltip.offsetWidth || 300)) / 2) + "px";
+            tooltip.style.top = ((window.innerHeight - (tooltip.offsetHeight || 150)) / 2) + "px";
+        }
+      } else {
+        // Follow cursor mode
+        tooltip.style.right = "auto";
+        tooltip.style.bottom = "auto";
+
+        const tipWidth = tooltip.offsetWidth || 300;
+        const tipHeight = tooltip.offsetHeight || 150;
+
+        let posX = x + 18;
+        let posY = y + 22;
+
+        if (posX + tipWidth > window.innerWidth - 14) {
+          posX = x - tipWidth - 14;
+        }
+        if (posY + tipHeight > window.innerHeight - 14) {
+          posY = y - tipHeight - 14;
+        }
+
+        posX = Math.max(12, Math.min(posX, window.innerWidth - tipWidth - 12));
+        posY = Math.max(12, Math.min(posY, window.innerHeight - tipHeight - 12));
+
+        tooltip.style.left = `${posX}px`;
+        tooltip.style.top = `${posY}px`;
+      }
+    }
+
+    function hideDictionaryTooltip() {
+      if (tooltip.classList.contains("hidden") && tooltip.style.display === "none") return;
+      hideTimeout = setTimeout(() => {
+        tooltip.classList.add("hidden");
+        tooltip.style.display = "none";
+        tooltip.style.opacity = "0";
+        tooltip.style.visibility = "hidden";
+        currentLookupWord = null;
+      }, 60);
+    }
+
+    audioBtn?.addEventListener("click", e => {
+      e.stopPropagation();
+      if (currentLookupWord && typeof playChineseAudio === "function") {
+        playChineseAudio(currentLookupWord, 1.0);
+      }
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === "Control") {
+        isCtrlPressed = true;
+        const targetWord = extractChineseTextAtPoint(lastMouseX, lastMouseY);
+        if (targetWord) {
+          showDictionaryTooltip(targetWord, lastMouseX, lastMouseY);
+        }
+      }
+    });
+
+    window.addEventListener("keyup", e => {
+      if (e.key === "Control") {
+        isCtrlPressed = false;
+        if (!isHoverDictEnabled) {
+          hideDictionaryTooltip();
+        }
+      }
+    });
+
+    let hoverThrottle = null;
+    window.addEventListener("mousemove", e => {
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+
+      const shouldInspect = isHoverDictEnabled || e.ctrlKey || isCtrlPressed;
+
+      if (shouldInspect) {
+        if (hoverThrottle) return;
+        hoverThrottle = setTimeout(() => {
+          hoverThrottle = null;
+
+          if (tooltip.contains(e.target) || sidebarToggleBtn?.contains(e.target)) {
+            return;
+          }
+
+          const targetWord = extractChineseTextAtPoint(e.clientX, e.clientY);
+          if (targetWord) {
+            showDictionaryTooltip(targetWord, e.clientX, e.clientY);
+          } else if (!tooltip.contains(e.target)) {
+            hideDictionaryTooltip();
+          }
+        }, 35);
+      } else if (!tooltip.contains(e.target)) {
+        hideDictionaryTooltip();
+      }
+    });
+  }
+
 
   function wireTabs() {
     document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -3355,6 +4878,114 @@ document.addEventListener("DOMContentLoaded", () => {
     el("review-show-english").checked = reviewShowEnglish;
     el("review-show-pinyin").addEventListener("change", () => { reviewShowPinyin = el("review-show-pinyin").checked; localStorage.setItem("hanziReviewShowPinyin", String(reviewShowPinyin)); });
     el("review-show-english").addEventListener("change", () => { reviewShowEnglish = el("review-show-english").checked; localStorage.setItem("hanziReviewShowEnglish", String(reviewShowEnglish)); });
+
+    // Study Direction
+    document.querySelectorAll("[data-direction]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        reviewDirection = btn.dataset.direction;
+        localStorage.setItem("hanziReviewDirection", reviewDirection);
+        document.querySelectorAll("[data-direction]").forEach(b => b.classList.toggle("active", b.dataset.direction === reviewDirection));
+      });
+      btn.classList.toggle("active", btn.dataset.direction === reviewDirection);
+    });
+
+    // Session Presets
+    document.querySelectorAll("#session-preset-chips .preset-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = btn.dataset.preset;
+        document.querySelectorAll("#session-preset-chips .preset-chip").forEach(b => b.classList.toggle("active", b === btn));
+        if (preset === "due") {
+          const pool = buildPool("due");
+          const sz = Math.max(5, Math.min(50, pool.length || 20));
+          el("session-size").value = sz;
+          el("session-size-label").textContent = sz;
+          const dueRadio = document.querySelector('input[name="pool"][value="due"]');
+          if (dueRadio) dueRadio.checked = true;
+        } else {
+          el("session-size").value = Number(preset);
+          el("session-size-label").textContent = preset;
+        }
+        updateReviewEstimate();
+      });
+    });
+
+    // Auto Audio Setting
+    if (el("review-auto-audio")) {
+      el("review-auto-audio").checked = reviewAutoAudio;
+      el("review-auto-audio").addEventListener("change", () => {
+        reviewAutoAudio = el("review-auto-audio").checked;
+        localStorage.setItem("hanziReviewAutoAudio", String(reviewAutoAudio));
+      });
+    }
+
+    // Hint toggle
+    el("review-hint-toggle-btn")?.addEventListener("click", toggleReviewHint);
+
+    // Shortcuts modal
+    el("review-shortcuts-btn")?.addEventListener("click", () => el("review-shortcuts-modal")?.classList.toggle("hidden"));
+    el("review-shortcuts-close")?.addEventListener("click", () => el("review-shortcuts-modal")?.classList.add("hidden"));
+
+    // HanziWriter Stroke Practice
+    el("review-stroke-toggle")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      if (!item) return;
+      const char = item.__reviewType === "character" || (!item.__reviewType && reviewMode === "characters") ? item.c : (item.word ? item.word[0] : null);
+      if (!char) { showToast("Stroke view only available for Chinese characters"); return; }
+      const wrap = el("fc-writer-wrap");
+      if (wrap && !wrap.classList.contains("hidden")) {
+        wrap.classList.add("hidden");
+        el("review-stroke-toggle").classList.remove("active");
+      } else {
+        initReviewHanziWriter(char, true);
+        el("review-stroke-toggle")?.classList.add("active");
+        setTimeout(() => wrap.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+      }
+    });
+    el("fc-stroke-animate-btn")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      const char = item?.c || item?.word?.[0];
+      if (char) initReviewHanziWriter(char, true);
+    });
+    el("fc-stroke-quiz-btn")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      const char = item?.c || item?.word?.[0];
+      if (char) {
+        initReviewHanziWriter(char, false);
+        startReviewHanziQuiz();
+      }
+    });
+    el("fc-stroke-reset-btn")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      const char = item?.c || item?.word?.[0];
+      if (char) initReviewHanziWriter(char, true);
+    });
+    el("fc-stroke-close-btn")?.addEventListener("click", () => {
+      el("fc-writer-wrap")?.classList.add("hidden");
+      el("review-stroke-toggle")?.classList.remove("active");
+      if (reviewHanziWriterInstance) {
+        try { reviewHanziWriterInstance.cancelQuiz(); } catch(e){}
+      }
+    });
+
+    // Back card inline audio buttons
+    el("fc-back-audio")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      if (!item) return;
+      const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+      const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+      playChineseAudio(text, { rate: 0.9, sentenceId: type === "sentence" ? item.i : null });
+    });
+    el("fc-back-audio-slow")?.addEventListener("click", () => {
+      const item = reviewQueue[reviewIndex];
+      if (!item) return;
+      const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+      const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+      playChineseAudio(text, { rate: 0.72, sentenceId: type === "sentence" ? item.i : null });
+    });
+
+    // Undo action
+    el("review-undo-btn")?.addEventListener("click", undoLastReview);
+
     el("review-pinyin-toggle").addEventListener("click", () => updateReviewReveal("pinyin"));
     el("review-english-toggle").addEventListener("click", () => updateReviewReveal("english"));
     el("review-example-toggle").addEventListener("click", () => {
@@ -3484,10 +5115,61 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", e => {
       if (!el("tab-review")?.classList.contains("active") || el("review-session")?.classList.contains("hidden")) return;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName)) return;
+
+      if (e.key === "Escape") {
+        if (el("review-shortcuts-modal") && !el("review-shortcuts-modal").classList.contains("hidden")) {
+          el("review-shortcuts-modal").classList.add("hidden");
+          return;
+        }
+        if (el("fc-writer-wrap") && !el("fc-writer-wrap").classList.contains("hidden")) {
+          el("fc-writer-wrap").classList.add("hidden");
+          el("review-stroke-toggle")?.classList.remove("active");
+          return;
+        }
+      }
+
+      if (e.key === "?" || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        el("review-shortcuts-modal")?.classList.toggle("hidden");
+        return;
+      }
+
       if (e.code === "Space" || e.key === "Enter") {
         e.preventDefault();
         if (!reviewRevealed) revealCard();
-      } else if (reviewRevealed) {
+        return;
+      }
+
+      if (e.key.toLowerCase() === "z" || (e.key.toLowerCase() === "z" && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        undoLastReview();
+        return;
+      }
+
+      if (e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        toggleReviewHint();
+        return;
+      }
+
+      if (e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        const item = reviewQueue[reviewIndex];
+        if (item) {
+          const type = item.__reviewType || (reviewMode === "sentences" ? "sentence" : reviewMode === "words" ? "word" : "character");
+          const text = type === "sentence" ? item.z : (type === "word" ? item.word : item.c);
+          playChineseAudio(text, { rate: e.shiftKey ? 0.72 : 0.9, sentenceId: type === "sentence" ? item.i : null });
+        }
+        return;
+      }
+
+      if (e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        el("review-stroke-toggle")?.click();
+        return;
+      }
+
+      if (reviewRevealed) {
         if (e.key === "1") rateCurrent("again");
         else if (e.key === "2") rateCurrent("hard");
         else if (e.key === "3") rateCurrent("good");
@@ -6367,6 +8049,7 @@ document.addEventListener("DOMContentLoaded", () => {
       buildIndexes();
       await loadState();
       wireReadings();
+      initGlobalCtrlHoverDictionary();
       wireTabs();
       wireWords();
       wireScrollAndFloatingActions();

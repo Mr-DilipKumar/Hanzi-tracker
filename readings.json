@@ -1,0 +1,2230 @@
+[
+  {
+    "id": "hsk1-01-greeting",
+    "titleZh": "你好，很高兴认识你",
+    "titleEn": "Hello, Nice to Meet You",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "A friendly introduction between students greeting each other at school.",
+    "sentences": [
+      {
+        "zh": "你好，很高兴认识你！",
+        "en": "Hello, nice to meet you!",
+        "isTitle": true
+      },
+      {
+        "zh": "你好！我是大卫，我是美国人。",
+        "en": "Hello! I am David, I am American."
+      },
+      {
+        "zh": "我是王老师的学生，我在北京大学学习汉语。",
+        "en": "I am Teacher Wang's student, and I am studying Chinese at Peking University."
+      },
+      {
+        "zh": "你叫什么名字？你是哪国人？",
+        "en": "What is your name? Which country are you from?"
+      },
+      {
+        "zh": "我叫李华，我是中国人。欢迎你来北京！",
+        "en": "My name is Li Hua, I am Chinese. Welcome to Beijing!"
+      },
+      {
+        "zh": "谢谢你！汉语很有意思，我也很喜欢中国朋友。",
+        "en": "Thank you! Chinese is very interesting, and I like Chinese friends very much."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-02-family",
+    "titleZh": "我的温暖小家庭",
+    "titleEn": "My Warm Little Family",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "A look at family members, their ages, jobs, and a cute little white cat.",
+    "sentences": [
+      {
+        "zh": "我的温暖小家庭",
+        "en": "My Warm Little Family",
+        "isTitle": true
+      },
+      {
+        "zh": "我家有四口人：爸爸、妈妈、姐姐和我。",
+        "en": "There are four people in my family: father, mother, older sister, and me."
+      },
+      {
+        "zh": "我爸爸是医生，他在大医院工作。",
+        "en": "My father is a doctor; he works in a big hospital."
+      },
+      {
+        "zh": "我妈妈是老师，她喜欢看书和喝茶。",
+        "en": "My mother is a teacher; she likes reading books and drinking tea."
+      },
+      {
+        "zh": "我姐姐二十岁，她是大学生。",
+        "en": "My older sister is twenty years old; she is a university student."
+      },
+      {
+        "zh": "我们家还有一只白色的小猫，它非常漂亮可爱。",
+        "en": "Our family also has a white little cat; it is very pretty and cute."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-03-restaurant",
+    "titleZh": "在小饭馆吃午饭",
+    "titleEn": "Having Lunch at a Small Restaurant",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "Ordering dumplings, fried noodles, and hot green tea for lunch.",
+    "sentences": [
+      {
+        "zh": "在小饭馆吃午饭",
+        "en": "Having Lunch at a Small Restaurant",
+        "isTitle": true
+      },
+      {
+        "zh": "今天中午我和同学去学校前面的小饭馆吃饭。",
+        "en": "At noon today, my classmate and I went to a small restaurant in front of the school to eat."
+      },
+      {
+        "zh": "服务员问我们：“你们想吃什么？”",
+        "en": "The waiter asked us: “What would you like to eat?”"
+      },
+      {
+        "zh": "我说：“我想吃一碗牛肉面和一个鸡蛋。”",
+        "en": "I said: “I want a bowl of beef noodles and an egg.”"
+      },
+      {
+        "zh": "我的同学要了一盘热饺子和一杯绿茶。",
+        "en": "My classmate ordered a plate of hot dumplings and a cup of green tea."
+      },
+      {
+        "zh": "这里的菜很好吃，也不太贵，一共三十块钱。",
+        "en": "The food here is delicious and not too expensive, thirty yuan in total."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-04-time",
+    "titleZh": "现在几点了？",
+    "titleEn": "What Time Is It Right Now?",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "A daily routine tracking hours, breakfast, classes, and bedtime.",
+    "sentences": [
+      {
+        "zh": "现在几点了？",
+        "en": "What Time Is It Right Now?",
+        "isTitle": true
+      },
+      {
+        "zh": "现在是早上七点三十分，我起床吃早饭。",
+        "en": "It is seven thirty in the morning now; I get up and eat breakfast."
+      },
+      {
+        "zh": "八点钟我去教室上汉语课，老师教我们写汉字。",
+        "en": "At eight o'clock I go to the classroom for Chinese class; the teacher teaches us to write Chinese characters."
+      },
+      {
+        "zh": "中午十二点，我们在学校食堂吃米饭和蔬菜。",
+        "en": "At twelve noon, we eat rice and vegetables in the school cafeteria."
+      },
+      {
+        "zh": "下午四点，我和朋友在操场跑步做运动。",
+        "en": "At four in the afternoon, my friends and I run and exercise on the sports ground."
+      },
+      {
+        "zh": "晚上九点，我看书学习，十点半上床睡觉。",
+        "en": "At nine in the evening, I read books and study; at ten thirty I go to bed."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-05-weather",
+    "titleZh": "今天的好天气",
+    "titleEn": "Today's Beautiful Weather",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "Talking about sunny skies, comfortable temperatures, and walking outside.",
+    "sentences": [
+      {
+        "zh": "今天的好天气",
+        "en": "Today's Beautiful Weather",
+        "isTitle": true
+      },
+      {
+        "zh": "今天天气非常好，晴天，没有雨。",
+        "en": "The weather today is very nice, sunny, with no rain."
+      },
+      {
+        "zh": "昨天很冷，下了一点儿雪，但是今天天气不冷也不热。",
+        "en": "Yesterday was cold and snowed a little, but today is neither cold nor hot."
+      },
+      {
+        "zh": "天上有大大的太阳，空气很新鲜。",
+        "en": "There is a big sun in the sky, and the air is very fresh."
+      },
+      {
+        "zh": "很多老人和孩子在公园里散步，脸上都是开心的笑容。",
+        "en": "Many elderly people and children are walking in the park with happy smiles on their faces."
+      },
+      {
+        "zh": "明天也是好天气，我想和朋友一起去买东西。",
+        "en": "Tomorrow will also be good weather; I want to go shopping with my friends."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-06-market",
+    "titleZh": "在水果店买红苹果",
+    "titleEn": "Buying Red Apples at the Fruit Shop",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "Practicing market dialogue: asking prices, weighing fruit, and paying cash.",
+    "sentences": [
+      {
+        "zh": "在水果店买红苹果",
+        "en": "Buying Red Apples at the Fruit Shop",
+        "isTitle": true
+      },
+      {
+        "zh": "这家水果店有很多新鲜的水果：苹果、香蕉和西瓜。",
+        "en": "This fruit shop has plenty of fresh fruits: apples, bananas, and watermelons."
+      },
+      {
+        "zh": "我问老板：“请问，红苹果多少钱一斤？”",
+        "en": "I asked the shop owner: “Excuse me, how much is half a kilo of red apples?”"
+      },
+      {
+        "zh": "老板笑着说：“五块钱一斤，很甜很大。”",
+        "en": "The owner smiled and said: “Five yuan per half kilo, very sweet and big.”"
+      },
+      {
+        "zh": "我买了三斤苹果，一共十五块钱。",
+        "en": "I bought one and a half kilos of apples, fifteen yuan in total."
+      },
+      {
+        "zh": "我给老板二十块，老板找我五块钱。谢谢！",
+        "en": "I gave the owner twenty yuan, and he gave me five yuan in change. Thank you!"
+      }
+    ]
+  },
+  {
+    "id": "hsk1-07-library",
+    "titleZh": "学校的安静图书馆",
+    "titleEn": "The Quiet School Library",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "Locating books, desks, and reading quietly with fellow classmates.",
+    "sentences": [
+      {
+        "zh": "学校的安静图书馆",
+        "en": "The Quiet School Library",
+        "isTitle": true
+      },
+      {
+        "zh": "我们学校的图书馆很大，在教学楼的后面。",
+        "en": "Our school's library is very big, located behind the teaching building."
+      },
+      {
+        "zh": "里面有很多中文书、英文书和报纸。",
+        "en": "Inside there are many Chinese books, English books, and newspapers."
+      },
+      {
+        "zh": "图书馆里非常安静，桌子和椅子都很干净。",
+        "en": "It is very quiet inside the library; the desks and chairs are very clean."
+      },
+      {
+        "zh": "很多同学坐在窗户旁边认真地看书。",
+        "en": "Many classmates sit beside the windows reading books earnestly."
+      },
+      {
+        "zh": "我借了两本汉字书，准备带回宿舍看。",
+        "en": "I borrowed two Chinese character books to bring back to my dormitory to read."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-08-puppy",
+    "titleZh": "我的可爱小狗“豆豆”",
+    "titleEn": "My Cute Little Dog 'Dou Dou'",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "A pet puppy who loves running in the grass and eating snacks.",
+    "sentences": [
+      {
+        "zh": "我的可爱小狗“豆豆”",
+        "en": "My Cute Little Dog 'Dou Dou'",
+        "isTitle": true
+      },
+      {
+        "zh": "我有一只可爱的小狗，它的名字叫“豆豆”。",
+        "en": "I have a cute little dog; his name is 'Dou Dou'."
+      },
+      {
+        "zh": "豆豆一岁了，身上都是白色的毛，耳朵小小的。",
+        "en": "Dou Dou is one year old, has white fur all over, and small ears."
+      },
+      {
+        "zh": "每天我回到家，它都会高兴地跑过来摇尾巴。",
+        "en": "Every day when I return home, he happily runs over and wags his tail."
+      },
+      {
+        "zh": "它喜欢吃肉，也喜欢在绿色的草地上跑步玩球。",
+        "en": "He likes eating meat, and also likes running and playing with balls on the green grass."
+      },
+      {
+        "zh": "豆豆是我最好的朋友，我很爱它。",
+        "en": "Dou Dou is my best friend, and I love him very much."
+      }
+    ]
+  },
+  {
+    "id": "hsk1-09-learning",
+    "titleZh": "学习汉字的快乐",
+    "titleEn": "The Joy of Learning Chinese Characters",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "How learning pictographs like sun and moon turns studying into an adventure.",
+    "sentences": [
+      {
+        "zh": "学习汉字的快乐",
+        "en": "The Joy of Learning Chinese Characters",
+        "isTitle": true
+      },
+      {
+        "zh": "刚开始学汉语的时候，我觉得汉字很难写。",
+        "en": "When I first started learning Chinese, I felt Chinese characters were hard to write."
+      },
+      {
+        "zh": "但是老师告诉我，很多汉字都是像图画一样的。",
+        "en": "But the teacher told me that many Chinese characters are like pictures."
+      },
+      {
+        "zh": "比如“日”是太阳，“月”是月亮，在一起就是“明”。",
+        "en": "For example, '日' is the sun, '月' is the moon, and together they make '明' (bright)."
+      },
+      {
+        "zh": "现在我每天练习写十个新字，觉得汉字非常神奇。",
+        "en": "Now I practice writing ten new characters every day and find characters truly magical."
+      },
+      {
+        "zh": "写汉字让我感到非常快乐！",
+        "en": "Writing Chinese characters makes me feel very happy!"
+      }
+    ]
+  },
+  {
+    "id": "hsk1-10-weekend",
+    "titleZh": "快乐的星期六",
+    "titleEn": "A Happy Saturday",
+    "hskLevel": 1,
+    "level": "NEWBIE",
+    "levelLabel": "HSK 1 · Newbie",
+    "readTime": "1 min",
+    "description": "A relaxing weekend of sleeping in, meeting friends, and drinking boba tea.",
+    "sentences": [
+      {
+        "zh": "快乐的星期六",
+        "en": "A Happy Saturday",
+        "isTitle": true
+      },
+      {
+        "zh": "今天是星期六，我不用去学校上课。",
+        "en": "Today is Saturday; I do not need to go to school for classes."
+      },
+      {
+        "zh": "早上我睡到九点钟，然后喝了一杯牛奶。",
+        "en": "In the morning I slept until nine o'clock, then drank a glass of milk."
+      },
+      {
+        "zh": "下午我和朋友去电影院看了一部新电影。",
+        "en": "In the afternoon my friend and I went to the cinema and watched a new movie."
+      },
+      {
+        "zh": "电影很好看，我们还喝了好喝的珍珠奶茶。",
+        "en": "The movie was wonderful, and we also drank delicious bubble milk tea."
+      },
+      {
+        "zh": "今天真是快乐轻松的一天！",
+        "en": "Today was truly a happy and relaxing day!"
+      }
+    ]
+  },
+  {
+    "id": "hsk2-01-heart",
+    "titleZh": "为什么它们都有“心”？",
+    "titleEn": "Why Do They All Have “Heart”?",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Explore why characters relating to thinking, feelings, and emotions all contain the heart radical.",
+    "sentences": [
+      {
+        "zh": "为什么它们都有“心”？",
+        "en": "Why do they all have “heart”?",
+        "isTitle": true
+      },
+      {
+        "zh": "你认识“心”这个字吗？",
+        "en": "Do you know the character “心” (heart)?"
+      },
+      {
+        "zh": "有时候，“心”自己就是一个字。有时候，它在别的字里面。",
+        "en": "Sometimes, “心” itself is a character. Sometimes, it is inside other characters."
+      },
+      {
+        "zh": "你看，“想”和“思”字里就有“心”，“快”和“慢”左边的“忄（竖心旁）”也是“心”变来的。",
+        "en": "Look, the characters “想” (think) and “思” (ponder) have “心” inside them, and the “忄” on the left of “快” and “慢” is also evolved from “心”."
+      },
+      {
+        "zh": "为什么这些字里有“心”呢？因为这些字都和人想什么、怎么想有关系。",
+        "en": "Why do these characters have “心”? Because these characters are all related to what people think and how they think."
+      },
+      {
+        "zh": "“想”和“思”，说的是心里在想事情。“快”和“慢”，是你做事情的时候心里的感觉。",
+        "en": "“想” and “思” mean that one's heart/mind is thinking about things. “快” and “慢” describe the feeling in your heart when doing things."
+      },
+      {
+        "zh": "“忙”这个字，和心里的事有关系，事情多的时候，心里就会想得多。",
+        "en": "The character “忙” (busy) is related to matters in your heart; when there are many things to do, your mind thinks a lot."
+      },
+      {
+        "zh": "所以，看到一个字里有“心”，你可以想一想：这个字可能和“心里想的事”有关系。",
+        "en": "Therefore, when you see “心” in a character, you can think about it: this character is probably related to “things the heart thinks about”."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-02-tea",
+    "titleZh": "一杯好喝的茉莉花茶",
+    "titleEn": "A Cup of Jasmine Tea",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "A peaceful afternoon in Beijing learning about traditional Chinese tea culture.",
+    "sentences": [
+      {
+        "zh": "一杯好喝的茉莉花茶",
+        "en": "A Cup of Delicious Jasmine Tea",
+        "isTitle": true
+      },
+      {
+        "zh": "北京的春天非常舒服，阳光温暖，微风轻轻吹着。",
+        "en": "Spring in Beijing is very comfortable, with warm sunshine and gentle breezes."
+      },
+      {
+        "zh": "今天下午，我和好朋友来到一家安静的茶馆喝茶。",
+        "en": "This afternoon, my good friend and I came to a quiet teahouse to drink tea."
+      },
+      {
+        "zh": "服务员给我们倒了一杯茉莉花茶，闻起来特别香。",
+        "en": "The waiter poured us a cup of jasmine tea; it smelled exceptionally fragrant."
+      },
+      {
+        "zh": "在中国，喝茶不仅是一种习惯，更是一种享受生活的方式。",
+        "en": "In China, drinking tea is not only a habit, but also a way to enjoy life."
+      },
+      {
+        "zh": "看着杯子里的茶叶慢慢舒展，心情也跟着变得平静了。",
+        "en": "Watching the tea leaves slowly unfurl in the cup, my heart also became calm."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-03-subway",
+    "titleZh": "坐北京地铁游览城市",
+    "titleEn": "Taking the Beijing Subway to Tour the City",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Experiencing the fast, convenient underground railway connecting ancient landmarks.",
+    "sentences": [
+      {
+        "zh": "坐北京地铁游览城市",
+        "en": "Taking the Beijing Subway to Tour the City",
+        "isTitle": true
+      },
+      {
+        "zh": "北京的地铁四通八达，一共有二十多条线路。",
+        "en": "Beijing's subway extends in all directions, with more than twenty lines in total."
+      },
+      {
+        "zh": "每天早晨和傍晚，地铁站里都有很多人去上班或上学。",
+        "en": "Every morning and evening, there are many people in subway stations going to work or school."
+      },
+      {
+        "zh": "你可以用手机刷码进站，非常方便快速。",
+        "en": "You can scan a QR code on your mobile phone to enter the station, which is very convenient and fast."
+      },
+      {
+        "zh": "今天我坐地铁一号线去了天安门东站，参观了故宫博物院。",
+        "en": "Today I took subway Line 1 to Tian'anmen East station and visited the Palace Museum."
+      },
+      {
+        "zh": "地铁不仅便宜，而且从来不会堵车，是我最喜欢的交通方式。",
+        "en": "The subway is not only cheap, but also never gets stuck in traffic jams; it is my favorite way to travel."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-04-hospital",
+    "titleZh": "感冒去医院看医生",
+    "titleEn": "Visiting the Doctor for a Cold",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Learning how to describe symptoms like headache, coughing, and taking medicine.",
+    "sentences": [
+      {
+        "zh": "感冒去医院看医生",
+        "en": "Visiting the Doctor for a Cold",
+        "isTitle": true
+      },
+      {
+        "zh": "昨天晚上我吹了冷风，今天早晨起来头疼、咳嗽。",
+        "en": "Last night I caught a cold wind; when I woke up this morning I had a headache and a cough."
+      },
+      {
+        "zh": "朋友陪我一起去了附近的医院看病。",
+        "en": "My friend accompanied me to the nearby hospital to see a doctor."
+      },
+      {
+        "zh": "医生给我量了体温，说：“你发烧了，三十八度五。”",
+        "en": "The doctor took my temperature and said: “You have a fever, thirty-eight point five degrees.”"
+      },
+      {
+        "zh": "医生给我开了一些感冒药，叮嘱我按时吃药，多喝温水，好好休息两天。",
+        "en": "The doctor prescribed some cold medicine, advising me to take it on time, drink plenty of warm water, and rest well for two days."
+      },
+      {
+        "zh": "吃了药睡了一觉，我感觉身体好多了。",
+        "en": "After taking the medicine and sleeping, I felt much better."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-05-cooking",
+    "titleZh": "学做经典的西红柿炒鸡蛋",
+    "titleEn": "Learning to Cook Classic Tomato Scrambled Eggs",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "A beginner step-by-step guide to China's most famous home-cooked comfort dish.",
+    "sentences": [
+      {
+        "zh": "学做经典的西红柿炒鸡蛋",
+        "en": "Learning to Cook Classic Tomato Scrambled Eggs",
+        "isTitle": true
+      },
+      {
+        "zh": "西红柿炒鸡蛋是几乎每一个中国家庭都会做的家常菜。",
+        "en": "Tomato scrambled eggs is a home-style dish that almost every Chinese family knows how to cook."
+      },
+      {
+        "zh": "今天中国朋友教我做这道菜，准备了三个鸡蛋和两个大西红柿。",
+        "en": "Today a Chinese friend taught me how to make this dish, preparing three eggs and two big tomatoes."
+      },
+      {
+        "zh": "先把西红柿切成小块，再把鸡蛋打在碗里搅拌均匀。",
+        "en": "First cut the tomatoes into small pieces, then beat the eggs evenly in a bowl."
+      },
+      {
+        "zh": "锅里放少许油，先炒熟鸡蛋，再炒西红柿，最后加一点糖和盐。",
+        "en": "Put a little oil in the pan, fry the eggs first, then fry the tomatoes, and finally add a little sugar and salt."
+      },
+      {
+        "zh": "红红黄黄的颜色很好看，配米饭吃真是太香了！",
+        "en": "The red and yellow colors look gorgeous, and paired with rice it is truly delicious!"
+      }
+    ]
+  },
+  {
+    "id": "hsk2-06-apartment",
+    "titleZh": "寻找一间舒服的小公寓",
+    "titleEn": "Searching for a Comfortable Little Apartment",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Looking for a sunny room near the subway station with friendly neighbors.",
+    "sentences": [
+      {
+        "zh": "寻找一间舒服的小公寓",
+        "en": "Searching for a Comfortable Little Apartment",
+        "isTitle": true
+      },
+      {
+        "zh": "下个月我就要在新公司上班了，所以最近在网上找房子。",
+        "en": "Next month I will start working at a new company, so recently I have been looking for an apartment online."
+      },
+      {
+        "zh": "我希望房子离地铁站不太远，步行十分钟之内最好。",
+        "en": "I hope the apartment is not too far from the subway station, within a ten-minute walk is best."
+      },
+      {
+        "zh": "今天中介带我看了一间朝南的单人公寓，房间里阳光充足。",
+        "en": "Today the agent showed me a south-facing studio apartment filled with ample sunlight."
+      },
+      {
+        "zh": "里面有厨房、卫生间，还有一张大床和一张书桌。",
+        "en": "Inside there is a kitchen, a bathroom, as well as a big bed and a study desk."
+      },
+      {
+        "zh": "房租一个月两千五百块，我很满意，决定签合同租下来。",
+        "en": "The rent is two thousand five hundred yuan a month; I am very satisfied and decided to sign the contract."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-07-autumn",
+    "titleZh": "北京最迷人的秋天",
+    "titleEn": "Beijing's Most Enchanting Autumn",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Walking through Xiangshan Park under golden ginkgo and crimson maple leaves.",
+    "sentences": [
+      {
+        "zh": "北京最迷人的秋天",
+        "en": "Beijing's Most Enchanting Autumn",
+        "isTitle": true
+      },
+      {
+        "zh": "老舍先生曾经说过：“北平之秋便是天堂。”",
+        "en": "Mr. Lao She once said: “Autumn in Beiping is paradise.”"
+      },
+      {
+        "zh": "十月的北京天高气爽，街道两旁的银杏树叶变成了金黄色。",
+        "en": "In October, Beijing's sky is high and clear, and ginkgo leaves on both sides of the streets turn golden yellow."
+      },
+      {
+        "zh": "周末我和朋友一起爬香山，山上的红叶像火一样美丽壮观。",
+        "en": "On the weekend, my friends and I climbed Fragrant Hills; the red leaves on the mountains were as splendid as fire."
+      },
+      {
+        "zh": "吹着凉爽的风，喝着热奶茶，看着脚下的落叶沙沙作响。",
+        "en": "Basking in the cool breeze, drinking hot milk tea, and listening to fallen leaves rustle underfoot."
+      },
+      {
+        "zh": "秋天虽然短暂，但留下的美好记忆却让人久久难忘。",
+        "en": "Although autumn is brief, the beautiful memories it leaves behind remain unforgettable for a long time."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-08-shanghai",
+    "titleZh": "乘坐高铁去上海旅行",
+    "titleEn": "Traveling to Shanghai on the High-Speed Train",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Riding at 350 km/h from Beijing to Shanghai to gaze at the Bund skyline.",
+    "sentences": [
+      {
+        "zh": "乘坐高铁去上海旅行",
+        "en": "Traveling to Shanghai on the High-Speed Train",
+        "isTitle": true
+      },
+      {
+        "zh": "从北京到上海有一千三百多公里，坐高铁只需要四个半小时。",
+        "en": "From Beijing to Shanghai is over 1,300 kilometers, but taking high-speed rail takes only four and a half hours."
+      },
+      {
+        "zh": "高铁跑得非常快，最高时速达到每小时三百五十公里，但是车厢里很平稳安静。",
+        "en": "The high-speed train runs very fast, reaching up to 350 km/h, yet inside the carriages it is very smooth and quiet."
+      },
+      {
+        "zh": "窗外的风景从北方的平原变成了江南的水乡绿野。",
+        "en": "The view outside changed from northern plains into the lush green water towns of Jiangnan."
+      },
+      {
+        "zh": "到了上海，晚上我和朋友在外滩看黄浦江两岸璀璨的夜景。",
+        "en": "Arriving in Shanghai, in the evening my friends and I watched the sparkling night lights along the Huangpu River on the Bund."
+      },
+      {
+        "zh": "现代与古典的交织，让这座国际大都市充满活力与魅力。",
+        "en": "The interplay between the modern and the classical fills this cosmopolitan city with energy and charm."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-09-library-city",
+    "titleZh": "在城市图书馆度过午后",
+    "titleEn": "Spending an Afternoon in the City Library",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Quietly exploring Chinese history, art, and modern language collections.",
+    "sentences": [
+      {
+        "zh": "在城市图书馆度过午后",
+        "en": "Spending an Afternoon in the City Library",
+        "isTitle": true
+      },
+      {
+        "zh": "市中心新建了一座现代化的城市图书馆，建筑外形像一本打开的书。",
+        "en": "A modern city library was newly built in the city center; its architectural shape resembles an open book."
+      },
+      {
+        "zh": "凭身份证或者读者卡就可以免费进入，里面有五层楼的书架。",
+        "en": "With an ID card or reader card you can enter for free; inside there are bookshelves spanning five floors."
+      },
+      {
+        "zh": "我找到了一本讲中国历史故事的连环画，图文并茂，非常生动。",
+        "en": "I found a comic book telling Chinese historical stories; with both pictures and text, it was very lively."
+      },
+      {
+        "zh": "阅读让人静心，不知不觉三个小时就过去了。",
+        "en": "Reading calms the mind; without noticing, three hours passed by."
+      },
+      {
+        "zh": "临走前我还办了借阅手续，打算在家里慢慢品读。",
+        "en": "Before leaving, I also completed borrowing procedures, planning to savor reading it slowly at home."
+      }
+    ]
+  },
+  {
+    "id": "hsk2-10-birthday",
+    "titleZh": "难忘的中国生日聚会",
+    "titleEn": "An Unforgettable Chinese Birthday Gathering",
+    "hskLevel": 2,
+    "level": "ELEMENTARY",
+    "levelLabel": "HSK 2 · Elementary",
+    "readTime": "2 min",
+    "description": "Eating long-life noodles, blowing candles, and singing birthday songs in Chinese.",
+    "sentences": [
+      {
+        "zh": "难忘的中国生日聚会",
+        "en": "An Unforgettable Chinese Birthday Gathering",
+        "isTitle": true
+      },
+      {
+        "zh": "昨天是我的二十二岁生日，中国朋友们为我准备了惊喜。",
+        "en": "Yesterday was my twenty-second birthday; my Chinese friends prepared a surprise for me."
+      },
+      {
+        "zh": "在中国传统文化中，过生日要吃“长寿面”，象征健康长寿。",
+        "en": "In traditional Chinese culture, one eats 'longevity noodles' on birthdays, symbolizing health and long life."
+      },
+      {
+        "zh": "朋友亲手为我煮了一大碗热腾腾的长寿面，上面还卧着一个煎鸡蛋。",
+        "en": "My friend personally cooked a big hot bowl of longevity noodles for me, topped with a fried egg."
+      },
+      {
+        "zh": "大家一起为我唱中文版的《生日快乐歌》，吹灭蜡烛许下了心愿。",
+        "en": "Everyone sang the Chinese version of 'Happy Birthday' for me, blew out candles, and made wishes."
+      },
+      {
+        "zh": "远在他乡却感受到了家一般的温暖，这真是一个难忘的生日！",
+        "en": "Though far away in a foreign land, I felt the warmth of home; this was truly an unforgettable birthday!"
+      }
+    ]
+  },
+  {
+    "id": "hsk3-01-dumplings",
+    "titleZh": "中国饺子的温暖传说",
+    "titleEn": "The Legend of Chinese Dumplings",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "How ancient physician Zhang Zhongjing invented dumplings to cure cold ears during winter.",
+    "sentences": [
+      {
+        "zh": "中国饺子的温暖传说",
+        "en": "The Warm Legend of Chinese Dumplings",
+        "isTitle": true
+      },
+      {
+        "zh": "在中国北方，每当冬至或者春节的时候，家家户户都要包饺子、吃饺子。",
+        "en": "In northern China, whenever the Winter Solstice or Spring Festival arrives, every household makes and eats dumplings."
+      },
+      {
+        "zh": "传说在很久以前的东汉时期，著名医生张仲景看到许多穷苦百姓在寒冬里耳朵被冻坏了。",
+        "en": "Legend has it that long ago in the Eastern Han Dynasty, the famous doctor Zhang Zhongjing saw many poor people whose ears were frostbitten in the freezing winter."
+      },
+      {
+        "zh": "他心里非常同情他们，于是把羊肉、辣椒和温热的药材用面皮包成耳朵的形状，煮熟后送给百姓吃。",
+        "en": "Feeling deep sympathy, he wrapped mutton, chili peppers, and warming medicinal herbs into dough shaped like ears, boiled them, and gave them to the people to eat."
+      },
+      {
+        "zh": "人们吃了这种热气腾腾的“娇耳”之后，浑身发暖，冻伤的耳朵也慢慢治好了。",
+        "en": "After eating these steaming hot dumplings, people's whole bodies grew warm, and their frostbitten ears gradually healed."
+      },
+      {
+        "zh": "后来，这种好吃的食物便代代相传，演变成了今天的饺子。",
+        "en": "Later on, this delicious food was passed down through generations and evolved into the dumplings of today."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-02-shared-bike",
+    "titleZh": "穿梭在城市街道的共享单车",
+    "titleEn": "Shared Bicycles Weaving Through City Streets",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "How colorful shared bikes solved the 'last mile' problem and made cities greener.",
+    "sentences": [
+      {
+        "zh": "穿梭在城市街道的共享单车",
+        "en": "Shared Bicycles Weaving Through City Streets",
+        "isTitle": true
+      },
+      {
+        "zh": "走在中国的任何一座城市，你都会看到路边整齐停放的黄色、蓝色和青色单车。",
+        "en": "Walking in any Chinese city, you will see yellow, blue, and cyan bicycles parked neatly along the streets."
+      },
+      {
+        "zh": "这就是著名的“共享单车”，只要用手机扫一下车上的二维码，锁就会“咔哒”一声打开。",
+        "en": "These are the famous 'shared bicycles'; just scan the QR code on the bike with your phone, and the lock clicks open."
+      },
+      {
+        "zh": "骑共享单车不仅价格便宜，还能锻炼身体，更解决了从地铁站到家门口的“最后一公里”问题。",
+        "en": "Riding shared bikes is not only inexpensive and good for exercise, but also solves the 'last mile' problem from subway to home."
+      },
+      {
+        "zh": "随着越来越多的人选择绿色低碳出行，城市里的空气也变得越来越清新。",
+        "en": "As more people choose green, low-carbon travel, the air in cities is also becoming cleaner."
+      },
+      {
+        "zh": "低碳生活不再是一句口号，而是每个人触手可及的日常行动。",
+        "en": "Low-carbon living is no longer just a slogan, but an accessible daily practice for everyone."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-03-chopsticks",
+    "titleZh": "一双筷子里的东方智慧",
+    "titleEn": "Oriental Wisdom Inside a Pair of Chopsticks",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "The Yin and Yang harmony and dining etiquette embedded in Chinese chopsticks.",
+    "sentences": [
+      {
+        "zh": "一双筷子里的东方智慧",
+        "en": "Oriental Wisdom Inside a Pair of Chopsticks",
+        "isTitle": true
+      },
+      {
+        "zh": "中国人使用筷子已经有三千多年的历史了，筷子虽小，却蕴含着丰富的文化。",
+        "en": "Chinese people have used chopsticks for over three thousand years; though small, chopsticks embody rich cultural significance."
+      },
+      {
+        "zh": "筷子一头圆、一头方，象征着古代中国人“天圆地方”的宇宙观念。",
+        "en": "Chopsticks are round at one end and square at the other, symbolizing ancient Chinese cosmological views of round heaven and square earth."
+      },
+      {
+        "zh": "在使用筷子时，两只筷子必须配合默契，一动一静，体现了阴阳互补的哲理。",
+        "en": "When using chopsticks, the two sticks must cooperate tacitly, one moving and one stationary, reflecting the Yin-Yang balance."
+      },
+      {
+        "zh": "用餐时，不能把筷子竖直插在饭碗中央，因为那是祭祀逝者的仪式，是不礼貌的行为。",
+        "en": "When dining, one must never stick chopsticks vertically into rice bowls, as that is a ritual for honoring ancestors and considered impolite."
+      },
+      {
+        "zh": "学会使用筷子，不仅是掌握了一门餐桌技能，更是打开了一扇理解中华文明的窗口。",
+        "en": "Learning to use chopsticks is not just mastering a dining skill, but opening a window to understand Chinese civilization."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-04-mid-autumn",
+    "titleZh": "中秋月圆人团圆",
+    "titleEn": "Mid-Autumn Moon and Family Reunion",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "Admiring the bright full moon, tasting sweet lotus seed mooncakes, and family love.",
+    "sentences": [
+      {
+        "zh": "中秋月圆人团圆",
+        "en": "Mid-Autumn Moon and Family Reunion",
+        "isTitle": true
+      },
+      {
+        "zh": "农历八月十五是中国传统的中秋节，这是一年当中月亮最圆、最亮的夜晚。",
+        "en": "The fifteenth day of the eighth lunar month is China's traditional Mid-Autumn Festival, when the moon is roundest and brightest in the year."
+      },
+      {
+        "zh": "在这一天，不管人们离家多远，都会尽量赶回家中与亲人团圆吃一顿团圆饭。",
+        "en": "On this day, no matter how far away people are, they try their best to hurry home to reunite with loved ones for a feast."
+      },
+      {
+        "zh": "饭后，大家围坐在院子里品尝月饼、观赏明月，分享这一年来的喜怒哀乐。",
+        "en": "After dinner, everyone sits in the courtyard tasting mooncakes, admiring the bright moon, and sharing joys and sorrows."
+      },
+      {
+        "zh": "月饼圆圆的外形，寄托着人们对家庭团聚、幸福美满的美好祈愿。",
+        "en": "The round shape of mooncakes carries people's cherished hopes for family harmony and happiness."
+      },
+      {
+        "zh": "正如苏轼在名篇中所写：“但愿人长久，千里共婵娟。”",
+        "en": "Just as Su Shi wrote in his famous poem: “May we all be blessed with longevity, though miles apart, sharing the moon's celestial glow.”"
+      }
+    ]
+  },
+  {
+    "id": "hsk3-05-taichi",
+    "titleZh": "清晨公园里的太极韵律",
+    "titleEn": "Tai Chi Rhythm in the Morning Park",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "Watching graceful, flowing movements balance breath and energy under weeping willows.",
+    "sentences": [
+      {
+        "zh": "清晨公园里的太极韵律",
+        "en": "Tai Chi Rhythm in the Morning Park",
+        "isTitle": true
+      },
+      {
+        "zh": "每天清晨六点半，城市公园的湖边总是聚集着很多早起锻炼的老年人。",
+        "en": "Every morning at six thirty, many early-rising seniors always gather beside the lake in the city park."
+      },
+      {
+        "zh": "伴随着悠扬舒缓的中国传统民乐，他们身着宽松练功服，缓缓打起太极拳。",
+        "en": "Accompanied by melodious, soothing traditional Chinese folk music, dressed in loose martial arts clothing, they gracefully practice Tai Chi."
+      },
+      {
+        "zh": "太极拳讲究以柔克刚、借力打力，动作如行云流水般连贯自然。",
+        "en": "Tai Chi values overcoming hardness with softness and redirecting incoming force, with movements as fluid as flowing clouds and water."
+      },
+      {
+        "zh": "深长均匀的呼吸与肢体动作融为一体，既强身健体，又能修身养性、平复焦躁心情。",
+        "en": "Deep, even breathing merges with physical motions, which not only strengthens the body, but also cultivates character and calms restless minds."
+      },
+      {
+        "zh": "这种动静结合的古老运动，正是中国人追求身心平衡与和谐生命的生动写照。",
+        "en": "This ancient exercise combining stillness and motion vividly reflects the Chinese pursuit of bodily balance and harmonious life."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-06-lost-found",
+    "titleZh": "高铁站里的温暖失物招领",
+    "titleEn": "Warm Lost & Found at the High-Speed Railway Station",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "An anxious traveler recovers an important backpack containing passport and notes.",
+    "sentences": [
+      {
+        "zh": "高铁站里的温暖失物招领",
+        "en": "Warm Lost & Found at the High-Speed Railway Station",
+        "isTitle": true
+      },
+      {
+        "zh": "昨天上午，留学生马克匆忙检票上车后，突然发现自己的黑色背包不见了。",
+        "en": "Yesterday morning, after rushing through the ticket gate, international student Mark suddenly found his black backpack was missing."
+      },
+      {
+        "zh": "包里装有护照、钱包和整整一学期的中文学习笔记，马克急得满头大汗。",
+        "en": "Inside the bag were his passport, wallet, and a whole semester's Chinese notes; Mark was sweating profusely with anxiety."
+      },
+      {
+        "zh": "列车长立刻帮他联系了始发车站的失物招领处，并通过广播仔细核对背包特征。",
+        "en": "The train conductor immediately helped him contact the departure station's lost-and-found desk and broadcasted backpack details."
+      },
+      {
+        "zh": "原来是一位热心的保洁阿姨在候车大厅的长椅上捡到了包，并原封不动地交给了服务台。",
+        "en": "It turned out an attentive cleaning lady found the bag on a waiting hall bench and handed it untouched to the service desk."
+      },
+      {
+        "zh": "拿回背包的那一刻，马克热泪盈眶，连连对工作人员道谢，感受到了中国社会的善意与安全感。",
+        "en": "The moment he retrieved his backpack, Mark had tears in his eyes, repeatedly thanking the staff, feeling the kindness and safety of Chinese society."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-07-panda",
+    "titleZh": "探访天府之国的国宝大熊猫",
+    "titleEn": "Visiting the Giant Pandas in the Land of Abundance",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "A delightful trip to Chengdu observing playful panda cubs rolling in green bamboo groves.",
+    "sentences": [
+      {
+        "zh": "探访天府之国的国宝大熊猫",
+        "en": "Visiting the Giant Pandas in the Land of Abundance",
+        "isTitle": true
+      },
+      {
+        "zh": "位于四川成都的大熊猫繁育研究基地，是全世界最受欢迎的动物保护胜地之一。",
+        "en": "The Chengdu Research Base of Giant Panda Breeding in Sichuan is one of the most beloved animal conservation sanctuaries in the world."
+      },
+      {
+        "zh": "大熊猫有着圆滚滚的黑白身体和标志性的“黑眼圈”，憨态可掬的模样深受全球人们喜爱。",
+        "en": "Giant pandas have round black-and-white bodies and iconic 'dark eye circles'; their charmingly naive appearance is adored globally."
+      },
+      {
+        "zh": "在幼崽产房里，几只刚满半岁的熊猫宝宝像糯米团子一样在木架上打滚、抢竹笋吃。",
+        "en": "In the cub nursery, several half-year-old panda babies rolled around like sticky rice balls on wooden racks, vying for bamboo shoots."
+      },
+      {
+        "zh": "饲养员耐心地给它们量体重、喂配方奶粉，悉心记录每一天的成长数据。",
+        "en": "Keepers patiently weighed them, bottle-fed formula milk, and meticulously recorded daily growth data."
+      },
+      {
+        "zh": "大熊猫不仅是中国特有的珍稀物种，更是传递友谊与和平的文化使者。",
+        "en": "The giant panda is not only a rare species unique to China, but also a cultural ambassador of friendship and peace."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-08-calligraphy",
+    "titleZh": "笔墨纸砚与书法意境",
+    "titleEn": "Brush, Ink, Paper, Inkstone and Calligraphy Soul",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "Grinding dark ink on a slate stone and writing meditative strokes on rice paper.",
+    "sentences": [
+      {
+        "zh": "笔墨纸砚与书法意境",
+        "en": "Brush, Ink, Paper, Inkstone and Calligraphy Soul",
+        "isTitle": true
+      },
+      {
+        "zh": "中国书法不仅是书写文字的技术，更是一门直抒胸臆、表达人格魅力的视觉艺术。",
+        "en": "Chinese calligraphy is not merely a writing technique, but a visual art that expresses inner feelings and personality."
+      },
+      {
+        "zh": "书房桌案上常备“文房四宝”：宣纸、湖笔、徽墨和端砚。",
+        "en": "The study desk always features the 'Four Treasures of the Study': Xuan paper, Hu brush, Hui ink, and Duan inkstone."
+      },
+      {
+        "zh": "在砚台上加几滴清水，慢慢研磨墨锭，浓郁的墨香在空气中悄悄弥漫开来。",
+        "en": "Adding a few drops of water onto the inkstone and slowly grinding the ink stick, a rich ink fragrance softly permeates the air."
+      },
+      {
+        "zh": "提笔悬腕，落墨生花，横平竖直、轻重缓急全在呼吸与指腕的力量调控之中。",
+        "en": "Lifting the brush and suspending the wrist, horizontal and vertical strokes, cadence and speed, all depend on breath and wrist control."
+      },
+      {
+        "zh": "黑白相间的线条律动，展现了中国人崇尚自然、简朴大气的审美境界。",
+        "en": "The rhythmic cadence of black and white lines displays the Chinese aesthetic ideals of embracing nature, simplicity, and grandeur."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-09-takeout",
+    "titleZh": "神奇的外卖与现代都市生活",
+    "titleEn": "Magical Food Delivery and Modern Urban Life",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "How smartphone food delivery apps bring piping-hot noodles to doors within 30 minutes.",
+    "sentences": [
+      {
+        "zh": "神奇的外卖与现代都市生活",
+        "en": "Magical Food Delivery and Modern Urban Life",
+        "isTitle": true
+      },
+      {
+        "zh": "对于生活在现代中国都市的年轻人来说，手机外卖软件已经成为一日三餐的重要依靠。",
+        "en": "For young people living in modern Chinese cities, mobile delivery apps have become an indispensable part of daily meals."
+      },
+      {
+        "zh": "不论是川菜的麻辣香锅、广东的点心，还是西式汉堡披萨，只要轻点几下屏幕就能下单。",
+        "en": "Whether Sichuan spicy dry pot, Cantonese dim sum, or Western burgers and pizzas, ordering takes just a few screen taps."
+      },
+      {
+        "zh": "身穿黄色或蓝色制服的外卖骑手骑着电动车穿行在大街小巷，通常在半小时内就能将热气腾腾的饭菜送达门前。",
+        "en": "Delivery couriers in yellow or blue uniforms on electric scooters weave through streets, usually delivering piping-hot meals within thirty minutes."
+      },
+      {
+        "zh": "即使在深夜加班或者下雨天，也能随时吃到温暖的食物，极大地方便了居民的生活。",
+        "en": "Even working late into the night or on rainy days, one can enjoy hot food anytime, greatly facilitating residents' lives."
+      },
+      {
+        "zh": "高效的数字物流网络，正在深刻地重塑着中国城市的生活节奏与消费方式。",
+        "en": "The efficient digital logistics network is profoundly reshaping the rhythm of life and consumption in Chinese cities."
+      }
+    ]
+  },
+  {
+    "id": "hsk3-10-great-wall",
+    "titleZh": "不到长城非好汉",
+    "titleEn": "One Who Has Not Climbed the Great Wall Is Not a Hero",
+    "hskLevel": 3,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 3 · Pre-Intermediate",
+    "readTime": "3 min",
+    "description": "Ascending the winding battlements of Mutianyu through mist and rolling mountain ridges.",
+    "sentences": [
+      {
+        "zh": "不到长城非好汉",
+        "en": "One Who Has Not Climbed the Great Wall Is Not a Hero",
+        "isTitle": true
+      },
+      {
+        "zh": "毛主席曾经写下过一句著名的诗词：“不到长城非好汉。”",
+        "en": "Chairman Mao once wrote a famous poetic line: “He who has not climbed the Great Wall is not a true hero.”"
+      },
+      {
+        "zh": "今天我来到了北京郊区的慕田峪长城，亲身体验这座世界七大奇迹之一的壮美风姿。",
+        "en": "Today I came to the Mutianyu Great Wall in suburban Beijing to personally experience the grandeur of this World Wonder."
+      },
+      {
+        "zh": "古老坚固的青砖城墙依山而建，宛如一条盘旋在青翠崇山峻岭之中的巨龙，延绵万里看不到尽头。",
+        "en": "Ancient, sturdy grey-brick walls built along mountain ridges resemble a giant dragon coiling through green peaks, stretching endlessly."
+      },
+      {
+        "zh": "踏着脚下沧桑的石阶一步步登上高耸的烽火台，极目远眺，群山叠翠、微风拂面。",
+        "en": "Treading weathered stone steps to ascend the beacon tower, gazing far into the distance, verdant hills roll and gentle breezes blow."
+      },
+      {
+        "zh": "古代劳动人民用智慧和汗水筑成的雄伟工程，让人由衷赞叹中华民族坚韧不拔的毅力。",
+        "en": "The magnificent engineering forged by the wisdom and sweat of ancient workers fills visitors with deep admiration for the nation's perseverance."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-01-tea-ceremony",
+    "titleZh": "中国茶道的宁静之美",
+    "titleEn": "The Tranquil Beauty of the Chinese Tea Ceremony",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Appreciating the meditative art of brewing Gongfu tea with patience and mindful etiquette.",
+    "sentences": [
+      {
+        "zh": "中国茶道的宁静之美",
+        "en": "The Tranquil Beauty of the Chinese Tea Ceremony",
+        "isTitle": true
+      },
+      {
+        "zh": "中国是茶的故乡，茶不仅是一种日常解渴的饮品，更是一门蕴含着高雅美学与哲学思想的生活艺术。",
+        "en": "China is the homeland of tea; tea is not only a thirst-quenching daily beverage, but a lifestyle art embodying refined aesthetics and philosophy."
+      },
+      {
+        "zh": "在传统的“工夫茶”冲泡过程中，茶艺师会先用沸水温热紫砂壶与瓷杯，这被称为“温壶烫盏”。",
+        "en": "In the traditional brewing of 'Gongfu tea', tea masters first warm the purple clay teapot and porcelain cups with boiling water."
+      },
+      {
+        "zh": "随后投茶、高冲沸水、低斟茶汤，每一个动作都舒缓从容、优雅自若，不带半点焦躁。",
+        "en": "Then they add tea leaves, pour boiling water from high, and pour out the liquor from low, each movement unhurried and graceful."
+      },
+      {
+        "zh": "品茶讲究“一嗅香、二观色、三品味”，初尝微苦，细咽之后满口生津、甘甜悠长。",
+        "en": "Tea tasting emphasizes 'smelling the aroma, observing color, and savoring flavor'—slight bitterness at first, followed by lingering sweetness."
+      },
+      {
+        "zh": "在繁忙喧嚣的现代社会中，静下心来品一杯好茶，正是寻找内心平和与生命宁静的最佳良药。",
+        "en": "In a busy modern society, calming one's mind to savor fine tea is the finest elixir for inner peace and life tranquility."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-02-cashless",
+    "titleZh": "一部手机走天下的数字生活",
+    "titleEn": "Digital Living: Navigating the World with a Single Smartphone",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "How mobile payment, ride-hailing, and QR codes created a truly cashless society.",
+    "sentences": [
+      {
+        "zh": "一部手机走天下的数字生活",
+        "en": "Digital Living: Navigating the World with a Single Smartphone",
+        "isTitle": true
+      },
+      {
+        "zh": "如果你现在来到中国的大街小巷，就会惊奇地发现人们几乎很少随身携带现金或钱包了。",
+        "en": "If you visit Chinese streets today, you will be amazed to find that people rarely carry cash or wallets anymore."
+      },
+      {
+        "zh": "从大型购物广场到路边卖烤红薯的小摊贩，每一个收银处都摆放着醒目的移动支付二维码。",
+        "en": "From large shopping plazas to roadside roasted sweet potato vendors, every checkout counter displays prominent mobile payment QR codes."
+      },
+      {
+        "zh": "出门乘公交坐地铁、看病预约挂号、租借共享充电宝，哪怕是水电缴费，一切都能在手机应用中瞬间完成。",
+        "en": "Taking buses, booking hospital appointments, renting power banks, even paying utilities—everything is completed in smartphone apps within seconds."
+      },
+      {
+        "zh": "移动互联网技术的普及极大地提高了社会运行效率，让广大人民群众的生活变得前所未有的便捷。",
+        "en": "The ubiquity of mobile internet has dramatically enhanced societal operational efficiency, making life extraordinarily convenient."
+      },
+      {
+        "zh": "这种无现金的数字化生存方式，正吸引着来自世界各地的目光，成为中国现代科技创新的一张靓丽名片。",
+        "en": "This cashless digital existence attracts worldwide attention, serving as a glittering calling card of modern Chinese technological innovation."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-03-inventions",
+    "titleZh": "改变世界文明格局的四大发明",
+    "titleEn": "The Four Great Inventions that Reshaped World Civilization",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "The monumental historical contributions of papermaking, printing, gunpowder, and the compass.",
+    "sentences": [
+      {
+        "zh": "改变世界文明格局的四大发明",
+        "en": "The Four Great Inventions that Reshaped World Civilization",
+        "isTitle": true
+      },
+      {
+        "zh": "回顾人类波澜壮阔的发展历史，中国古代的“四大发明”对世界文明的进步起到了无可估量的推动作用。",
+        "en": "Reviewing human history's magnificent journey, the 'Four Great Inventions' of ancient China exerted immeasurable impetus on world civilization."
+      },
+      {
+        "zh": "造纸术与活字印刷术的发明，彻底降低了知识记录与传播的门槛，促进了全球教育普及与思想启蒙。",
+        "en": "The inventions of papermaking and movable type printing lowered barriers to recording knowledge, fostering global education and enlightenment."
+      },
+      {
+        "zh": "指南针的广泛应用开启了大航海时代的序幕，指引勇敢的航海家们跨越汪洋大海，连接起五洲四海。",
+        "en": "The widespread application of the compass opened the Age of Discovery, guiding brave mariners across oceans to connect continents."
+      },
+      {
+        "zh": "而火药则深远地改变了世界军事与工程建筑技术，推动了近代工业与交通隧道的飞跃发展。",
+        "en": "Meanwhile, gunpowder profoundly transformed global military and engineering techniques, advancing modern industry and tunneling."
+      },
+      {
+        "zh": "这些闪耀着智慧光芒的科技创举，是中华民族为人类文明大家庭奉献的宝贵财富与恒久骄傲。",
+        "en": "These technological feats shining with wisdom are precious treasures and enduring pride that the Chinese nation contributed to humanity."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-04-interview",
+    "titleZh": "在科技之都深圳的求职面试",
+    "titleEn": "A Job Interview in the Tech Capital of Shenzhen",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "A graduate steps into an innovative artificial intelligence firm with preparation and poise.",
+    "sentences": [
+      {
+        "zh": "在科技之都深圳的求职面试",
+        "en": "A Job Interview in the Tech Capital of Shenzhen",
+        "isTitle": true
+      },
+      {
+        "zh": "清晨九点，大学毕业生李明身穿笔挺的正装，来到了位于深圳南山区的一座现代化高新技术产业大厦。",
+        "en": "At nine in the morning, university graduate Li Ming dressed in a sharp suit arrived at a high-tech corporate tower in Shenzhen's Nanshan District."
+      },
+      {
+        "zh": "今天他要参加一家知名人工智能科技公司的产品经理岗位第二轮综合面试。",
+        "en": "Today he was attending the second round interview for a product manager position at a renowned artificial intelligence company."
+      },
+      {
+        "zh": "走进明亮宽敞的会议室，面对三位资深考官，李明深吸一口气，从容自信地介绍了自己的大学项目经验。",
+        "en": "Entering the bright conference room to face three senior interviewers, Li Ming took a deep breath and introduced his university project experience with confidence."
+      },
+      {
+        "zh": "在回答关于产品用户体验与数据分析的技术难题时，他条理清晰、逻辑严密，赢得了考官们频频点头赞许。",
+        "en": "Addressing technical challenges regarding user experience and data analysis, his thoughts were clear and logical, winning nods of approval."
+      },
+      {
+        "zh": "面试结束后走出大楼，眺望眼前充满生机的高楼森林，年轻人的心中充满了对未来职业生涯的憧憬与抱负。",
+        "en": "Walking out after the interview, gazing at the vibrant skyline forest, the young man's heart brimmed with ambition for his career."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-05-recycling",
+    "titleZh": "垃圾分类带来的城市绿色蝶变",
+    "titleEn": "The Green Metamorphosis Brought by Garbage Sorting",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Residents mastering blue, green, red, and black bins to build eco-friendly communities.",
+    "sentences": [
+      {
+        "zh": "垃圾分类带来的城市绿色蝶变",
+        "en": "The Green Metamorphosis Brought by Garbage Sorting",
+        "isTitle": true
+      },
+      {
+        "zh": "近年来，“垃圾分类”在中国各大城市迅速普及，成为每一位社区居民日常生活中的自觉习惯。",
+        "en": "In recent years, 'waste sorting' has spread across major Chinese cities, becoming a conscious habit for community residents."
+      },
+      {
+        "zh": "小区里的垃圾投放点摆放着四种不同颜色的垃圾桶：可回收物、厨余垃圾、有害垃圾和其他垃圾。",
+        "en": "Disposal stations feature four colored bins: recyclables, kitchen food waste, hazardous waste, and other residual waste."
+      },
+      {
+        "zh": "刚开始实行时，大家对骨头、电池和废旧塑料瓶的分类标准还不太熟悉，经常需要志愿者在旁指导。",
+        "en": "When first implemented, people were unfamiliar with sorting bones, batteries, and plastic bottles, often guided by volunteers."
+      },
+      {
+        "zh": "如今，孩子们在幼儿园里就学会了分类儿歌，居民们下楼投放垃圾时都分类得井井有条。",
+        "en": "Today, children learn sorting nursery rhymes in kindergarten, and residents sort their trash neatly before throwing it away."
+      },
+      {
+        "zh": "点滴小事的坚持，不仅让垃圾减量化与资源循环利用成为现实，更为建设美丽中国贡献了坚实的绿色力量。",
+        "en": "Perseverance in small daily actions enables resource recycling and makes substantial contributions to building a beautiful, green nation."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-06-architecture",
+    "titleZh": "中国古典建筑的对称与木构精髓",
+    "titleEn": "Symmetry and Wooden Joinery in Classical Chinese Architecture",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Mortise and tenon joints, flying eaves, and courtyard harmony without a single iron nail.",
+    "sentences": [
+      {
+        "zh": "中国古典建筑的对称与木构精髓",
+        "en": "Symmetry and Wooden Joinery in Classical Chinese Architecture",
+        "isTitle": true
+      },
+      {
+        "zh": "无论是气势磅礴的紫禁城宫殿，还是清幽雅致的江南私家园林，中国古建筑都展现了精湛绝伦的艺术魅力。",
+        "en": "Whether the magnificent Forbidden City palaces or elegant private gardens of Jiangnan, ancient Chinese architecture displays superb artistic charm."
+      },
+      {
+        "zh": "古建筑最突出的特征之一是严格的中轴对称布局，讲究主次分明、秩序严谨，体现了中庸和谐的礼制思想。",
+        "en": "One of the most prominent features is strict central axis symmetry, emphasizing hierarchy and order, reflecting Confucian harmony."
+      },
+      {
+        "zh": "更为神奇的是，古代匠人不用一颗铁钉，仅凭“榫卯结构”让木材相互咬合连接，却能历经数百年地震而不倒。",
+        "en": "Even more miraculously, ancient craftsmen used no iron nails, relying solely on 'mortise and tenon joints' to lock wood together, standing earthquake-proof for centuries."
+      },
+      {
+        "zh": "屋顶上微微向上翘起的花式飞檐与色彩斑斓的斗拱彩绘，如大鸟展翅般轻盈灵动，给沉稳的木架增添了浪漫诗意。",
+        "en": "Upturned flying eaves and colorful painted brackets resemble wings in flight, adding romantic poetry to sturdy timber frames."
+      },
+      {
+        "zh": "建筑与周围山水树木融为一体的造园理念，完美诠释了中华文化中天人合一、顺应自然的永恒哲学。",
+        "en": "The philosophy of integrating structures seamlessly with surrounding nature perfectly exemplifies the harmony between humans and heaven."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-07-yugong",
+    "titleZh": "愚公移山的古老寓言与精神力量",
+    "titleEn": "The Ancient Fable and Enduring Spirit of Yu Gong Moving Mountains",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "An elder's determination to clear two immense mountains through generational perseverance.",
+    "sentences": [
+      {
+        "zh": "愚公移山的古老寓言与精神力量",
+        "en": "The Ancient Fable and Enduring Spirit of Yu Gong Moving Mountains",
+        "isTitle": true
+      },
+      {
+        "zh": "在中国家喻户晓的古代经典寓言《愚公移山》中，讲述了一位九十岁老农夫立志移走大山的感人故事。",
+        "en": "In the well-known ancient Chinese fable 'The Foolish Old Man Moves the Mountain', an elderly farmer resolves to shift giant mountains."
+      },
+      {
+        "zh": "愚公家门前矗立着太行与王屋两座高大险峻的大山，严重阻碍了全家人的进出道路。",
+        "en": "Two towering, steep mountains stood before Yu Gong's door, severely obstructing the family's path of travel."
+      },
+      {
+        "zh": "面对邻居“智叟”的嘲笑与质疑，愚公坚定地回答：“我死了有儿子，儿子又生孙子，子子孙孙无穷无尽，而山却不会再长高！”",
+        "en": "Facing mockery from his neighbor Zhisou, Yu Gong firmly answered: “When I die, there are sons; sons have grandsons; generations are endless, yet the mountains will grow no higher!”"
+      },
+      {
+        "zh": "愚公不畏艰难、持之以恒的执着信念最终感动了上苍，天神派遣大力士神仙将大山背走，道路终于化为坦途。",
+        "en": "Yu Gong's perseverance touched heaven, and the gods dispatched deities to carry the peaks away, transforming obstacles into clear paths."
+      },
+      {
+        "zh": "这则寓言深刻地告诫后人：只要目标明确且永不放弃，任何看似无法克服的艰难险阻最终都能被彻底战胜。",
+        "en": "This fable profoundly teaches future generations: as long as our goals are firm and we never surrender, any insurmountable obstacle can be conquered."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-08-dunhuang",
+    "titleZh": "丝绸之路明珠：敦煌莫高窟壁画",
+    "titleEn": "Jewel of the Silk Road: The Murals of Dunhuang Mogao Caves",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Flying Apsaras, desert caravans, and ancient cultural cross-pollination preserved in desert stone caves.",
+    "sentences": [
+      {
+        "zh": "丝绸之路明珠：敦煌莫高窟壁画",
+        "en": "Jewel of the Silk Road: The Murals of Dunhuang Mogao Caves",
+        "isTitle": true
+      },
+      {
+        "zh": "在古丝绸之路的重要交通咽喉——甘肃敦煌鸣沙山下，保存着世界上现存规模最大、内容最丰富的石窟艺术宝库。",
+        "en": "At the vital throat of the ancient Silk Road beneath Gansu's Echoing-Sand Mountain lies the world's largest Buddhist cave art treasury."
+      },
+      {
+        "zh": "莫高窟历经一千多年的开凿营建，拥有七百多座洞窟、四万多平方米色彩绚丽的珍贵壁画与两千余尊彩塑。",
+        "en": "Carved over a millennium, Mogao Caves houses over 700 caves, 45,000 square meters of colorful murals, and 2,000 painted sculptures."
+      },
+      {
+        "zh": "壁画中衣带飘飘、凌空起舞的“飞天”仙女，姿态轻盈曼妙，将人间美好的向往描绘得淋漓尽致。",
+        "en": "In the murals, the airborne 'Flying Apsaras' with flowing ribbons dance weightlessly, capturing humanity's highest celestial ideals."
+      },
+      {
+        "zh": "这里不仅见证了佛教文化的东传与中国化历程，更忠实记录了古代东西方商旅交往、乐舞融合的壮丽图景。",
+        "en": "Here witnessed not only Buddhism spreading eastward and indigenizing, but faithfully recorded commerce and artistic synthesis between East and West."
+      },
+      {
+        "zh": "茫茫沙漠中的古老艺术长廊，至今仍以无与伦比的深厚底蕴向世界展示着文明交流互鉴的永恒魅力。",
+        "en": "This ancient gallery in the desert continues to showcase the timeless allure of intercultural dialogue to the world."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-09-hanfu",
+    "titleZh": "当代年轻人掀起的汉服文化风潮",
+    "titleEn": "The Cultural Wave of Hanfu Embraced by Modern Youth",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Young people wearing traditional robes on streets, celebrating cultural identity and heritage.",
+    "sentences": [
+      {
+        "zh": "当代年轻人掀起的汉服文化风潮",
+        "en": "The Cultural Wave of Hanfu Embraced by Modern Youth",
+        "isTitle": true
+      },
+      {
+        "zh": "近年来，在中国许多大城市的历史街区、公园景点甚至大学校园里，经常能看到身穿古典汉服的年轻身影。",
+        "en": "In recent years, across historical districts, parks, and university campuses in major Chinese cities, young people in classical Hanfu are widely seen."
+      },
+      {
+        "zh": "齐胸襦裙轻盈飘逸、马面裙端庄大气、圆领袍英姿飒爽，不同朝代的传统服饰展现出各具特色的古典美学。",
+        "en": "Chest-high skirts flow airily, horse-face skirts look stately, and round-collar robes appear dashing, showcasing dynastic aesthetics."
+      },
+      {
+        "zh": "汉服复兴不仅是一场视觉上的流行风尚，更体现了当代青年对中华优秀传统文化的高度认同与文化自信。",
+        "en": "The revival of Hanfu is not merely a fashion trend, but reflects modern youth's deep cultural identification and pride."
+      },
+      {
+        "zh": "许多年轻人自己设计花纹、研究古籍礼仪，甚至穿着汉服走上国际时装周的舞台，向海外展示东方霓裳之美。",
+        "en": "Many youths design patterns, study historic etiquette, and wear Hanfu on international runways to display Oriental sartorial elegance."
+      },
+      {
+        "zh": "传统与现代的碰撞与对话，让沉睡在博物馆里的千年华夏衣冠在新时代焕发出了勃勃生机。",
+        "en": "The dialogue between heritage and modernity allows millenary Chinese attire sleeping in museums to flourish anew."
+      }
+    ]
+  },
+  {
+    "id": "hsk4-10-high-speed-rail",
+    "titleZh": "高铁网络如何重塑中国时空格局",
+    "titleEn": "How the High-Speed Rail Network Reshaped Time and Space in China",
+    "hskLevel": 4,
+    "level": "INTERMEDIATE",
+    "levelLabel": "HSK 4 · Intermediate",
+    "readTime": "3 min",
+    "description": "Over 45,000 kilometers of tracks connecting metropolises, transforming regional economies and lifestyles.",
+    "sentences": [
+      {
+        "zh": "高铁网络如何重塑中国时空格局",
+        "en": "How the High-Speed Rail Network Reshaped Time and Space in China",
+        "isTitle": true
+      },
+      {
+        "zh": "截至目前，中国高速铁路运营里程已经突破四万五千公里，稳居世界第一位，形成了世界上最庞大的现代化交通网。",
+        "en": "To date, China's high-speed rail operating mileage has exceeded 45,000 kilometers, ranking first globally with the world's largest rail network."
+      },
+      {
+        "zh": "纵横交错的“八纵八横”高速铁路干线，将辽阔国土上的各个主要城市紧密串联在一起，极大地压缩了时空距离。",
+        "en": "The crisscrossing 'eight vertical and eight horizontal' rail grid tightly links major cities across vast territory, shrinking travel times."
+      },
+      {
+        "zh": "原本需要晃荡一天一夜的绿皮火车旅途，如今只需几个小时便能风驰电掣般平稳抵达。",
+        "en": "Journeys that once took a full day and night on old green trains can now be completed smoothly in mere hours."
+      },
+      {
+        "zh": "“早上在西安吃肉夹馍，下午在成都吃火锅”早已从梦想变成了人们习以为常的周末度假新日常。",
+        "en": "“Breakfasting on roujiamo in Xi'an and having hotpot in Chengdu by dinner” has evolved from fantasy into routine weekend getaways."
+      },
+      {
+        "zh": "高铁不仅改变了亿万民众的出行习惯与生活圈子，更成为拉动区域经济协调发展与科技自强的强劲引擎。",
+        "en": "High-speed rail has not only transformed travel habits of millions, but serves as a powerful engine driving regional economic development."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-01-daoism",
+    "titleZh": "道法自然：中国老庄哲学的生态智慧",
+    "titleEn": "Following the Way of Nature: Ecological Wisdom of Laozi and Zhuangzi",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Exploring Daoist non-action, balance, and harmony with the universe.",
+    "sentences": [
+      {
+        "zh": "道法自然：中国老庄哲学的生态智慧",
+        "en": "Following the Way of Nature: Ecological Wisdom of Laozi and Zhuangzi",
+        "isTitle": true
+      },
+      {
+        "zh": "在两千五百多年前的中国春秋战国时期，老子与庄子创立了深邃玄妙的道家学派，其思想精髓深刻地影响了中华文明的基因。",
+        "en": "Over 2,500 years ago during the Spring and Autumn period, Laozi and Zhuangzi founded Daoism, whose profound thoughts deeply shaped Chinese civilization."
+      },
+      {
+        "zh": "《道德经》中提出“人法地，地法天，天法道，道法自然”，指出人绝非自然的主宰，而应当遵循万事万物自有的运行法则。",
+        "en": "The Daodejing asserts that 'man models earth, earth models heaven, heaven models Dao, and Dao models nature', teaching that man must follow nature's laws."
+      },
+      {
+        "zh": "道家所倡导的“无为”，并非消极避世或无所作为，而是强调顺应自然规律、不妄加干预，达到“无为而无不为”的高明境界。",
+        "en": "The Daoist concept of 'Wu Wei' (non-action) does not denote passive surrender, but acting in accord with nature without artificial interference."
+      },
+      {
+        "zh": "面对现代工业社会所面临的资源枯竭与生态失衡危机，老庄哲学关于崇尚朴素、克制贪欲、善待自然的生态伦理展现出跨越时空的现代救赎价值。",
+        "en": "Facing modern crises of resource depletion and ecological imbalances, Daoist ethics of simplicity and restraint reveal timeless restorative value."
+      },
+      {
+        "zh": "只有懂得与大自然和谐共生，人类社会才能在生生不息的宇宙长河中获得长久繁荣与可持续发展的未来。",
+        "en": "Only through harmonious coexistence with Mother Nature can human societies secure long-term prosperity and sustainable development in the cosmos."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-02-dragon",
+    "titleZh": "龙的传人：神兽背后的民族精神象征",
+    "titleEn": "Descendants of the Dragon: National Spiritual Symbolism of the Divine Beast",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "How the composite totem of the Chinese dragon represents unification and benevolence.",
+    "sentences": [
+      {
+        "zh": "龙的传人：神兽背后的民族精神象征",
+        "en": "Descendants of the Dragon: National Spiritual Symbolism of the Divine Beast",
+        "isTitle": true
+      },
+      {
+        "zh": "在西方神话传说中，“龙”（Dragon）往往被描绘为喷火伤人、象征贪婪与破坏力量的凶恶巨兽。",
+        "en": "In Western mythology, 'dragons' are often depicted as fire-breathing, malevolent beasts symbolizing greed and destructive force."
+      },
+      {
+        "zh": "然而在中华传统文化体系中，“龙”（Long）却是一种呼风唤雨、保佑风调雨顺、主宰吉祥如意的至高神兽。",
+        "en": "Yet in traditional Chinese culture, the dragon is a supreme sacred beast summoning wind and rain, blessing agriculture, and embodying auspicious fortune."
+      },
+      {
+        "zh": "考古学与人类学研究表明，中国龙的形象融合了马头、鹿角、蛇身、鱼鳞和鹰爪等多种动物特征，是远古华夏不同氏族图腾大融合的结晶。",
+        "en": "Studies indicate the Chinese dragon merged features of horse heads, deer antlers, snake bodies, fish scales, and eagle claws, crystallizing tribal unification."
+      },
+      {
+        "zh": "千百年来，海内外华人常自豪地自称“龙的传人”，将龙所具有的兼容并蓄、自强不息与包容博大作为民族品格的核心追求。",
+        "en": "For millennia, Chinese people proudly called themselves 'Descendants of the Dragon', cherishing its inclusive, self-strengthening, and broad-minded spirit."
+      },
+      {
+        "zh": "这种由多元文化交融而成的图腾象征，生动见证了一个多民族统一国家坚不可摧的向心力与凝聚力。",
+        "en": "This composite totem vividly testifies to the unshakeable cohesion and unity of a multi-ethnic nation."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-03-tcm",
+    "titleZh": "本草纲目与中医药的千古辨证智慧",
+    "titleEn": "Compendium of Materia Medica and Dialectical Wisdom of Chinese Medicine",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Li Shizhen's lifelong compilation and the holistic philosophy of bodily balance.",
+    "sentences": [
+      {
+        "zh": "本草纲目与中医药的千古辨证智慧",
+        "en": "Compendium of Materia Medica and Dialectical Wisdom of Chinese Medicine",
+        "isTitle": true
+      },
+      {
+        "zh": "明代著名医药学家李时珍历经二十七年艰辛跋涉与实地考察，参考数百部古代典籍，终于编纂完成了宏篇巨著《本草纲目》。",
+        "en": "Ming Dynasty pharmacologist Li Shizhen traveled for 27 years, researched hundreds of ancient texts, and completed the monumental Compendium of Materia Medica."
+      },
+      {
+        "zh": "全书共记载了一千八百九十二种药物，附有精美插图千余幅，被达尔文盛赞为“中国古代的百科全书”。",
+        "en": "The treatise documented 1,892 medicinal substances with over 1,000 illustrations, praised by Charles Darwin as 'an ancient Chinese encyclopedia.'"
+      },
+      {
+        "zh": "传统中医药学并不孤立地看待局部的器官病变，而是将人体视为一个气血相通、五脏六腑紧密互联的有机整体。",
+        "en": "Traditional Chinese Medicine does not view localized illness in isolation, but regards the human body as an organic whole connected by Qi and blood."
+      },
+      {
+        "zh": "通过“望、闻、问、切”四诊合参，医生辨识病人的寒热虚实，采取针灸、推拿与草药复方扶正祛邪、调和阴阳。",
+        "en": "Through observation, listening, questioning, and pulse-taking, doctors evaluate conditions to restore bodily balance using acupuncture and herbal decoctions."
+      },
+      {
+        "zh": "随着现代生命科学对天然产物药理学的深入探索，凝聚着东方辨证智慧的中医药正为全球公共卫生事业贡献着源源不断的东方良方。",
+        "en": "As modern pharmacology investigates natural products, traditional medicine continues to provide valuable insights for global healthcare."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-04-ev",
+    "titleZh": "新能源汽车浪潮：引领全球绿色产业革命",
+    "titleEn": "New Energy Vehicle Wave: Spearheading the Global Green Industry Revolution",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Battery innovation, smart driving cabins, and clean energy transportation.",
+    "sentences": [
+      {
+        "zh": "新能源汽车浪潮：引领全球绿色产业革命",
+        "en": "New Energy Vehicle Wave: Spearheading the Global Green Industry Revolution",
+        "isTitle": true
+      },
+      {
+        "zh": "在应对全球气候变暖与推动碳达峰、碳中和目标的时代大背景下，中国新能源汽车产业实现了惊人的历史性跨越。",
+        "en": "Against the backdrop of combating global warming and achieving carbon peak targets, China's new energy vehicle industry achieved historic strides."
+      },
+      {
+        "zh": "凭借在动力电池技术、电机电控以及智能网联座舱等核心领域的持续技术突破，中国车企迅速在全球市场上崭露头角。",
+        "en": "Armed with continuous breakthroughs in power batteries, electric motors, and smart cockpits, Chinese automakers rapidly rose to prominence."
+      },
+      {
+        "zh": "大街小巷中挂着绿色车牌的纯电动车与插电混动车不仅大幅减少了尾气排放与噪音污染，更带来了超乎想象的智能驾驶体验。",
+        "en": "Electric cars with green license plates reduce exhaust emissions while providing an intelligent, futuristic driving experience."
+      },
+      {
+        "zh": "完善的充电桩基础设施网络建设与电池梯次回收利用体系，为新能源汽车的大规模普及奠定了坚不可摧的产业基石。",
+        "en": "A comprehensive charging infrastructure network and battery recycling system laid an unshakeable foundation for large-scale EV adoption."
+      },
+      {
+        "zh": "这场由绿色技术驱动的产业变革，正在深刻改变全球汽车制造业的竞争格局，为人类的可持续交通未来提供创新范式。",
+        "en": "This industrial transformation driven by green technology is reshaping global automotive manufacturing, offering a blueprint for sustainable mobility."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-05-hutong",
+    "titleZh": "北京胡同里的烟火气与城市记忆",
+    "titleEn": "The Warm Earthiness and Urban Memory in Beijing's Hutongs",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Exploring courtyard quadrangle homes, historic alleyways, and neighborly warmth.",
+    "sentences": [
+      {
+        "zh": "北京胡同里的烟火气与城市记忆",
+        "en": "The Warm Earthiness and Urban Memory in Beijing's Hutongs",
+        "isTitle": true
+      },
+      {
+        "zh": "如果说摩天大楼代表着现代北京的蓬勃雄心，那么隐匿于老城区深处纵横交错的胡同，则珍藏着这座千年古都最真实质朴的灵魂。",
+        "en": "If skyscrapers represent Beijing's modern ambition, the crisscrossing hutongs nestled in historic districts preserve the ancient capital's authentic soul."
+      },
+      {
+        "zh": "“胡同”一词源自蒙古语，意为水井，自元代建都以来，星罗棋布的胡同便环绕着四合院民居逐步延展形成。",
+        "en": "The term 'hutong' originated from Mongolian meaning 'water well'; since the Yuan Dynasty, alleyways have enveloped residential siheyuan courtyards."
+      },
+      {
+        "zh": "推开斑驳厚重的朱红院门，院子里栽种着石榴树与海棠树，老人们在树荫下悠闲地下象棋、品茶闲聊。",
+        "en": "Pushing open weathered crimson gates, courtyards feature pomegranates and crabapple trees, where seniors play chess and sip tea in the shade."
+      },
+      {
+        "zh": "清脆悦耳的鸽哨声在蔚蓝的天空中回荡，胡同转角处的小吃店里飘出刚出锅的豆汁与焦圈香气，洋溢着浓厚热烈的生活烟火气。",
+        "en": "Crisp pigeon whistles echo across blue skies, while corner food stalls waft aromas of fresh douzhi and fried dough rings, brimming with vitality."
+      },
+      {
+        "zh": "在现代城市更新的进程中，老胡同通过修旧如旧的微改造模式，不仅妥善留存了历史文脉，更让市井温情在时代更迭中得以世代延续。",
+        "en": "Through gentle micro-renovations, historic hutongs not only preserve architectural heritage, but allow grassroots warmth to endure across generations."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-06-peking-opera",
+    "titleZh": "京剧大美：生旦净丑演绎春秋传奇",
+    "titleEn": "Peking Opera: Depicting Epic Legends Across Four Role Types",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "The elaborate face paintings, acrobatic martial combat, and poetic symbolism of Chinese opera.",
+    "sentences": [
+      {
+        "zh": "京剧大美：生旦净丑演绎春秋传奇",
+        "en": "Peking Opera: Depicting Epic Legends Across Four Role Types",
+        "isTitle": true
+      },
+      {
+        "zh": "作为中国传统戏剧文化的杰出代表，被誉为“国粹”的京剧在两百多年的发展历程中融合了徽调、汉调等多种地方戏曲精华。",
+        "en": "As a distinguished emblem of Chinese theater, Peking Opera, celebrated as the 'National Essence', fused multiple regional opera styles over two centuries."
+      },
+      {
+        "zh": "舞台上严谨规范地划分为“生、旦、净、丑”四大主要行当，通过“唱、念、做、打”四种综合表演功底生动塑造千百个鲜活人物。",
+        "en": "Characters are categorized into four major role types—Sheng, Dan, Jing, Chou—brought alive through singing, reciting, acting, and acrobatic combat."
+      },
+      {
+        "zh": "京剧的脸谱艺术尤其色彩鲜明、寓意深奥：红脸代表忠勇正义如关羽，黑脸代表刚正不阿如包拯，白脸则多暗示奸诈狡猾如曹操。",
+        "en": "Its facial mask art features rich symbolism: red faces represent loyalty like Guan Yu, black represents justice like Bao Zheng, and white hints at cunning like Cao Cao."
+      },
+      {
+        "zh": "舞台道具极尽虚拟写意：一桌二椅可代表千军万马之阵，三五步走遍天下，几圈圆场翻越高山大河，留给观众无尽的审美想象空间。",
+        "en": "Stagecraft is symbolic: a table and two chairs symbolize armies; taking a few steps spans the realm, leaving boundless imaginative aesthetic space."
+      },
+      {
+        "zh": "这种高度凝练而富于诗意的美学范式，让中国戏曲在世界戏剧殿堂中独树一帜，散发出历久弥新的艺术魅力。",
+        "en": "This condensed, poetic aesthetic paradigm makes Chinese opera stand out in global theatre, radiating enduring artistic brilliance."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-07-yinyang",
+    "titleZh": "阴阳哲思：渗透于东方生活中的动态平衡",
+    "titleEn": "Yin-Yang Philosophy: Dynamic Balance Permeating Eastern Life",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Understanding polar harmony in diet, medicine, architecture, and daily mindset.",
+    "sentences": [
+      {
+        "zh": "阴阳哲思：渗透于东方生活中的动态平衡",
+        "en": "Yin-Yang Philosophy: Dynamic Balance Permeating Eastern Life",
+        "isTitle": true
+      },
+      {
+        "zh": "“阴阳”是中国古代哲学中最核心的范畴之一，古人观察天地日月运转，提炼出解释世间万事万物对立统一规律的宇宙模型。",
+        "en": "Yin-Yang is one of the most core categories in ancient Chinese philosophy, abstracting the laws of unity of opposites in the universe."
+      },
+      {
+        "zh": "太极图中的黑白双鱼相互环抱、首尾相接，黑色中有白眼，白色中有黑眼，形象地表达了“阳中有阴，阴中有阳，相互转化”的辩证哲理。",
+        "en": "The black and white fish in the Taiji diagram embrace each other, vividly expressing the dialectical truth that Yin and Yang coexist and transform."
+      },
+      {
+        "zh": "这种朴素而深刻的思想早已深深渗透在中国人衣食住行的方方面面：饮食讲究寒热搭配、劳逸结合讲究张弛有度。",
+        "en": "This profound philosophy permeates every facet of Chinese daily life: culinary balance between hot and cold foods, and balancing work with rest."
+      },
+      {
+        "zh": "在为人处世方面，中国人倡导“刚柔相济、和而不同”，既有不屈不挠的坚守，又有包容变通的智慧，从不走向任何极端的偏执。",
+        "en": "In interpersonal conduct, Chinese culture advocates combining firmness with flexibility, maintaining unyielding integrity alongside adaptive wisdom."
+      },
+      {
+        "zh": "在充满不确定性的现代世界中，寻求内在与外在的动态平衡，依然是指导人们安身立命的宝贵人生罗盘。",
+        "en": "In an uncertain modern world, pursuing dynamic equilibrium between inner peace and outer reality remains a priceless life compass."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-08-sanxingdui",
+    "titleZh": "三星堆沉睡千年的青铜面具与古蜀文明",
+    "titleEn": "Sanxingdui's Millenary Bronze Masks and the Ancient Shu Civilization",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Enigmatic protruding eyes, golden scepters, and sacred bronze trees unearthed in Sichuan.",
+    "sentences": [
+      {
+        "zh": "三星堆沉睡千年的青铜面具与古蜀文明",
+        "en": "Sanxingdui's Millenary Bronze Masks and the Ancient Shu Civilization",
+        "isTitle": true
+      },
+      {
+        "zh": "位于中国四川广汉的三星堆遗址被誉为二十世纪人类最伟大的考古发现之一，其惊世出土彻底改写了人们对古蜀文明的认知。",
+        "en": "The Sanxingdui ruins in Sichuan are acclaimed as one of humanity's greatest archaeological discoveries of the 20th century, rewriting ancient history."
+      },
+      {
+        "zh": "在祭祀坑中发掘出的大量青铜器令人叹为观止：造型奇特威严的纵目青铜大面具、高达近四米的青铜神树以及工艺精绝的金杖。",
+        "en": "Artifacts unearthed from sacrificial pits are breathtaking: giant bronze masks with protruding eyes, a four-meter bronze divine tree, and gold scepters."
+      },
+      {
+        "zh": "这些具有夸张巨眼、高耸阔鼻与奇特耳饰的青铜雕塑，展现出与黄河流域中原青铜礼器截然不同的浓厚神权宗教色彩与奇幻美学风格。",
+        "en": "These bronze sculptures with exaggerated eyes and ornate ears display a spiritual aesthetic distinct from Central Plains bronze vessels."
+      },
+      {
+        "zh": "最新的碳十四年代测定证实，这些令人震撼的珍宝大多铸造于三千多年前的商代晚期，见证了古蜀国发达成熟的手工业与冶炼技术。",
+        "en": "Radiocarbon dating confirms these treasures were cast over 3,000 years ago during the late Shang Dynasty, testifying to advanced metallurgical mastery."
+      },
+      {
+        "zh": "三星堆的考古实证雄辩地证明，中华文明自古以来就是多源并起、交融互鉴、如漫天星斗般灿烂辉煌的伟大共同体。",
+        "en": "Sanxingdui proves that Chinese civilization developed through plural origins, mutual learning, and diverse cultural synthesis."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-09-ai",
+    "titleZh": "人工智能技术浪潮与日常生活的深度交融",
+    "titleEn": "The Surge of Artificial Intelligence and Everyday Integration",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "How generative AI, smart healthcare, and automated translation reshape modern human society.",
+    "sentences": [
+      {
+        "zh": "人工智能技术浪潮与日常生活的深度交融",
+        "en": "The Surge of Artificial Intelligence and Everyday Integration",
+        "isTitle": true
+      },
+      {
+        "zh": "随着大语言模型、计算机视觉与深度学习算法的爆发式发展，人工智能正以前所未有的速度与广度深刻融入人类社会的每个角落。",
+        "en": "With breakthroughs in large language models, computer vision, and deep learning, AI is rapidly integrating into every corner of human society."
+      },
+      {
+        "zh": "在医疗领域，AI辅助诊断系统能在几秒钟内完成上千张医学影像的精细筛查，显著提高了恶性肿瘤等重大疾病的早期发现率。",
+        "en": "In healthcare, AI diagnostic systems screen medical scans in seconds, significantly raising early detection rates for major diseases."
+      },
+      {
+        "zh": "在教育与语言学习中，智能学伴能够根据学习者的记忆曲线与理解盲区，提供量身定制的个性化学习路径与即时双语互动反馈。",
+        "en": "In education, AI tutors provide personalized learning pathways and real-time interactive feedback based on learner memory curves."
+      },
+      {
+        "zh": "自动驾驶出租车已经在多个超大城市的示范区域内投入常态化商业运营，智慧交通系统让出行变得更加高效与安全可靠。",
+        "en": "Autonomous robo-taxis operate commercially across megacity trial zones, while intelligent traffic grids optimize safety and efficiency."
+      },
+      {
+        "zh": "科技向善的初衷，在于赋能个体、解放重复劳动，让人类能够将更多的精力与智慧投入到富有温度的创造性活动之中。",
+        "en": "The true purpose of technology for good lies in empowering individuals and liberating repetitive labor for creative and compassionate pursuits."
+      }
+    ]
+  },
+  {
+    "id": "hsk5-10-shu-road",
+    "titleZh": "蜀道之难：险绝群山间的千年工程奇迹",
+    "titleEn": "The Perilous Shu Roads: Engineering Miracles Across Mountain Peaks",
+    "hskLevel": 5,
+    "level": "UPPER_INTERMEDIATE",
+    "levelLabel": "HSK 5 · Upper-Intermediate",
+    "readTime": "4 min",
+    "description": "Tracing Li Bai's famous poem and ancient wooden cliffside plank roads.",
+    "sentences": [
+      {
+        "zh": "蜀道之难：险绝群山间的千年工程奇迹",
+        "en": "The Perilous Shu Roads: Engineering Miracles Across Mountain Peaks",
+        "isTitle": true
+      },
+      {
+        "zh": "唐代诗仙李白曾在传世名作《蜀道难》中发出了“噫吁嚱，危乎高哉！蜀道之难，难于上青天！”的千古浩叹。",
+        "en": "Tang poet Li Bai famously exclaimed in his masterpiece: “Alas! How steep and high! Travel to Shu is harder than scaling the blue sky!”"
+      },
+      {
+        "zh": "四川盆地四面被秦岭、大巴山等高耸险峻的崇山峻岭层层环抱，在古代交通闭塞，与中原大地的往来极其艰难险阻。",
+        "en": "Surrounded by the Qinling and Daba mountain ranges, the Sichuan Basin was historically isolated from the Central Plains."
+      },
+      {
+        "zh": "古人凭借惊人的毅力，在刀削斧凿般的万丈绝壁上开凿石孔、插入木梁、铺上木板，修筑了令人心惊胆战的“悬空栈道”。",
+        "en": "With tenacity, ancient builders chiseled holes into vertical cliffs, inserted beams, and laid timber to construct precipitous plank roads."
+      },
+      {
+        "zh": "这些盘旋在云雾深渊之间的古代道路，历经两千多年的风雨侵蚀，见证了无数商旅使节、行军打仗与文化交融的历史风云。",
+        "en": "These cliffside trails enduring millennia of erosion witnessed merchants, envoys, armies, and cultural integration across dynasties."
+      },
+      {
+        "zh": "如今，穿山越岭的高铁隧道与现代化高速公路已让昔日的天险化为坦途，但古道上凝聚的不屈开拓精神仍让后人肃然起敬。",
+        "en": "Today, high-speed rail tunnels and modern expressways span the peaks, yet the pioneering spirit of ancient pathfinders commands reverence."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-01-red-chamber",
+    "titleZh": "红楼梦：繁华落尽见真淳的文学巅峰",
+    "titleEn": "Dream of the Red Chamber: Pinnacle of Chinese Literary Realism",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "Cao Xueqin's tragic masterpiece depicting aristocratic decline, love, and spiritual disillusionment.",
+    "sentences": [
+      {
+        "zh": "红楼梦：繁华落尽见真淳的文学巅峰",
+        "en": "Dream of the Red Chamber: Pinnacle of Chinese Literary Realism",
+        "isTitle": true
+      },
+      {
+        "zh": "清代文学巨匠曹雪芹倾注毕生心血创作的长篇小说《红楼梦》，被公认为中国古典小说创作不可逾越的巅峰绝唱。",
+        "en": "Authored by Qing literary titan Cao Xueqin, Dream of the Red Chamber is universally recognized as the unsurpassed pinnacle of classical Chinese fiction."
+      },
+      {
+        "zh": "全书以贾、史、王、薛四大家族的兴衰荣辱为宏大历史背景，细腻刻画了贾宝玉与林黛玉之间凄美动人的旷世爱情悲剧。",
+        "en": "Set against the rise and fall of four aristocratic clans, the novel depicts the poignant, heartbreaking tragic love between Jia Baoyu and Lin Daiyu."
+      },
+      {
+        "zh": "曹雪芹以极其高超洗练的工笔白描手法，塑造了四百多位性格迥异、栩栩如生的人物形象，宛如一部包罗万象的封建社会风俗全景画卷。",
+        "en": "With masterly realistic prose, Cao brought alive over four hundred vivid characters, constructing an encyclopedic panorama of late imperial life."
+      },
+      {
+        "zh": "从建筑园林、饮食服饰、诗词歌赋到医药哲学，《红楼梦》无不展现出精纯厚重的文化底蕴与看透繁华虚妄的深刻哲学省思。",
+        "en": "From gardens and cuisine to poetry and medicine, the novel displays profound cultural erudition and philosophical reflection on worldly vanity."
+      },
+      {
+        "zh": "“字字看来皆是血，十年辛苦不寻常”，这部伟大的文学巨著早已跨越国界与时空，成为全人类共同的精神瑰宝与永恒经典。",
+        "en": "“Every word cost drops of blood, the toil of ten unsparing years”; this literary opus has crossed boundaries to become an eternal treasure of humanity."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-02-terracotta",
+    "titleZh": "兵马俑：长眠地下两千年的大一统帝国军阵",
+    "titleEn": "Terracotta Army: Underground Legions of the Unified Qin Empire",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "The silent majesty of 8,000 uniquely sculpted warriors guarding Emperor Qin Shi Huang's mausoleum.",
+    "sentences": [
+      {
+        "zh": "兵马俑：长眠地下两千年的大一统帝国军阵",
+        "en": "Terracotta Army: Underground Legions of the Unified Qin Empire",
+        "isTitle": true
+      },
+      {
+        "zh": "一九七四年春，陕西临潼几位农民在打井时偶然挖出的陶片，揭开了沉睡地下两千余年的秦始皇陵兵马俑军阵的惊世面纱。",
+        "en": "In the spring of 1974, peasants digging a well in Lintong uncovered ceramic shards that unveiled Qin Shi Huang's subterranean terracotta legions."
+      },
+      {
+        "zh": "作为世界第八大奇迹，目前已发掘的近八千尊陶俑陶马排列在巨大的地下坑道之中，展现了秦军横扫六合、一统天下的雄浑威势。",
+        "en": "Acclaimed as the Eighth Wonder of the World, nearly 8,000 warriors and steeds arrayed in trenches exhibit the Qin army's formidable military grandeur."
+      },
+      {
+        "zh": "最为令人惊叹的是，这些真人大小的陶俑不仅体型魁梧、神态各异，其发型发辫、铠甲甲片乃至鞋底纹路都各不相同，绝无雷同。",
+        "en": "Remarkably, these life-sized warriors display distinct facial expressions, hairstyles, armor plates, and sole treads without repetition."
+      },
+      {
+        "zh": "出土的青铜剑历经两千两百余年漫长岁月依旧寒光闪烁、锋利无比，展现了当时世界领先的高超冶金防锈防腐工艺。",
+        "en": "Unearthed bronze swords retain glistening edges after 2,200 years, demonstrating world-leading metallurgical and anti-corrosion craftsmanship."
+      },
+      {
+        "zh": "这座规模空前绝后的地下军团，生动镌刻了大一统封建帝国崛起的历史印记，成为中华文明早期军事与雕塑艺术的最高丰碑。",
+        "en": "This underground army indelibly marks the rise of a unified empire, standing as a monument to early Chinese military and sculptural art."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-03-butterfly-dream",
+    "titleZh": "庄周梦蝶：物我两忘的哲学玄思与精神自由",
+    "titleEn": "Zhuangzi's Butterfly Dream: Metaphysical Freedom and Transcending Dualism",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "Questioning subjective perception, reality, illusion, and boundless spiritual ease.",
+    "sentences": [
+      {
+        "zh": "庄周梦蝶：物我两忘的哲学玄思与精神自由",
+        "en": "Zhuangzi's Butterfly Dream: Metaphysical Freedom and Transcending Dualism",
+        "isTitle": true
+      },
+      {
+        "zh": "战国哲学家庄子在《齐物论》中记录了一个千古流传、耐人寻味的著名寓言：庄周梦见自己化作了一只翩翩起舞的蝴蝶。",
+        "en": "In the chapter 'On Equalizing Things', philosopher Zhuangzi recorded an intriguing fable: Zhuang Zhou dreamed he transformed into a butterfly."
+      },
+      {
+        "zh": "在梦境中，蝴蝶感到无比欢畅自在、怡然自得，完全忘记了自己原本是名叫庄周的人类。",
+        "en": "In the dream, the butterfly felt completely free and joyous, utterly oblivious to the reality that it was once a human named Zhuang Zhou."
+      },
+      {
+        "zh": "忽然醒来之后，他发现自己依然是僵卧在床塌上的庄周，一时陷入深思：究竟是庄周在梦中变成了蝴蝶，还是蝴蝶在梦中变成了庄周？",
+        "en": "Suddenly awakening, finding himself lying in bed, he pondered: was it Zhuang Zhou dreaming of a butterfly, or a butterfly dreaming of Zhuang Zhou?"
+      },
+      {
+        "zh": "庄子借此提出了“物化”的深刻命题，打破了主体与客体、真实与虚妄、自我与万物之间的绝对认知界限与偏见牢笼。",
+        "en": "Zhuangzi proposed the concept of 'transformation of things', breaking rigid boundaries between subject and object, reality and illusion."
+      },
+      {
+        "zh": "这种超越世俗功利纷扰、追求万物齐一与个体精神绝对自由的豁达境界，为后世中国文人提供了丰厚的心灵滋养与精神退路。",
+        "en": "This open-minded state of spiritual transcendence and absolute inner freedom provided endless nourishment for Chinese intellectuals through the ages."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-04-grand-canal",
+    "titleZh": "京杭大运河：纵贯南北的水利动脉与文化长廊",
+    "titleEn": "The Grand Canal: Hydraulic Lifeline and Cultural Corridor Binding North and South",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "The world's longest artificial waterway connecting China's five great river basins.",
+    "sentences": [
+      {
+        "zh": "京杭大运河：纵贯南北的水利动脉与文化长廊",
+        "en": "The Grand Canal: Hydraulic Lifeline and Cultural Corridor Binding North and South",
+        "isTitle": true
+      },
+      {
+        "zh": "全长近一千八百公里的京杭大运河是世界上里程最长、工程量最大的人工开凿运河，被联合国教科文组织列入世界文化遗产名录。",
+        "en": "Spanning nearly 1,800 kilometers, the Beijing-Hangzhou Grand Canal is the world's longest artificial waterway, inscribed on UNESCO's World Heritage list."
+      },
+      {
+        "zh": "大运河始建于春秋时期，经隋唐两代的大规模扩建与元代的截弯取直，成功贯通了海河、黄河、淮河、长江和钱塘江五大水系。",
+        "en": "Originating in the Spring and Autumn period, expanded in the Sui and Tang, and straightened in the Yuan, it connected five major river basins."
+      },
+      {
+        "zh": "在陆路交通极其落后的古代，运河作为国家漕运命脉，源源不断地将富庶江南的稻米、茶叶与丝绸运往京师北方重镇。",
+        "en": "When land transport was primitive, the canal served as the imperial grain lifeline, transporting Jiangnan rice, tea, and silks to the northern capital."
+      },
+      {
+        "zh": "伴随着繁忙的商船往来与市镇繁荣，运河沿线孕育了扬州、苏州、杭州等闻名遐迩的历史文化名城，促进了南北方言风俗的深度交融。",
+        "en": "With merchant fleets and thriving market towns, the canal nurtured cultural metropolises like Yangzhou, Suzhou, and Hangzhou, blending customs."
+      },
+      {
+        "zh": "流淌了两千多年的古老碧水，至今仍在防洪灌溉与水运物流中发挥着重要作用，宛如一条活态流动的中华文化史诗巨著。",
+        "en": "Flowing for over two millennia, these waters still serve flood prevention, irrigation, and transport, enduring as a living epic of Chinese culture."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-05-gardens",
+    "titleZh": "苏州古典园林：咫尺之内再造乾坤的造园绝学",
+    "titleEn": "Classical Gardens of Suzhou: Recreating Nature within Miniature Boundaries",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "The poetic philosophy of borrowed views, winding corridors, and scholar rockeries.",
+    "sentences": [
+      {
+        "zh": "苏州古典园林：咫尺之内再造乾坤的造园绝学",
+        "en": "Classical Gardens of Suzhou: Recreating Nature within Miniature Boundaries",
+        "isTitle": true
+      },
+      {
+        "zh": "素有“上有天堂，下有苏杭”美誉的苏州，以其精巧绝伦、巧夺天工的古典私家园林而闻名于世，代表了东方造园艺术的巅峰成就。",
+        "en": "Celebrated by the proverb 'Paradise above, Suzhou and Hangzhou below', Suzhou is famed worldwide for its ingenious classical gardens."
+      },
+      {
+        "zh": "拙政园、留园、狮子林等著名园林无不讲究“虽由人作，宛自天开”，在有限的市井宅院空间内巧妙营造出无限的山水意境。",
+        "en": "Gardens like the Humble Administrator's Garden emphasize 'crafted by human hands, yet seemingly born of nature', creating boundless vistas in limited spaces."
+      },
+      {
+        "zh": "造园大师精于运用“借景、对景、漏景”等视觉手法的转换，利用粉墙黛瓦为纸、叠石理水为墨，实现“移步换景”的审美效果。",
+        "en": "Garden masters employ techniques like 'borrowed scenery and lattice views', using whitewashed walls as paper and stone-water as ink for shifting vistas."
+      },
+      {
+        "zh": "漫步在曲折深幽的游廊之间，透过形状各异的雕花漏窗，修竹芭蕉、奇石古木与池中锦鲤相映成趣，充满诗情画意。",
+        "en": "Wandering through winding verandas and gazing through lattice windows, bamboos, scholar rocks, and koi fish interplay in poetic harmony."
+      },
+      {
+        "zh": "苏州园林不仅是一处栖居休憩的物质空间，更寄托了中国文人士大夫追求退隐山林、超然物外的精神理想与高洁志趣。",
+        "en": "Suzhou gardens are not merely physical residences, but harbor scholars' spiritual ideals of seclusion, detachment, and refined virtue."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-06-oracle-bones",
+    "titleZh": "殷墟甲骨文：唤醒三千年前商周记忆的刻辞",
+    "titleEn": "Yinxu Oracle Bones: Inscriptions Awakening Memories of the Shang Dynasty",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "How turtle shell and ox scapula inscriptions verified ancient historical chronicles.",
+    "sentences": [
+      {
+        "zh": "殷墟甲骨文：唤醒三千年前商周记忆的刻辞",
+        "en": "Yinxu Oracle Bones: Inscriptions Awakening Memories of the Shang Dynasty",
+        "isTitle": true
+      },
+      {
+        "zh": "一八九九年秋，清末金石学家王懿荣在抓取中药“龙骨”时，敏锐地辨识出骨甲碎片上人工雕刻的古老符号，从而拉开了甲骨文研究的序幕。",
+        "en": "In autumn 1899, scholar Wang Yirong noticed carved archaic symbols on medicinal 'dragon bones', inaugurating the study of oracle bone script."
+      },
+      {
+        "zh": "随后在河南安阳殷墟展开的科学考古发掘，证实这里正是商代晚期繁荣昌盛的都城遗址，出土了十五万余片刻有卜辞的龟甲与牛肩胛骨。",
+        "en": "Subsequent excavations at Yinxu in Anyang confirmed the capital of the late Shang Dynasty, yielding over 150,000 inscribed turtle shells and ox scapulae."
+      },
+      {
+        "zh": "作为汉字演变历史中已知的最早成熟体系，甲骨文具备了象形、指事、会意、形声等多种造字法则，记录了商王占卜祭祀、天象农牧与征战方国等重大国事。",
+        "en": "As the earliest known mature Chinese writing, oracle script embodied pictographic and phonetic principles, documenting divinations, astronomy, and warfare."
+      },
+      {
+        "zh": "甲骨文不仅无可辩驳地证实了司马迁《史记·殷本纪》中关于商代世系记载的真实可信，更将中国有文字可考的信史向前推进了一千余年。",
+        "en": "Oracle bones confirmed Sima Qian's historical chronicles of the Shang lineage, advancing China's documented historical record by over a millennium."
+      },
+      {
+        "zh": "这些刀痕犹存的古老文字，是中华文明历经数千年风霜雨雪而薪火相传、一脉相承的铁证与最神圣源泉。",
+        "en": "These incised characters stand as ironclad proof and sacred fountainheads of Chinese civilization's unbroken continuity across thousands of years."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-07-thousand-li-landscape",
+    "titleZh": "千里江山图：十八岁天才画家的青绿山水绝唱",
+    "titleEn": "A Thousand Li of Rivers and Mountains: Cyan-Green Landscape Masterpiece",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "Song dynasty master Wang Ximeng painting twelve meters of luminous natural splendor.",
+    "sentences": [
+      {
+        "zh": "千里江山图：十八岁天才画家的青绿山水绝唱",
+        "en": "A Thousand Li of Rivers and Mountains: Cyan-Green Landscape Masterpiece",
+        "isTitle": true
+      },
+      {
+        "zh": "藏于故宫博物院的《千里江山图》长达近十二米，是北宋十八岁天才宫廷画家王希孟留存世间的唯一孤品，堪称青绿山水画的至尊皇冠。",
+        "en": "Preserved in the Palace Museum, the 12-meter scroll 'A Thousand Li of Rivers and Mountains' is the sole surviving work of 18-year-old Song painter Wang Ximeng."
+      },
+      {
+        "zh": "全卷以雄浑壮阔的气魄构图，烟波浩渺的江河湖泊与层峦叠嶂的雄奇山峰交相辉映，村舍长桥、水磨飞瀑与泛舟钓叟点缀其间。",
+        "en": "With majestic composition, boundless lakes and rolling peaks interplay with thatched cottages, watermills, waterfalls, and fishing skiffs."
+      },
+      {
+        "zh": "王希孟大胆采用昂贵名贵的天然矿物颜料孔雀石绿与石青进行多层厚涂晕染，使得江山林木呈现出金碧辉煌、璀璨夺目的宝石般光泽。",
+        "en": "Wang daringly applied layered washes of precious mineral pigments—malachite green and azurite blue—granting peaks jewel-like radiance."
+      },
+      {
+        "zh": "画中既有北方山峦的壮阔雄浑，又兼具江南水乡的灵秀温婉，将现实山河风光升华提炼为充满蓬勃朝气的大宋理想国土。",
+        "en": "The painting blends northern mountain grandeur with Jiangnan water-town gentleness, sublimating real topography into an idealized Song realm."
+      },
+      {
+        "zh": "历经九百余年风云变幻，画面依然色彩如新、光芒夺目，向世人静静倾诉着一位少年画家对锦绣家国山河的无限深情与赞歌。",
+        "en": "After nine centuries of history, the pigments remain luminous and dazzling, singing an eternal hymn of affection for the ancestral homeland."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-08-tang-poets",
+    "titleZh": "李杜并峙：盛唐气象与忧患情怀的诗歌双子星",
+    "titleEn": "Li Bai and Du Fu: Twin Supergiants of Tang Dynasty Poetry",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "Comparing the cosmic romanticism of the Poet Immortal and the realistic conscience of the Poet Sage.",
+    "sentences": [
+      {
+        "zh": "李杜并峙：盛唐气象与忧患情怀的诗歌双子星",
+        "en": "Li Bai and Du Fu: Twin Supergiants of Tang Dynasty Poetry",
+        "isTitle": true
+      },
+      {
+        "zh": "中国古典诗歌在唐代迎来了空前绝后的鼎盛辉煌，而“诗仙”李白与“诗圣”杜甫犹如两座巍然耸立的高峰，共同构筑了中国文学的苍穹。",
+        "en": "Classical Chinese poetry reached unprecedented heights during the Tang Dynasty; 'Poet Immortal' Li Bai and 'Poet Sage' Du Fu stand as twin peaks."
+      },
+      {
+        "zh": "李白的诗歌豪放飘逸、想象瑰丽，常以飞流直下三千尺的浪漫笔触直抒胸臆，展现了盛唐时期昂扬自信、傲视王侯的博大胸襟。",
+        "en": "Li Bai's poetry is soaring and unconstrained, employing cosmic romanticism to express unbridled spirit and proud independence."
+      },
+      {
+        "zh": "而杜甫的诗作则沉郁顿挫、悲悯深沉，亲历安史之乱的动荡离乱，他的诗歌如史诗般记录了黎民苍生的苦难颠沛，被后人尊奉为“诗史”。",
+        "en": "In contrast, Du Fu's verse is somber and compassionate; witnessing the An Lushan Rebellion, he documented common people's suffering, revered as 'Poetic History'."
+      },
+      {
+        "zh": "“安得广厦千万间，大庇天下寒士俱欢颜”，杜甫将个人的颠沛流离化作对全天下穷苦士人的博爱同情，闪耀着至高的人道主义光辉。",
+        "en": "“Could I but build ten thousand mansions to shelter all poor scholars with joyful smiles”, Du Fu transmuted hardship into boundless humanitarian love."
+      },
+      {
+        "zh": "一仙一圣，一浪漫一现实，李杜二人的精神遗产相互补充映衬，永恒地润泽着无数代中国人的精神原乡。",
+        "en": "One immortal and one sage, romantic and realist, their complementary spiritual legacies eternally nourish the Chinese soul."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-09-porcelain",
+    "titleZh": "景德镇千年窑火：青花瓷里的东方美学与海上贸易",
+    "titleEn": "Jingdezhen's Millenary Kilns: Blue-and-White Porcelain in Global Trade",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "The firing of cobalt blue vessels along the Maritime Silk Road that enchanted royalty across Europe and Asia.",
+    "sentences": [
+      {
+        "zh": "景德镇千年窑火：青花瓷里的东方美学与海上贸易",
+        "en": "Jingdezhen's Millenary Kilns: Blue-and-White Porcelain in Global Trade",
+        "isTitle": true
+      },
+      {
+        "zh": "坐落于江西东北部的古镇景德镇，被举世公认为“千年瓷都”，其陶瓷烧制历史可追溯至汉代，至明清时期达到登峰造极之境。",
+        "en": "Jingdezhen in Jiangxi is globally acclaimed as the 'Millenary Porcelain Capital', with pottery traditions tracing back to the Han Dynasty."
+      },
+      {
+        "zh": "“白如玉、明如镜、薄如纸、声如磬”是对景德镇瓷器质地的经典概括，尤其是元明青花瓷更将水墨画技艺与高温烧结工艺完美结合。",
+        "en": "Described as 'white as jade, bright as a mirror, thin as paper, and chiming like a bell', blue-and-white porcelain fused ink painting with high-temperature firing."
+      },
+      {
+        "zh": "工匠以天然钴矿颜料在细腻胎土上绘制繁花、龙凤与山水，罩以清亮透明釉，经千度以上烈火淬炼，呈现出素雅幽深、永不褪色的幽蓝神采。",
+        "en": "Craftsmen painted cobalt patterns under transparent glazes, undergoing 1,300-degree infernos to emerge with eternal, luminous sapphire brilliance."
+      },
+      {
+        "zh": "沿着千帆竞发的海上丝绸之路，数以千万计的中国瓷器远销东南亚、中东乃至欧洲各国王室宫廷，成为代表东方奢华与文明品质的象征符号。",
+        "en": "Along the Maritime Silk Road, millions of vessels sailed to Southeast Asia, Persia, and European royal palaces as symbols of refined Eastern luxury."
+      },
+      {
+        "zh": "熊熊燃烧了千余年的窑火，不仅淬炼出纯洁无瑕的器物之美，更铸就了一段连接全球贸易与审美互鉴的辉煌传奇。",
+        "en": "The unquenched kilns burning for over a millennium forged not only immaculate ceramic beauty, but a glorious legend bridging global trade and cultural exchange."
+      }
+    ]
+  },
+  {
+    "id": "hsk6-10-tianxia",
+    "titleZh": "天下大同：中华传统哲学中的世界和平愿景",
+    "titleEn": "Universal Harmony: Traditional Chinese Philosophy's Vision for World Peace",
+    "hskLevel": 6,
+    "level": "ADVANCED",
+    "levelLabel": "HSK 6 · Advanced",
+    "readTime": "4 min",
+    "description": "Confucian cosmopolitanism, 'All Under Heaven as One Family', and shared future ethics.",
+    "sentences": [
+      {
+        "zh": "天下大同：中华传统哲学中的世界和平愿景",
+        "en": "Universal Harmony: Traditional Chinese Philosophy's Vision for World Peace",
+        "isTitle": true
+      },
+      {
+        "zh": "在中国儒家经典《礼记·礼运》篇中，勾勒了一幅流传千古的理想社会政治蓝图——“大道之行也，天下为公，选贤与能，讲信修睦”。",
+        "en": "In the Confucian classic Book of Rites, an ideal socio-political blueprint is depicted: 'When the Great Way prevails, the world belongs to all; the virtuous are chosen, and harmony is cultivated.'"
+      },
+      {
+        "zh": "先秦哲人并未将视野局限于单一城邦或封闭国界，而是提出了包容四海、休戚与共的“天下观”，主张天下所有人皆应当如同一家骨肉亲朋。",
+        "en": "Early Chinese philosophers looked beyond narrow boundaries, proposing 'All Under Heaven as One Family', advocating universal kinship across humanity."
+      },
+      {
+        "zh": "“老吾老以及人之老，幼吾幼以及人之幼”，这种将基于血缘家庭的孝悌仁爱层层向外推衍、泛爱大众的伦理建构，构成了中华文明仁恕哲学的基石。",
+        "en": "Extending care from one's own elders and children to all elders and children formed the cornerstone of Confucian benevolence."
+      },
+      {
+        "zh": "在国际交往层面，中华文明向来主张“协和万邦、和衷共济、化干戈为玉帛”，反对弱肉强食的丛林法则，崇尚通过礼义对话化解争端与分歧。",
+        "en": "In foreign relations, Chinese civilization championed 'harmony among nations and beating swords into ploughshares', resolving disputes through principled dialogue."
+      },
+      {
+        "zh": "在全球化深度交融却面临诸多严峻挑战的今天，“天下大同”与人类命运共同体理念，依然为破解当代全球治理赤字提供了深邃的东方智慧之光。",
+        "en": "In an interdependent yet challenged world, 'Universal Harmony' continues to offer profound Eastern wisdom for global governance and lasting peace."
+      }
+    ]
+  }
+]
