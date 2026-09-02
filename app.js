@@ -1006,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = getStatus(item.c);
     const selected = selectedBrowseChars.has(item.c);
     const flipped = flippedBrowseChars.has(item.c);
-    const meaning = formatDefinition(item.m || 'No English meaning recorded.', item.c);
+    const meaning = formatDefinition(item.m || 'No English meaning recorded.', item.c, true);
     return '<div class="tile selectable status-' + status + (selected ? ' selected' : '') + (flipped ? ' flipped' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '" tabindex="0" role="button" aria-label="' + escHtml(item.c + ' card') + '">' +
       '<div class="tile-inner">' +
       '<div class="tile-face front">' +
@@ -1131,10 +1131,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Smart definition formatting and frequency-first rearrangement:
   // Sorts multiple English meanings by most common everyday usage first,
   // pushing grammatical notes, surnames, and rare/archaic meanings to the back.
-  function formatDefinition(value, char) {
+  function formatDefinition(value, char, singleMeaningOnly = false) {
     if (value == null || value === '') return 'No recorded meaning.';
     if (char && TOP_CURATED_MEANINGS[char]) {
-      return TOP_CURATED_MEANINGS[char];
+      const curated = TOP_CURATED_MEANINGS[char];
+      if (singleMeaningOnly) return curated.split(',')[0].trim();
+      return curated;
     }
 
     // Split by slashes, commas, and semicolons
@@ -1196,6 +1198,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Sort by score descending, preserving natural order for ties
     scored.sort((a, b) => b.score - a.score || a.originalIdx - b.originalIdx);
+
+    if (singleMeaningOnly) {
+      return scored.length > 0 ? scored[0].text : 'No recorded meaning.';
+    }
 
     return scored.map(s => s.text).join(', ');
   }
@@ -2003,7 +2009,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-pinyin").hidden = false;
       el("fc-pinyin").textContent = item.pinyin || "—";
       el("fc-meaning").hidden = false;
-      el("fc-meaning").textContent = item.english || "No English translation in current data.";
+      el("fc-meaning").textContent = formatDefinition(item.english || "No English translation in current data.", null, true);
       el("fc-examples").innerHTML = (item.exampleTranslations || []).slice(0, 3).map(x => '<span class="example-chip">' + escHtml(x) + "</span>").join("");
       const we = getWordEntry(item.word);
       el("review-card-reason").textContent = (we?.due && we.due <= Date.now()) ? "🔴 Due for review" : "🧩 Word · " + Number(item.corpusCount || 0).toLocaleString() + " uses";
@@ -2013,7 +2019,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-hanzi-small").textContent = item.c;
       el("fc-pinyin").hidden = false;
       el("fc-pinyin").textContent = item.p || "—";
-      el("fc-meaning").textContent = formatDefinition(item.m || "No recorded meaning.");
+      el("fc-meaning").textContent = formatDefinition(item.m || "No recorded meaning.", item.c, true);
       el("fc-examples").innerHTML = item.e?.length ? item.e.map(w => '<span class="example-chip">' + escHtml(w) + "</span>").join("") : "";
       const e = getEntry(item.c);
       el("review-card-reason").textContent = (e?.due && e.due <= Date.now()) ? "🔴 Due for review" : (e?.reviews >= 2 ? "🟡 Previously missed / weak" : (e?.reviews ? "🟡 Learning character" : "🆕 New character"));
@@ -2553,7 +2559,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (grid) {
       grid.innerHTML = pageItems.length ? pageItems.map(word => {
         const example = word.exampleSentences && word.exampleSentences.length ? word.exampleSentences[0] : null;
-        const meaningText = word.meaning || word.english || "Meaning not available";
+        const meaningText = formatDefinition(word.meaning || word.english || "Meaning not available", null, true);
         const status = getWordStatus(word.word);
         const isSelected = selectedWords.has(word.word);
         let classes = "word-card status-" + status;
