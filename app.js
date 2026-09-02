@@ -1006,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = getStatus(item.c);
     const selected = selectedBrowseChars.has(item.c);
     const flipped = flippedBrowseChars.has(item.c);
-    const meaning = formatDefinition(item.m || 'No English meaning recorded.', item.c, true);
+    const meaning = formatDefinition(item.m || 'No English meaning recorded.', item.c, 3);
     return '<div class="tile selectable status-' + status + (selected ? ' selected' : '') + (flipped ? ' flipped' : '') + '" data-char="' + escHtml(item.c) + '" aria-pressed="' + (selected ? 'true' : 'false') + '" tabindex="0" role="button" aria-label="' + escHtml(item.c + ' card') + '">' +
       '<div class="tile-inner">' +
       '<div class="tile-face front">' +
@@ -1131,11 +1131,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Smart definition formatting and frequency-first rearrangement:
   // Sorts multiple English meanings by most common everyday usage first,
   // pushing grammatical notes, surnames, and rare/archaic meanings to the back.
-  function formatDefinition(value, char, singleMeaningOnly = false) {
+  function formatDefinition(value, char, maxMeanings = 0) {
+    if (maxMeanings === true) maxMeanings = 1; 
+
     if (value == null || value === '') return 'No recorded meaning.';
     if (char && TOP_CURATED_MEANINGS[char]) {
       const curated = TOP_CURATED_MEANINGS[char];
-      if (singleMeaningOnly) return curated.split(',')[0].trim();
+      if (maxMeanings > 0) return curated.split(',').slice(0, maxMeanings).join(', ').trim();
       return curated;
     }
 
@@ -1148,6 +1150,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (const part of rawParts) {
       let clean = part.replace(/\s+/g, ' ');
+      // Clean CC-CEDICT syntax like 一點|一点[yi1 dian3] -> 一点 (yi1 dian3)
+      clean = clean.replace(/(?:[\u4e00-\u9fa5A-Za-z0-9]+\|)+([\u4e00-\u9fa5A-Za-z0-9]+)\[([^\]]+)\]/g, '$1 ($2)');
+      clean = clean.replace(/([\u4e00-\u9fa5A-Za-z0-9]+)\[([^\]]+)\]/g, '$1 ($2)');
+      
+      clean = clean.replace(/^erhua variant of /i, 'Variant of ');
+      clean = clean.replace(/^variant of /i, 'Variant of ');
+
       const lower = clean.toLowerCase();
 
       // Skip duplicates
@@ -1198,10 +1207,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Sort by score descending, preserving natural order for ties
     scored.sort((a, b) => b.score - a.score || a.originalIdx - b.originalIdx);
-
-    if (singleMeaningOnly) {
-      return scored.length > 0 ? scored[0].text : 'No recorded meaning.';
-    }
 
     return scored.map(s => s.text).join(', ');
   }
@@ -1998,7 +2003,8 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-sentence-front").textContent = item.z || "";
       el("fc-sentence-back").textContent = item.z || "";
       el("fc-sentence-pinyin").textContent = sentencePinyin(item) || "";
-      el("fc-sentence-en").textContent = item.t || "";
+      let sentenceHtml = item.t ? escHtml(item.t) : '<span class="auto-translate" data-translate-word="' + escHtml(item.z || "") + '">Fetching translation...</span>';
+      el("fc-sentence-en").innerHTML = '<a href="https://translate.google.com/?sl=zh-CN&tl=en&text=' + encodeURIComponent(item.z || "") + '&op=translate" target="_blank" style="color: inherit; text-decoration: underline dashed rgba(255,255,255,0.4); padding: 4px;">' + sentenceHtml + '</a>';
       fitSentenceLine(el("fc-sentence-front"));
       fitSentenceLine(el("fc-sentence-back"));
       const se = getSentenceEntry(item.i);
@@ -2009,7 +2015,9 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-pinyin").hidden = false;
       el("fc-pinyin").textContent = item.pinyin || "—";
       el("fc-meaning").hidden = false;
-      el("fc-meaning").textContent = formatDefinition(item.english || "No English translation in current data.", null, true);
+      const meaningStr = formatDefinition(item.english || "No English translation in current data.", null, true);
+      let meaningHtml = (meaningStr === "No English translation in current data." || meaningStr === "No recorded meaning." || /^Variant of /i.test(meaningStr)) ? '<span class="auto-translate" data-translate-word="' + escHtml(item.word) + '">Fetching translation...</span>' : escHtml(meaningStr);
+      el("fc-meaning").innerHTML = '<a href="https://translate.google.com/?sl=zh-CN&tl=en&text=' + encodeURIComponent(item.word) + '&op=translate" target="_blank" style="color: inherit; text-decoration: underline dashed rgba(255,255,255,0.4); padding: 4px; display: inline-block;">' + meaningHtml + '</a>';
       el("fc-examples").innerHTML = (item.exampleTranslations || []).slice(0, 3).map(x => '<span class="example-chip">' + escHtml(x) + "</span>").join("");
       const we = getWordEntry(item.word);
       el("review-card-reason").textContent = (we?.due && we.due <= Date.now()) ? "🔴 Due for review" : "🧩 Word · " + Number(item.corpusCount || 0).toLocaleString() + " uses";
@@ -2019,7 +2027,9 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-hanzi-small").textContent = item.c;
       el("fc-pinyin").hidden = false;
       el("fc-pinyin").textContent = item.p || "—";
-      el("fc-meaning").textContent = formatDefinition(item.m || "No recorded meaning.", item.c, true);
+      const meaningStr = formatDefinition(item.m || "No recorded meaning.", item.c, 3);
+      let meaningHtml = (meaningStr === "No English translation in current data." || meaningStr === "No recorded meaning." || /^Variant of /i.test(meaningStr)) ? '<span class="auto-translate" data-translate-word="' + escHtml(item.c) + '">Fetching translation...</span>' : escHtml(meaningStr);
+      el("fc-meaning").innerHTML = '<a href="https://translate.google.com/?sl=zh-CN&tl=en&text=' + encodeURIComponent(item.c) + '&op=translate" target="_blank" style="color: inherit; text-decoration: underline dashed rgba(255,255,255,0.4); padding: 4px; display: inline-block;">' + meaningHtml + '</a>';
       el("fc-examples").innerHTML = item.e?.length ? item.e.map(w => '<span class="example-chip">' + escHtml(w) + "</span>").join("") : "";
       const e = getEntry(item.c);
       el("review-card-reason").textContent = (e?.due && e.due <= Date.now()) ? "🔴 Due for review" : (e?.reviews >= 2 ? "🟡 Previously missed / weak" : (e?.reviews ? "🟡 Learning character" : "🆕 New character"));
@@ -2063,6 +2073,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("review-progress-fill").style.width = ((reviewIndex / reviewQueue.length) * 100) + "%";
     el("review-counter").textContent = (reviewIndex + 1) + " / " + reviewQueue.length;
     updateLiveReviewStats();
+    setTimeout(processAutoTranslations, 50);
   }
 
   function revealCard() {
@@ -2565,6 +2576,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let classes = "word-card status-" + status;
         if (isSelected) classes += " selected";
         const lvlLabel = word.level >= 7 ? "HSK 7–9" : ("HSK " + (word.level || 1));
+        
+        let meaningHtml = escHtml(meaningText);
+        if (meaningText === "No English translation in current data." || meaningText === "No recorded meaning." || /^Variant of /i.test(meaningText)) {
+          meaningHtml = '<span class="auto-translate" data-translate-word="' + escHtml(word.word) + '">Fetching translation...</span>';
+        }
 
         return '<article class="' + classes + '" data-word="' + escHtml(word.word) + '" tabindex="0" role="button" aria-label="Flip ' + escHtml(word.word) + ' card to reveal meaning">' +
           '<div class="word-card-inner">' +
@@ -2577,7 +2593,7 @@ document.addEventListener("DOMContentLoaded", () => {
           '</div>' +
           '<div class="word-card-face back">' +
           '<div class="word-pinyin" style="font-size: 1.15rem; color: var(--gold-dark); font-weight: 700; margin-bottom: 4px;">' + escHtml(word.pinyin || "—") + '</div>' +
-          '<div class="word-card-back-meaning">' + escHtml(meaningText) + '</div>' +
+          '<div class="word-card-back-meaning"><a href="https://translate.google.com/?sl=zh-CN&tl=en&text=' + encodeURIComponent(word.word) + '&op=translate" target="_blank" onclick="event.stopPropagation()" style="color: inherit; text-decoration: underline dashed rgba(255,255,255,0.4);">' + meaningHtml + '</a></div>' +
           '<div class="word-example" ' + (wordsShowEnglish ? '' : 'hidden') + '>' +
           '<div class="word-example-label">Simple example</div>' +
           (example ? '<div class="word-example-zh">' + escHtml(example.zh) + '</div>' + (window.pinyinPro && typeof window.pinyinPro.pinyin === "function" ? '<div class="word-example-py" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(window.pinyinPro.pinyin(example.zh, { toneType: "symbol", type: "string", v: true })) + '</div>' : '') + '<div class="word-example-en">' + escHtml(example.en) + '</div>' : '<div class="word-example-empty">No example sentence in current corpus.</div>') +
@@ -2590,6 +2606,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateWordSidebars();
     updateWordSelectionBar();
+    setTimeout(processAutoTranslations, 50);
   }
 
   function wireWords() {
@@ -3977,7 +3994,7 @@ document.addEventListener("DOMContentLoaded", () => {
         closeContextMenu();
         if (type === "sentence") openSentenceDetails(id);
         else if (type === "radical") openRadicalDetail(Number(id));
-        else if (type === "word") { /* no detail drawer for words yet */ }
+        else if (type === "word") openWordDetail(id);
         else openDetail(id);
         return;
       }
@@ -7954,3 +7971,37 @@ document.addEventListener("DOMContentLoaded", () => {
     init();
   }
 })();
+window.TRANSLATION_CACHE = JSON.parse(localStorage.getItem('hanziTranslationCache') || '{}');
+async function translateText(text) {
+  try {
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=' + encodeURIComponent(text);
+    const res = await fetch(url);
+    const data = await res.json();
+    return data[0].map(x => x[0]).join('');
+  } catch (e) {
+    console.error('Translation error:', e);
+    return null;
+  }
+}
+async function processAutoTranslations() {
+  const els = document.querySelectorAll('.auto-translate:not(.fetching)');
+  for (const el of els) {
+    el.classList.add('fetching');
+    const w = el.dataset.translateWord;
+    if (window.TRANSLATION_CACHE[w]) {
+      el.textContent = window.TRANSLATION_CACHE[w];
+      el.classList.remove('fetching');
+      continue;
+    }
+    const t = await translateText(w);
+    if (t) {
+      window.TRANSLATION_CACHE[w] = t;
+      localStorage.setItem('hanziTranslationCache', JSON.stringify(window.TRANSLATION_CACHE));
+      el.textContent = t;
+    } else {
+      el.textContent = 'Translation failed';
+    }
+    el.classList.remove('fetching');
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
