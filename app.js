@@ -285,6 +285,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentActiveAudio = null;
   let activeAudioSequence = [];
+  let currentActiveUtterance = null;
+  let cachedChineseVoice = null;
+
+  function getBestChineseVoice() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+
+    const isChinese = v => {
+      const l = (v.lang || "").toLowerCase();
+      return l.startsWith("zh") || l.startsWith("cmn");
+    };
+
+    const zhVoices = voices.filter(isChinese);
+    if (!zhVoices.length) return null;
+
+    // 1. Microsoft Online Natural/Neural voices (Xiaoxiao, Yunxi, Xiaoyi - highest natural quality)
+    const msNatural = zhVoices.find(v => {
+      const n = (v.name || "").toLowerCase();
+      return (n.includes("xiaoxiao") || n.includes("yunxi") || n.includes("xiaoyi")) && (n.includes("natural") || n.includes("online"));
+    }) || zhVoices.find(v => {
+      const n = (v.name || "").toLowerCase();
+      return n.includes("natural") || n.includes("online");
+    });
+    if (msNatural) return msNatural;
+
+    // 2. Apple Siri / Enhanced voices (Tingting Enhanced, Meijia)
+    const appleEnhanced = zhVoices.find(v => {
+      const n = (v.name || "").toLowerCase();
+      return n.includes("enhanced") || n.includes("tingting") || n.includes("meijia") || n.includes("siri");
+    });
+    if (appleEnhanced) return appleEnhanced;
+
+    // 3. Google Chinese voices (Google 普通话)
+    const googleZh = zhVoices.find(v => {
+      const n = (v.name || "").toLowerCase();
+      return n.includes("google") || v.name.includes("普通话") || v.name.includes("国语");
+    });
+    if (googleZh) return googleZh;
+
+    // 4. Standard Mainland zh-CN / cmn-Hans-CN
+    const zhCn = zhVoices.find(v => {
+      const l = (v.lang || "").toLowerCase();
+      return l === "zh-cn" || l === "zh_cn" || l === "cmn-hans-cn";
+    });
+    if (zhCn) return zhCn;
+
+    return zhVoices[0];
+  }
+
+  // Cache high quality voice when voices are loaded by browser
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        cachedChineseVoice = getBestChineseVoice();
+      };
+    }
+  }
 
   function playChineseAudio(text, options = {}) {
     if (!text || typeof text !== "string") return;
@@ -295,156 +353,348 @@ document.addEventListener("DOMContentLoaded", () => {
     const onStart = options.onStart;
     const onEnd = options.onEnd;
 
+    // Stop any previously playing audio file
     if (currentActiveAudio) {
       try {
         currentActiveAudio.pause();
       } catch (e) { }
       currentActiveAudio = null;
     }
-
-    // Stop any previously playing sequence
     activeAudioSequence = [];
+
+    // Stop any active speech synthesis
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) { }
+      currentActiveUtterance = null;
+    }
 
     if (onStart) onStart();
 
-    if (typeof Audio !== "undefined") {
-      if (options.audioPath || options.sentenceId) {
-        let audioUrl = options.audioPath || `audio/${options.sentenceId}.mp3`;
-        if (options.rate && options.rate < 0.8) {
-          if (options.slowAudioPath) audioUrl = options.slowAudioPath;
-          else if (options.sentenceId && !options.audioPath) audioUrl = `audio/${options.sentenceId}_slow.mp3`;
-        }
-        const a = new Audio(audioUrl);
-        a.playbackRate = 1.0;
-        a.load();
-        activeAudioSequence = [a];
-        currentActiveAudio = a;
-        a.onended = () => {
-          currentActiveAudio = null;
-          if (onEnd) onEnd();
-        };
-        a.onerror = () => {
-          // If local audio file cannot be loaded, fallback to online speech synthesis
-          currentActiveAudio = null;
-          playFallbackSpeech(cleanText, rate, onEnd);
-        };
-        a.play().catch(() => {
-          currentActiveAudio = null;
-          playFallbackSpeech(cleanText, rate, onEnd);
-        });
-        return;
+    // 1. Sentences Tab: Pre-recorded human audio MP3 (kept 100% intact)
+    if (typeof Audio !== "undefined" && (options.audioPath || options.sentenceId)) {
+      let audioUrl = options.audioPath || `audio/${options.sentenceId}.mp3`;
+      if (options.rate && options.rate < 0.8) {
+        if (options.slowAudioPath) audioUrl = options.slowAudioPath;
+        else if (options.sentenceId && !options.audioPath) audioUrl = `audio/${options.sentenceId}_slow.mp3`;
       }
-
-      let chunks = [];
-      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-        const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
-        const segments = Array.from(segmenter.segment(cleanText));
-        chunks = segments.filter(s => s.isWordLike).map(s => s.segment);
-      } else {
-        const chars = Array.from(cleanText).filter(ch => !/[，。！？；：“”《》、,.!?\s]/.test(ch));
-        for (let i = 0; i < chars.length; i += 2) {
-          chunks.push(chars.slice(i, i + 2).join(''));
-        }
-      }
-
-      if (chunks.length === 0) {
+      const a = new Audio(audioUrl);
+      a.playbackRate = 1.0;
+      a.load();
+      activeAudioSequence = [a];
+      currentActiveAudio = a;
+      a.onended = () => {
+        currentActiveAudio = null;
         if (onEnd) onEnd();
-        return;
+      };
+      a.onerror = () => {
+        currentActiveAudio = null;
+        if (onEnd) onEnd();
+      };
+      a.play().catch(() => {
+        currentActiveAudio = null;
+        if (onEnd) onEnd();
+      });
+      return;
+    }
+
+    // 2. All other tabs (Characters, Words, Readings, Tones, Radicals, Pictographs, Hover Dict):
+    // Enhanced Neural Web Speech Engine with natural voice selection & GC protection
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      currentActiveUtterance = utterance; // Retain reference to prevent Chrome GC bug
+
+      const voice = cachedChineseVoice || getBestChineseVoice();
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang || "zh-CN";
+      } else {
+        utterance.lang = "zh-CN";
       }
 
-      // Pre-create all Audio elements and call load() SYNCHRONOUSLY 
-      // during the user gesture to satisfy strict autoplay policies (e.g. Safari)
-      const audioElements = chunks.map(chunkText => {
-        let encoded = "";
-        try {
-          encoded = encodeURIComponent(chunkText);
-        } catch (e) {
-          encoded = encodeURIComponent(chunkText.replace(/[\uD800-\uDFFF]/g, ''));
+      utterance.rate = Math.max(0.5, Math.min(1.5, rate));
+      utterance.pitch = 1.0;
+
+      let ended = false;
+      const finish = () => {
+        if (ended) return;
+        ended = true;
+        if (currentActiveUtterance === utterance) {
+          currentActiveUtterance = null;
         }
-        const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encoded}&le=zh`;
-        const a = new Audio(audioUrl);
-        a.playbackRate = rate > 0.95 ? 1.0 : (rate < 0.8 ? 0.8 : 0.9);
-        a.load(); // CRITICAL for unlocking sequential playback
-        return a;
-      });
-
-      activeAudioSequence = audioElements;
-      let currentChunkIndex = 0;
-
-      const playNextChunk = () => {
-        // If the sequence was interrupted by another click, stop playing.
-        if (activeAudioSequence !== audioElements || currentChunkIndex >= audioElements.length) {
-          if (activeAudioSequence === audioElements) {
-            currentActiveAudio = null;
-            if (onEnd) onEnd();
-          }
-          return;
-        }
-
-        const audio = audioElements[currentChunkIndex++];
-        currentActiveAudio = audio;
-
-        audio.ontimeupdate = () => {
-          // Trigger next chunk slightly before this one ends to eliminate the gap
-          if (audio.duration && audio.currentTime > 0 && audio.duration - audio.currentTime < 0.15 && !audio.nextTriggered) {
-            audio.nextTriggered = true;
-            playNextChunk();
-          }
-        };
-
-        audio.onended = () => {
-          if (!audio.nextTriggered) {
-            audio.nextTriggered = true;
-            playNextChunk();
-          }
-        };
-
-        audio.onerror = () => {
-          if (!audio.nextTriggered) {
-            audio.nextTriggered = true;
-            playNextChunk();
-          }
-        };
-
-        try {
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch((err) => {
-              console.error("Audio playback error:", err);
-              setTimeout(playNextChunk, 50); // proceed to next chunk if blocked
-            });
-          }
-        } catch (e) {
-          setTimeout(playNextChunk, 50);
-        }
+        if (onEnd) onEnd();
       };
 
-      playNextChunk();
+      utterance.onend = finish;
+      utterance.onerror = () => {
+        finish();
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch (e) {
+        finish();
+      }
+      return;
+    }
+
+    if (onEnd) {
+      setTimeout(onEnd, 0);
     }
   }
 
   function playBrowserTTS(text) {
-    if (!text || typeof text !== "string") return;
-    const cleanText = text.replace(/[\uFFFD\u0000-\u001F]/g, "").trim();
-    if (!cleanText) return;
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'zh-CN';
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      window.speechSynthesis.speak(utterance);
-    } else {
-      console.warn("[HanziTracker] Web Speech API not supported in this browser");
-    }
+    playChineseAudio(text);
   }
 
   /* ---------- indexes ---------- */
+  const READING_SUPPLEMENTAL_WORDS = [
+    { w: "你好", p: "nǐ hǎo", l: 1, d: "hello; hi; how are you" },
+    { w: "你们好", p: "nǐ men hǎo", l: 1, d: "hello everyone; hello you all" },
+    { w: "您好", p: "nín hǎo", l: 1, d: "hello (polite / respectful)" },
+    { w: "大家好", p: "dà jiā hǎo", l: 1, d: "hello everyone" },
+    { w: "早上好", p: "zǎo shang hǎo", l: 1, d: "good morning" },
+    { w: "晚上好", p: "wǎn shang hǎo", l: 1, d: "good evening" },
+    { w: "晚安", p: "wǎn ān", l: 1, d: "good night" },
+    { w: "太好了", p: "tài hǎo le", l: 1, d: "great; wonderful; that's great" },
+    { w: "没问题", p: "méi wèn tí", l: 1, d: "no problem" },
+    { w: "不用谢", p: "bù yòng xiè", l: 1, d: "you're welcome; don't mention it" },
+    { w: "不客气", p: "bù kè qi", l: 1, d: "you're welcome; not at all" },
+    { w: "对不起", p: "duì bu qǐ", l: 1, d: "sorry; excuse me" },
+    { w: "没关系", p: "méi guān xi", l: 1, d: "it doesn't matter; that's all right" },
+    { w: "怎么样", p: "zěn me yàng", l: 1, d: "how is it; how about; what do you think" },
+    { w: "怎么了", p: "zěn me le", l: 1, d: "what's wrong; what happened" },
+    { w: "为什么", p: "wèi shén me", l: 1, d: "why; for what reason" },
+    { w: "有关系", p: "yǒu guān xi", l: 1, d: "to be related; to have relevance" },
+    { w: "美国", p: "měi guó", l: 1, d: "United States; America" },
+    { w: "美国人", p: "měi guó rén", l: 1, d: "American (person)" },
+    { w: "中国人", p: "zhōng guó rén", l: 1, d: "Chinese person; Chinese people" },
+    { w: "英国", p: "yīng guó", l: 1, d: "United Kingdom; Britain" },
+    { w: "英国人", p: "yīng guó rén", l: 1, d: "British person" },
+    { w: "法国", p: "fǎ guó", l: 1, d: "France" },
+    { w: "德国", p: "dé guó", l: 1, d: "Germany" },
+    { w: "日本", p: "rì běn", l: 1, d: "Japan" },
+    { w: "韩国", p: "hán guó", l: 1, d: "South Korea" },
+    { w: "北京大学", p: "běi jīng dà xué", l: 2, d: "Peking University (PKU)" },
+    { w: "清华大学", p: "qīng huá dà xué", l: 2, d: "Tsinghua University" },
+    { w: "中华文明", p: "zhōng huá wén míng", l: 3, d: "Chinese civilization" },
+    { w: "服务员", p: "fú wù yuán", l: 1, d: "waiter; waitress; attendant" },
+    { w: "牛肉面", p: "niú ròu miàn", l: 1, d: "beef noodles" },
+    { w: "牛肉", p: "niú ròu", l: 1, d: "beef" },
+    { w: "大卫", p: "dà wèi", l: 1, d: "David (name)" },
+    { w: "李华", p: "lǐ huá", l: 1, d: "Li Hua (name)" },
+    { w: "很多", p: "hěn duō", l: 1, d: "many; much; a lot of" },
+    { w: "一个", p: "yī gè", l: 1, d: "one; a; an" },
+    { w: "一个人", p: "yī gè rén", l: 1, d: "alone; one person; by oneself" },
+    { w: "一个字", p: "yī gè zì", l: 1, d: "one character; a character" },
+    { w: "这个字", p: "zhè gè zì", l: 1, d: "this character" },
+    { w: "这些字", p: "zhè xiē zì", l: 1, d: "these characters" },
+    { w: "这种", p: "zhè zhǒng", l: 1, d: "this kind; this sort" },
+    { w: "那种", p: "nà zhǒng", l: 1, d: "that kind; that sort" },
+    { w: "哪个", p: "nǎ gè", l: 1, d: "which one" },
+    { w: "哪国", p: "nǎ guó", l: 1, d: "which country" },
+    { w: "哪国人", p: "nǎ guó rén", l: 1, d: "person of which country" },
+    { w: "这儿", p: "zhèr", l: 1, d: "here" },
+    { w: "那儿", p: "nàr", l: 1, d: "there" },
+    { w: "哪儿", p: "nǎr", l: 1, d: "where" },
+    { w: "做事情", p: "zuò shì qing", l: 1, d: "to do things; to work" },
+    { w: "想一想", p: "xiǎng yī xiǎng", l: 1, d: "to think over; to ponder a bit" },
+    { w: "竖心旁", p: "shù xīn páng", l: 2, d: "vertical heart radical (忄)" },
+    { w: "不仅是", p: "bù jǐn shì", l: 2, d: "not only; not just" },
+    { w: "青铜", p: "qīng tóng", l: 3, d: "bronze" },
+    { w: "二十", p: "èr shí", l: 1, d: "twenty" },
+    { w: "三十", p: "sān shí", l: 1, d: "thirty" },
+    { w: "两千", p: "liǎng qiān", l: 1, d: "two thousand" },
+    { w: "千年", p: "qiān nián", l: 2, d: "a thousand years; millennium" },
+    { w: "到了", p: "dào le", l: 1, d: "arrived; reached" },
+    { w: "成了", p: "chéng le", l: 2, d: "became; turned into" },
+    { w: "有些", p: "yǒu xiē", l: 1, d: "some; a few; somewhat" },
+    { w: "各种各样", p: "gè zhǒng gè yàng", l: 3, d: "all kinds of; various" },
+    { w: "有意思", p: "yǒu yì si", l: 1, d: "interesting; meaningful; fun" }
+  ];
+
+  let GLOBAL_WORD_MAP = new Map();
+  let GLOBAL_WORD_SET = new Set();
+  let GLOBAL_MAX_WORD_LEN = 4;
+
+  function buildGlobalWordDictionary() {
+    GLOBAL_WORD_MAP = new Map();
+    GLOBAL_WORD_SET = new Set();
+    GLOBAL_MAX_WORD_LEN = 4;
+
+    // 1. Load HSK Words from window.HSK_WORDS_DATA or wordsRes
+    const wordsSource = (typeof HSK_WORDS_DATA !== "undefined" && Array.isArray(HSK_WORDS_DATA) && HSK_WORDS_DATA.length)
+      ? HSK_WORDS_DATA
+      : (typeof window !== "undefined" && Array.isArray(window.HSK_WORDS_DATA) ? window.HSK_WORDS_DATA : []);
+
+    wordsSource.forEach(item => {
+      const w = item.w || item.word;
+      if (w && typeof w === "string") {
+        GLOBAL_WORD_SET.add(w);
+        if (w.length > GLOBAL_MAX_WORD_LEN) GLOBAL_MAX_WORD_LEN = Math.min(w.length, 6);
+        GLOBAL_WORD_MAP.set(w, {
+          word: w,
+          pinyin: item.p || item.pinyin || "",
+          level: item.l ? ("HSK " + item.l) : (item.level ? ("HSK " + item.level) : "HSK"),
+          meaning: item.d || item.meaning || item.english || ""
+        });
+      }
+    });
+
+    // 2. Add supplemental high-frequency reading words
+    READING_SUPPLEMENTAL_WORDS.forEach(item => {
+      GLOBAL_WORD_SET.add(item.w);
+      if (item.w.length > GLOBAL_MAX_WORD_LEN) GLOBAL_MAX_WORD_LEN = Math.min(item.w.length, 6);
+      if (!GLOBAL_WORD_MAP.has(item.w) || !GLOBAL_WORD_MAP.get(item.w).meaning) {
+        GLOBAL_WORD_MAP.set(item.w, {
+          word: item.w,
+          pinyin: item.p,
+          level: "HSK " + (item.l || 1),
+          meaning: item.d
+        });
+      }
+    });
+
+    // 3. Add DU_HIGHLIGHT_WORDS
+    if (typeof DU_HIGHLIGHT_WORDS !== "undefined" && DU_HIGHLIGHT_WORDS) {
+      DU_HIGHLIGHT_WORDS.forEach(w => {
+        if (w && typeof w === "string") {
+          GLOBAL_WORD_SET.add(w);
+          if (w.length > GLOBAL_MAX_WORD_LEN) GLOBAL_MAX_WORD_LEN = Math.min(w.length, 6);
+        }
+      });
+    }
+
+    // 4. Also register compound example words from HANZI_DATA
+    if (typeof HANZI_DATA !== "undefined" && Array.isArray(HANZI_DATA)) {
+      HANZI_DATA.forEach(h => {
+        if (h.e && Array.isArray(h.e)) {
+          h.e.forEach(w => {
+            if (w && typeof w === "string" && w.length >= 2 && w.length <= 6) {
+              GLOBAL_WORD_SET.add(w);
+            }
+          });
+        }
+      });
+    }
+  }
+
+  function getWordOrCharDetails(term) {
+    if (!term) return null;
+
+    // Check if entry in GLOBAL_WORD_MAP
+    let match = GLOBAL_WORD_MAP.get(term) || null;
+
+    // Single character lookup
+    if (term.length === 1 && typeof HANZI_BY_CHAR !== "undefined" && HANZI_BY_CHAR[term]) {
+      const h = HANZI_BY_CHAR[term];
+      const rad = (typeof findRadicalForChar === "function") ? findRadicalForChar(term) : null;
+      return {
+        word: term,
+        char: term,
+        pinyin: h.p || (window.pinyinPro ? window.pinyinPro.pinyin(term, { type: "string" }) : ""),
+        meaning: h.m || match?.meaning || "No recorded meaning",
+        level: h.h ? ("HSK " + h.h) : (h.l ? ("HSK " + h.l) : "Character"),
+        radical: rad?.char || h.r || "",
+        radicalMeaning: rad?.meaning || "",
+        strokes: rad?.strokes || h.s || null,
+        rank: (h.f && h.f < 99999) ? h.f : null,
+        chars: [{ char: term, pinyin: h.p || "", meaning: h.m || "" }]
+      };
+    }
+
+    // Compound word breakdown
+    const charBreakdowns = Array.from(term).map(c => {
+      const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c] : null;
+      return {
+        char: c,
+        pinyin: h?.p || (window.pinyinPro ? window.pinyinPro.pinyin(c, { type: "string" }) : ""),
+        meaning: h?.m || ""
+      };
+    });
+
+    let py = match ? match.pinyin : (window.pinyinPro ? window.pinyinPro.pinyin(term, { type: "string" }) : "");
+    let meaning = match?.meaning || (charBreakdowns.map(c => c.meaning).filter(Boolean).join("; ") || "Compound vocabulary");
+    let level = match?.level || (charBreakdowns[0]?.meaning ? "HSK 2" : "Vocabulary");
+
+    return {
+      word: term,
+      pinyin: py,
+      meaning: meaning,
+      level: level,
+      chars: charBreakdowns
+    };
+  }
+
+  function findNearbyWordAtChar(sentenceZh, charIndex) {
+    if (!sentenceZh || typeof charIndex !== "number") return null;
+    const chars = Array.from(sentenceZh);
+    const targetChar = chars[charIndex];
+    if (!targetChar) return null;
+
+    const isPunctOrSpace = ch => /[\s，。！？、“”‘’（）《》；：…—\?\!,\.·]/.test(ch);
+    if (isPunctOrSpace(targetChar)) return null;
+
+    const maxLen = GLOBAL_MAX_WORD_LEN || 4;
+
+    // 1. Forward match starting at charIndex (lengths maxLen down to 2)
+    for (let len = Math.min(maxLen, chars.length - charIndex); len >= 2; len--) {
+      const candidateChars = chars.slice(charIndex, charIndex + len);
+      if (candidateChars.some(isPunctOrSpace)) continue;
+      const candidate = candidateChars.join("");
+      if (GLOBAL_WORD_SET.has(candidate)) {
+        return {
+          word: candidate,
+          type: "word",
+          match: "forward",
+          startIndex: charIndex,
+          endIndex: charIndex + len,
+          details: getWordOrCharDetails(candidate)
+        };
+      }
+    }
+
+    // 2. Enclosing match: words containing charIndex starting 1, 2, or 3 chars before
+    for (let offset = 1; offset <= 3; offset++) {
+      const start = charIndex - offset;
+      if (start < 0) continue;
+      for (let len = Math.min(maxLen, chars.length - start); len >= offset + 1; len--) {
+        const candidateChars = chars.slice(start, start + len);
+        if (candidateChars.some(isPunctOrSpace)) continue;
+        const candidate = candidateChars.join("");
+        if (GLOBAL_WORD_SET.has(candidate)) {
+          return {
+            word: candidate,
+            type: "word",
+            match: "enclosing",
+            startIndex: start,
+            endIndex: start + len,
+            details: getWordOrCharDetails(candidate)
+          };
+        }
+      }
+    }
+
+    // 3. Fallback to single character: if near characters do not make a word, show character meaning
+    return {
+      word: targetChar,
+      char: targetChar,
+      type: "char",
+      match: "char",
+      startIndex: charIndex,
+      endIndex: charIndex + 1,
+      details: getWordOrCharDetails(targetChar)
+    };
+  }
+
   function buildIndexes() {
     HANZI_BY_CHAR = {};
     for (const item of HANZI_DATA) HANZI_BY_CHAR[item.c] = item;
+    buildGlobalWordDictionary();
   }
 
   function levelMatches(item, level) {
@@ -510,7 +760,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let interval = prev.interval || 0;
     if (status === "known") interval = Math.max(interval, 30);
     if (status === "new") interval = 0;
-    return writeWordEntry(word, { status, interval, incrementReviews: false });
+    const res = writeWordEntry(word, { status, interval, incrementReviews: false });
+    if (typeof updateWordStatusInDOM === "function") updateWordStatusInDOM(word, status);
+    if (typeof updateReaderWordStatus === "function") updateReaderWordStatus(word, status);
+    return res;
   }
 
   function computeWordCounts() {
@@ -807,12 +1060,51 @@ document.addEventListener("DOMContentLoaded", () => {
     return writeSentenceEntry(id, { ...next, incrementReviews: true });
   }
 
+  function updateCharStatusInDOM(char, status) {
+    if (!char) return;
+    document.querySelectorAll('.tile[data-char="' + CSS.escape(char) + '"]').forEach(tile => {
+      tile.classList.remove("status-new", "status-learning", "status-known");
+      tile.classList.add("status-" + status);
+    });
+    document.querySelectorAll('.seal-chip[data-char="' + CSS.escape(char) + '"]').forEach(chip => {
+      chip.classList.remove("status-new", "status-learning", "status-known");
+      chip.classList.add("status-" + status);
+    });
+    document.querySelectorAll('[data-sentence-char="' + CSS.escape(char) + '"], [data-word-char="' + CSS.escape(char) + '"]').forEach(chip => {
+      chip.dataset.status = status;
+    });
+  }
+
+  function updateWordStatusInDOM(word, status) {
+    if (!word) return;
+    document.querySelectorAll('.word-card[data-word="' + CSS.escape(word) + '"]').forEach(card => {
+      card.classList.remove("status-new", "status-learning", "status-known");
+      card.classList.add("status-" + status);
+    });
+  }
+
+  function updateSentenceStatusInDOM(id, status) {
+    if (!id) return;
+    const strId = String(id);
+    document.querySelectorAll('.sentence-card[data-sentence-id="' + CSS.escape(strId) + '"]').forEach(card => {
+      card.classList.remove("status-new", "status-learning", "status-known");
+      card.classList.add("status-" + status);
+      const chip = card.querySelector(".sentence-status-chip");
+      if (chip) {
+        chip.className = "sentence-status-chip status-" + status;
+        chip.textContent = status === "known" ? "Mastered" : (status === "learning" ? "Learning" : "New");
+      }
+    });
+  }
+
   function setSentenceStatus(id, status) {
     const prev = getSentenceEntry(id) || { interval: 0 };
     let interval = prev.interval || 0;
     if (status === "known") interval = Math.max(interval, 30);
     if (status === "new") interval = 0;
-    return writeSentenceEntry(id, { status, interval, incrementReviews: false });
+    const res = writeSentenceEntry(id, { status, interval, incrementReviews: false });
+    updateSentenceStatusInDOM(id, status);
+    return res;
   }
 
   function setStatusManual(char, status) {
@@ -820,7 +1112,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let interval = prev.interval || 0;
     if (status === "known") interval = Math.max(interval, 30);
     if (status === "new") interval = 0;
-    return writeEntry(char, { status, interval, incrementReviews: false });
+    const res = writeEntry(char, { status, interval, incrementReviews: false });
+    updateCharStatusInDOM(char, status);
+    if (typeof updateReaderWordStatus === "function") updateReaderWordStatus(char, status);
+    return res;
   }
 
   function saveMnemonic(char, mnemonic) {
@@ -892,13 +1187,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncUI() {
     updateHeaderProgress();
     refreshDueCount();
-    renderBrowse();
     updateBrowseSidebars();
-    if (el("tab-progress").classList.contains("active")) renderProgress();
-    if (el("tab-sentences").classList.contains("active")) renderSentences();
-    if (el("tab-words") && el("tab-words").classList.contains("active")) renderWords();
-    if (el("tab-radicals").classList.contains("active")) renderRadicals();
-    if (el("tab-pictographs") && el("tab-pictographs").classList.contains("active")) renderPictographsTab();
+    if (el("tab-browse") && el("tab-browse").classList.contains("active") && browseFilters.statuses.size > 0) {
+      renderBrowse();
+    }
+    if (el("tab-progress") && el("tab-progress").classList.contains("active")) renderProgress();
+    if (el("tab-sentences") && el("tab-sentences").classList.contains("active")) renderSentenceDashboard();
+    if (el("tab-words") && el("tab-words").classList.contains("active")) updateWordSidebars();
   }
 
   /* ---------- BROWSE ---------- */
@@ -954,27 +1249,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setBrowseSelectionMode(mode) {
     browseSelectionMode = mode;
-    if (mode === "off") selectedBrowseChars.clear();
-    if (mode === "single" && selectedBrowseChars.size > 1) {
+    if (mode === "off") {
+      selectedBrowseChars.clear();
+      document.querySelectorAll(".tile.selected").forEach(t => {
+        t.classList.remove("selected");
+        t.setAttribute("aria-pressed", "false");
+      });
+    } else if (mode === "single" && selectedBrowseChars.size > 1) {
       const first = selectedBrowseChars.values().next().value;
       selectedBrowseChars.clear();
       if (first) selectedBrowseChars.add(first);
+      document.querySelectorAll(".tile.selected").forEach(t => {
+        if (t.dataset.char !== first) {
+          t.classList.remove("selected");
+          t.setAttribute("aria-pressed", "false");
+        }
+      });
     }
     updateBrowseSelectionUI();
-    renderBrowse();
   }
 
   function toggleBrowseSelection(char) {
     if (browseSelectionMode === "off") return;
     if (browseSelectionMode === "single") {
-      if (selectedBrowseChars.has(char)) selectedBrowseChars.clear();
-      else { selectedBrowseChars.clear(); selectedBrowseChars.add(char); }
+      const prev = selectedBrowseChars.values().next().value;
+      if (prev && prev !== char) {
+        selectedBrowseChars.delete(prev);
+        const prevTile = document.querySelector('.tile[data-char="' + CSS.escape(prev) + '"]');
+        if (prevTile) {
+          prevTile.classList.remove("selected");
+          prevTile.setAttribute("aria-pressed", "false");
+        }
+      }
+      if (selectedBrowseChars.has(char)) {
+        selectedBrowseChars.delete(char);
+      } else {
+        selectedBrowseChars.add(char);
+      }
     } else {
       if (selectedBrowseChars.has(char)) selectedBrowseChars.delete(char);
       else selectedBrowseChars.add(char);
     }
+    const tile = document.querySelector('.tile[data-char="' + CSS.escape(char) + '"]');
+    if (tile) {
+      const isSel = selectedBrowseChars.has(char);
+      tile.classList.toggle("selected", isSel);
+      tile.setAttribute("aria-pressed", isSel ? "true" : "false");
+    }
     updateBrowseSelectionUI();
-    renderBrowse();
   }
 
   function applyBulkBrowseStatus(status) {
@@ -983,6 +1305,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const newlyKnown = status === "known" ? chars.filter(c => getStatus(c) !== "known").length : 0;
     chars.forEach(char => setStatusManual(char, status));
     selectedBrowseChars.clear();
+    document.querySelectorAll(".tile.selected").forEach(t => {
+      t.classList.remove("selected");
+      t.setAttribute("aria-pressed", "false");
+    });
+    updateBrowseSelectionUI();
     syncUI();
     if (newlyKnown) {
       const tileEls = chars.map(c => document.querySelector('.tile[data-char="' + CSS.escape(c) + '"]')).filter(Boolean);
@@ -1100,7 +1427,7 @@ document.addEventListener("DOMContentLoaded", () => {
     '方': 'direction, side, square, region, party, method',
     '多': 'many, much, more, multiple, excessive',
     '经': 'pass through, undergo, experience, classic text, economy',
-    '么': 'interrogative suffix (什么, 怎么)',
+    '么': 'interrogative suffix, question particle',
     '去': 'go, leave, depart, remove',
     '法': 'law, method, way, France, French',
     '学': 'learn, study, science, school',
@@ -1128,9 +1455,19 @@ document.addEventListener("DOMContentLoaded", () => {
     '便': 'convenient, handy, then, ordinary, plain, cheap (pián)'
   };
 
+  // Helper: sanitize English sentence / general translations against stray Chinese characters
+  function cleanSentenceEnglish(value) {
+    if (value == null || value === '') return '';
+    return String(value)
+      .replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
   // Smart definition formatting and frequency-first rearrangement:
   // Sorts multiple English meanings by most common everyday usage first,
   // pushing grammatical notes, surnames, and rare/archaic meanings to the back.
+  // AIRTIGHT GUARANTEE: Never renders Chinese characters in English definitions.
   function formatDefinition(value, char, maxMeanings = 0) {
     if (maxMeanings === true) maxMeanings = 1; 
 
@@ -1141,21 +1478,48 @@ document.addEventListener("DOMContentLoaded", () => {
       return curated;
     }
 
+    // Strip phonetic bracket notes and classifier tags upfront
+    let str = String(value)
+      .replace(/\b(?:also|Taiwan|Beijing|colloquial|old)\s+pr\.\s*\[[^\]]+\]/gi, '')
+      .replace(/\([^)]*(?:also|Taiwan|Beijing|colloquial|old)\s+pr\.[^)]*\)/gi, '')
+      .replace(/CL:\s*[^;\/)]+/gi, '');
+
     // Split by slashes, commas, and semicolons
-    const rawParts = String(value).split(/[\/;,]+/).map(s => s.trim()).filter(Boolean);
-    if (!rawParts.length) return String(value);
+    const rawParts = str.split(/[\/;,]+/).map(s => s.trim()).filter(Boolean);
+    if (!rawParts.length) {
+      const fallback = str
+        .replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g, '')
+        .replace(/\[[^\]]+\]/g, '')
+        .trim();
+      return fallback || 'No recorded meaning.';
+    }
 
     const seen = new Set();
     const scored = [];
 
     for (const part of rawParts) {
       let clean = part.replace(/\s+/g, ' ');
-      // Clean CC-CEDICT syntax like 一點|一点[yi1 dian3] -> 一点 (yi1 dian3)
-      clean = clean.replace(/(?:[\u4e00-\u9fa5A-Za-z0-9]+\|)+([\u4e00-\u9fa5A-Za-z0-9]+)\[([^\]]+)\]/g, '$1 ($2)');
-      clean = clean.replace(/([\u4e00-\u9fa5A-Za-z0-9]+)\[([^\]]+)\]/g, '$1 ($2)');
-      
+      // Clean CC-CEDICT syntax without retaining Chinese characters
+      clean = clean.replace(/(?:[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaffA-Za-z0-9]+\|)+[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaffA-Za-z0-9]+\[([^\]]+)\]/g, '($1)');
+      clean = clean.replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaffA-Za-z0-9]+\[([^\]]+)\]/g, '($1)');
+      clean = clean.replace(/\[[a-z0-9\s:_-]+\]/gi, '');
+
+      // Strip any lingering Chinese characters
+      clean = clean.replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g, '');
+
+      // Clean orphan parentheses, brackets, and leading/trailing punctuation
+      clean = clean.replace(/\(\s*\)/g, '');
+      clean = clean.replace(/\[\s*\]/g, '');
+      clean = clean.replace(/\(\s*[,;:\s-]+\s*\)/g, '');
+      clean = clean.replace(/\s{2,}/g, ' ');
+      clean = clean.replace(/^[,;:\s-]+|[,;:\s-]+$/g, '').trim();
+
       clean = clean.replace(/^erhua variant of /i, 'Variant of ');
       clean = clean.replace(/^variant of /i, 'Variant of ');
+
+      if (!clean) continue;
+      // Skip pure variant/cross-reference noise
+      if (/^(?:variant of|see|used in|same as|also pr\.?|also written)$/i.test(clean)) continue;
 
       const lower = clean.toLowerCase();
 
@@ -1205,10 +1569,15 @@ document.addEventListener("DOMContentLoaded", () => {
       scored.push({ text: clean, score, originalIdx: scored.length });
     }
 
+    if (!scored.length) {
+      return 'No recorded meaning.';
+    }
+
     // Sort by score descending, preserving natural order for ties
     scored.sort((a, b) => b.score - a.score || a.originalIdx - b.originalIdx);
 
-    return scored.map(s => s.text).join(', ');
+    const result = (maxMeanings > 0 ? scored.slice(0, maxMeanings) : scored).map(s => s.text).join(', ');
+    return result.replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g, '').trim() || 'No recorded meaning.';
   }
 
   /* ---------- DRAWER ---------- */
@@ -1461,7 +1830,7 @@ document.addEventListener("DOMContentLoaded", () => {
       '</div>' +
       '</div>' +
       '<div class="drawer-sentence-pinyin">' + escHtml(sentencePinyin(sentence)) + '</div>' +
-      '<div class="drawer-sentence-en">' + escHtml(sentence.t) + '</div>' +
+      '<div class="drawer-sentence-en">' + escHtml(cleanSentenceEnglish(sentence.t)) + '</div>' +
       '</article>'
     ).join("") : '<div class="drawer-sentence-empty">No sentence examples recorded for this character.</div>';
   }
@@ -1570,7 +1939,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // ── Collapsible panels ────────────────────────────────
       '<div class="sc-pinyin-panel' + pOpen + '" id="sc-pinyin-' + escHtml(item.i) + '">' + escHtml(sentencePinyin(item)) + '</div>' +
-      '<div class="sc-en-panel' + eOpen + '" id="sc-en-' + escHtml(item.i) + '">' + escHtml(item.t) + '</div>' +
+      '<div class="sc-en-panel' + eOpen + '" id="sc-en-' + escHtml(item.i) + '">' + escHtml(cleanSentenceEnglish(item.t)) + '</div>' +
 
       // ── Footer ────────────────────────────────────────────
       '<div class="sc-footer">' +
@@ -1643,7 +2012,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentDetailSentenceId = id;
     el("sentence-detail-zh").textContent = item.z;
     el("sentence-detail-pinyin").textContent = sentencePinyin(item);
-    el("sentence-detail-en").textContent = item.t;
+    el("sentence-detail-en").textContent = cleanSentenceEnglish(item.t);
     el("sentence-word-list").innerHTML = Array.from(new Set(Array.from(item.z).filter(ch => HANZI_BY_CHAR[ch]))).map(ch => '<button type="button" class="sentence-word-chip" data-sentence-char="' + escHtml(ch) + '">' + escHtml(ch) + ' ' + escHtml(HANZI_BY_CHAR[ch].p || "") + '</button>').join("");
     el("sentence-detail-review").dataset.reviewSentence = id;
     updateSentenceDetailStatusUI(id);
@@ -2231,7 +2600,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el("fc-sentence-front").textContent = item.z || "";
       el("fc-sentence-back").textContent = item.z || "";
       el("fc-sentence-pinyin").textContent = sentencePinyin(item) || "";
-      let sentenceHtml = item.t ? escHtml(item.t) : '<span class="auto-translate" data-translate-word="' + escHtml(item.z || "") + '">Fetching translation...</span>';
+      let sentenceHtml = item.t ? escHtml(cleanSentenceEnglish(item.t)) : '<span class="auto-translate" data-translate-word="' + escHtml(item.z || "") + '">Fetching translation...</span>';
       el("fc-sentence-en").innerHTML = '<a href="https://translate.google.com/?sl=zh-CN&tl=en&text=' + encodeURIComponent(item.z || "") + '&op=translate" target="_blank" style="color: inherit; text-decoration: underline dashed rgba(255,255,255,0.4); padding: 4px;">' + sentenceHtml + '</a>';
       fitSentenceLine(el("fc-sentence-front"));
       fitSentenceLine(el("fc-sentence-back"));
@@ -2856,7 +3225,6 @@ document.addEventListener("DOMContentLoaded", () => {
           '<div class="word-card-face front">' +
           '<span class="word-level-badge level-' + (word.level || 1) + '">' + escHtml(lvlLabel) + '</span>' +
           '<button type="button" class="tone-audio-btn-sm" data-speak-word="' + escHtml(word.word) + '" title="Listen to ' + escHtml(word.word) + '" style="position:absolute; top:10px; right:10px; z-index:2;">🔊</button>' +
-          '<button type="button" class="tone-audio-btn-sm" data-browser-speak-word="' + escHtml(word.word) + '" title="Browser TTS: ' + escHtml(word.word) + '" style="position:absolute; top:10px; right:50px; z-index:2;">🗣️</button>' +
           '<div class="word-zh">' + escHtml(word.word) + '</div>' +
           '<div class="word-pinyin" ' + (wordsShowPinyin ? '' : 'hidden') + '>' + escHtml(word.pinyin || "—") + '</div>' +
           '</div>' +
@@ -2938,7 +3306,9 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => applyBulkWordStatus(btn.dataset.wordBulkStatus));
     });
     el("word-clear-selection")?.addEventListener("click", () => {
-      selectedWords.clear(); updateWordSelectionBar(); renderWords();
+      selectedWords.clear();
+      document.querySelectorAll(".word-card.selected").forEach(c => c.classList.remove("selected"));
+      updateWordSelectionBar();
     });
 
     el("word-grid")?.addEventListener("click", e => {
@@ -2967,7 +3337,12 @@ document.addEventListener("DOMContentLoaded", () => {
           triggerStampFX(card);
           spawnConfetti(card);
         }
-        renderWords();
+        updateWordSidebars();
+        updateHeaderProgress();
+        refreshDueCount();
+        if (wordFilters.status !== "all") {
+          renderWords();
+        }
         return;
       }
       const part = e.target.closest("[data-word-char]");
@@ -2980,10 +3355,28 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!card) return;
       const word = card.dataset.word;
       if (wordSelectionMode === "single") {
-        selectedWords.clear(); selectedWords.add(word); updateWordSelectionBar(); renderWords();
+        const prev = selectedWords.values().next().value;
+        if (prev && prev !== word) {
+          selectedWords.delete(prev);
+          document.querySelectorAll('.word-card[data-word="' + CSS.escape(prev) + '"]').forEach(c => c.classList.remove("selected"));
+        }
+        if (selectedWords.has(word)) {
+          selectedWords.delete(word);
+          card.classList.remove("selected");
+        } else {
+          selectedWords.add(word);
+          card.classList.add("selected");
+        }
+        updateWordSelectionBar();
       } else if (wordSelectionMode === "multi") {
-        if (selectedWords.has(word)) selectedWords.delete(word); else selectedWords.add(word);
-        updateWordSelectionBar(); renderWords();
+        if (selectedWords.has(word)) {
+          selectedWords.delete(word);
+          card.classList.remove("selected");
+        } else {
+          selectedWords.add(word);
+          card.classList.add("selected");
+        }
+        updateWordSelectionBar();
       } else {
         card.classList.toggle("flipped");
       }
@@ -2996,10 +3389,28 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const word = card.dataset.word;
       if (wordSelectionMode === "single") {
-        selectedWords.clear(); selectedWords.add(word); updateWordSelectionBar(); renderWords();
+        const prev = selectedWords.values().next().value;
+        if (prev && prev !== word) {
+          selectedWords.delete(prev);
+          document.querySelectorAll('.word-card[data-word="' + CSS.escape(prev) + '"]').forEach(c => c.classList.remove("selected"));
+        }
+        if (selectedWords.has(word)) {
+          selectedWords.delete(word);
+          card.classList.remove("selected");
+        } else {
+          selectedWords.add(word);
+          card.classList.add("selected");
+        }
+        updateWordSelectionBar();
       } else if (wordSelectionMode === "multi") {
-        if (selectedWords.has(word)) selectedWords.delete(word); else selectedWords.add(word);
-        updateWordSelectionBar(); renderWords();
+        if (selectedWords.has(word)) {
+          selectedWords.delete(word);
+          card.classList.remove("selected");
+        } else {
+          selectedWords.add(word);
+          card.classList.add("selected");
+        }
+        updateWordSelectionBar();
       } else {
         card.classList.toggle("flipped");
       }
@@ -3044,9 +3455,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setWordSelectionMode(mode) {
     wordSelectionMode = mode;
-    if (mode === "off") selectedWords.clear();
+    if (mode === "off") {
+      selectedWords.clear();
+      document.querySelectorAll(".word-card.selected").forEach(c => c.classList.remove("selected"));
+    } else if (mode === "single" && selectedWords.size > 1) {
+      const first = selectedWords.values().next().value;
+      selectedWords.clear();
+      if (first) selectedWords.add(first);
+      document.querySelectorAll(".word-card.selected").forEach(c => {
+        if (c.dataset.word !== first) c.classList.remove("selected");
+      });
+    }
     updateWordSelectionBar();
-    renderWords();
   }
 
   function updateWordSelectionBar() {
@@ -3078,6 +3498,9 @@ document.addEventListener("DOMContentLoaded", () => {
     selectedWords.forEach(word => {
       setWordStatusManual(word, status);
     });
+    updateWordSidebars();
+    updateHeaderProgress();
+    refreshDueCount();
     setTimeout(() => {
       saveState.textContent = "Saved!";
       saveState.classList.remove("saving");
@@ -3090,7 +3513,9 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedWords.clear();
         setWordSelectionMode("off");
       }
-      renderWords();
+      if (wordFilters.status !== "all") {
+        renderWords();
+      }
     }, 200);
   }
 
@@ -3264,6 +3689,28 @@ document.addEventListener("DOMContentLoaded", () => {
   let duUnderline = "on"; // "on", "off"
   let duAutoScroll = "on"; // "on", "off"
 
+  let inspectDuWord = null;
+
+  function updateReaderWordStatus(term, status) {
+    if (!term) return;
+    const canvas = el("du-article-canvas");
+    if (!canvas) return;
+
+    // Update word tokens
+    canvas.querySelectorAll('.du-word[data-word="' + CSS.escape(term) + '"]').forEach(wordEl => {
+      wordEl.classList.remove("status-new", "status-learning", "status-known");
+      wordEl.classList.add("status-" + status);
+      wordEl.dataset.status = status;
+    });
+
+    // If single character, also update data-status on matching individual character spans
+    if (term.length === 1) {
+      canvas.querySelectorAll('.du-char[data-char="' + CSS.escape(term) + '"]').forEach(charEl => {
+        charEl.dataset.status = status;
+      });
+    }
+  }
+
   function wireReadings() {
     const container = el("du-reader-container");
     if (!container) return;
@@ -3284,26 +3731,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch(e){}
 
-    // Build word segmentation dictionary
-    let duWordDict = new Set();
-    let duMaxWordLen = 4;
-    if (typeof WORD_DATA !== "undefined" && WORD_DATA && WORD_DATA.length) {
-      WORD_DATA.forEach(w => {
-        if (w.word) {
-          duWordDict.add(w.word);
-          if (w.word.length > duMaxWordLen) duMaxWordLen = w.word.length;
-        }
-      });
+    // Build word segmentation dictionary from global word dictionary
+    if (!GLOBAL_WORD_SET || GLOBAL_WORD_SET.size === 0) {
+      buildGlobalWordDictionary();
     }
-    // Also include highlighted words in dict
-    DU_HIGHLIGHT_WORDS.forEach(w => duWordDict.add(w));
+    let duWordDict = GLOBAL_WORD_SET;
+    let duMaxWordLen = GLOBAL_MAX_WORD_LEN || 4;
 
     // Helper: Segment Chinese sentence into words
     function segmentSentence(text) {
       const tokens = [];
       let i = 0;
       const chars = Array.from(text);
-      const isChinesePunct = ch => /[\s，。！？、“”‘’（）《》；：…—\?\!,\.]/.test(ch);
+      const isChinesePunct = ch => /[\s，。！？、“”‘’（）《》；：…—\?\!,\.·]/.test(ch);
 
       while (i < chars.length) {
         const ch = chars[i];
@@ -3335,43 +3775,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Helper: Lookup word definition
     function getWordInfo(word) {
-      if (!word) return null;
-      let match = null;
-      if (typeof WORD_DATA !== "undefined" && WORD_DATA) {
-        match = WORD_DATA.find(w => w.word === word);
-      }
-      if (!match && typeof HANZI_BY_CHAR !== "undefined" && word.length === 1 && HANZI_BY_CHAR[word]) {
-        const h = HANZI_BY_CHAR[word];
-        return {
-          word,
-          pinyin: h.p || "",
-          meaning: h.m || "",
-          level: h.l ? ("HSK " + h.l) : "New",
-          chars: [{ char: word, pinyin: h.p || "", meaning: h.m || "" }]
-        };
-      }
-
-      // Compute character breakdowns
-      const charBreakdowns = Array.from(word).map(c => {
-        const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c] : null;
-        return {
-          char: c,
-          pinyin: h?.p || (window.pinyinPro ? window.pinyinPro.pinyin(c, { type: "string" }) : ""),
-          meaning: h?.m || ""
-        };
-      });
-
-      let py = match ? match.pinyin : (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : "");
-      let meaning = match ? match.meaning : "";
-      let level = match ? ("HSK " + (match.level || "2")) : (charBreakdowns[0]?.meaning ? "HSK 2" : "Vocabulary");
-
-      return {
-        word,
-        pinyin: py,
-        meaning: meaning || "Common vocabulary in this lesson",
-        level: level,
-        chars: charBreakdowns
-      };
+      return getWordOrCharDetails(word);
     }
 
     // Helper: Convert Simplified to Traditional if needed
@@ -3432,15 +3836,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const tokens = segmentSentence(sent.zh);
         const isTitle = sent.isTitle;
 
-        let sentHtml = '<span class="du-sentence ' + (isTitle ? 'du-title-sentence' : '') + '" data-sentence-index="' + sentIdx + '" data-translation="' + escHtml(sent.en) + '">';
+        let sentHtml = '<span class="du-sentence ' + (isTitle ? 'du-title-sentence' : '') + '" data-sentence-index="' + sentIdx + '" data-sentence-zh="' + escHtml(sent.zh) + '" data-translation="' + escHtml(sent.en) + '">';
 
+        let charGlobalIdx = 0;
         tokens.forEach(tok => {
           if (tok.type === "punct") {
-            sentHtml += '<span class="du-punct"><ruby class="du-ruby"><span class="du-char du-punct-char">' + escHtml(tok.text) + '</span><rt>&nbsp;</rt></ruby></span>';
+            const punctHtml = Array.from(tok.text).map(ch => {
+              const idx = charGlobalIdx++;
+              return '<span class="du-punct"><ruby class="du-ruby"><span class="du-char du-punct-char" data-char-idx="' + idx + '">' + escHtml(ch) + '</span><rt>&nbsp;</rt></ruby></span>';
+            }).join("");
+            sentHtml += punctHtml;
           } else {
             const word = tok.text;
             const wordInfo = getWordInfo(word);
             const isHighlighted = DU_HIGHLIGHT_WORDS.has(word) || (wordInfo && wordInfo.level && wordInfo.level.includes("HSK"));
+            const wordStatus = (word.length === 1) ? getStatus(word) : getWordStatus(word);
 
             // Calculate per-character pinyin
             let pinyins = [];
@@ -3456,11 +3866,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const charsHtml = Array.from(word).map((c, cIdx) => {
               const dispChar = toDisplayChar(c);
               const py = pinyins[cIdx] || "";
-              return '<ruby class="du-ruby"><span class="du-char">' + escHtml(dispChar) + '</span><rt>' + escHtml(py) + '</rt></ruby>';
+              const idx = charGlobalIdx++;
+              const charStatus = getStatus(c);
+              return '<ruby class="du-ruby"><span class="du-char" data-char="' + escHtml(c) + '" data-char-idx="' + idx + '" data-sentence-idx="' + sentIdx + '" data-status="' + charStatus + '">' + escHtml(dispChar) + '</span><rt>' + escHtml(py) + '</rt></ruby>';
             }).join("");
 
             const highlightClass = isHighlighted ? " hsk-highlight" : "";
-            sentHtml += '<span class="du-word' + highlightClass + '" data-word="' + escHtml(word) + '" data-sentence-index="' + sentIdx + '" title="' + escHtml(wordInfo?.meaning || "") + '">' + charsHtml + '</span>';
+            const statusClass = " status-" + wordStatus;
+            sentHtml += '<span class="du-word' + highlightClass + statusClass + '" data-word="' + escHtml(word) + '" data-status="' + wordStatus + '" data-sentence-index="' + sentIdx + '" title="' + escHtml(wordInfo?.meaning || "") + '">' + charsHtml + '</span>';
           }
         });
 
@@ -3542,8 +3955,19 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch(e){}
     }
 
-    // Highlight and inspect sentence
-    function selectSentence(sentIdx, fromHover = false) {
+    // Show sentence translation in meaning banner
+    function showSentenceMeaning(sentIdx) {
+      if (sentIdx < 0) return;
+      const sentEl = document.querySelector('.du-sentence[data-sentence-index="' + sentIdx + '"]');
+      if (sentEl) {
+        const trans = sentEl.dataset.translation || "";
+        const sText = el("du-sentence-meaning-text");
+        if (sText) sText.textContent = trans;
+      }
+    }
+
+    // Highlight and inspect sentence (on Click or Audio Playback)
+    function selectSentence(sentIdx) {
       if (sentIdx < 0) return;
       
       if (duActiveSentenceIndex !== sentIdx) {
@@ -3554,15 +3978,10 @@ document.addEventListener("DOMContentLoaded", () => {
           s.classList.toggle("du-active-sentence", idx === sentIdx);
         });
 
-        const activeSent = document.querySelector('.du-sentence[data-sentence-index="' + sentIdx + '"]');
-        if (activeSent) {
-          const trans = activeSent.dataset.translation || "";
-          const sText = el("du-sentence-meaning-text");
-          if (sText) sText.textContent = trans;
-        }
+        showSentenceMeaning(sentIdx);
       }
 
-      if (duAutoScroll === "on" && !fromHover) {
+      if (duAutoScroll === "on") {
         const activeSent = document.querySelector('.du-sentence[data-sentence-index="' + sentIdx + '"]');
         if (activeSent) {
           activeSent.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -3570,17 +3989,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Inspect Word details
-    function inspectWord(word) {
+    // Inspect Word or Character details
+    function inspectWord(word, customDetails = null, isClick = false) {
       if (!word) return;
-      if (duActiveWord === word) return;
       duActiveWord = word;
+      inspectDuWord = inspectWord;
 
-      document.querySelectorAll(".du-word").forEach(w => {
-        w.classList.toggle("active", w.dataset.word === word);
-      });
+      if (isClick) {
+        document.querySelectorAll(".du-word").forEach(w => {
+          w.classList.toggle("active", w.dataset.word === word);
+        });
+      }
 
-      const info = getWordInfo(word);
+      const info = customDetails || getWordOrCharDetails(word) || getWordInfo(word);
       const content = el("du-word-meaning-content");
       const audioBtn = el("du-word-audio-btn");
 
@@ -3590,16 +4011,72 @@ document.addEventListener("DOMContentLoaded", () => {
           breakdownHtml = '<div class="du-wm-breakdown">' +
             info.chars.map(c => '<span class="du-wm-char-chip"><b>' + escHtml(toDisplayChar(c.char)) + '</b> <i>' + escHtml(c.pinyin) + '</i> (' + escHtml(c.meaning || "—") + ')</span>').join(" · ") +
             '</div>';
+        } else if (info.chars && info.chars.length === 1 && (info.radical || info.strokes || info.rank)) {
+          const metaItems = [];
+          if (info.radical) metaItems.push('<span class="du-wm-meta-chip">部首 Radical: <b>' + escHtml(info.radical) + (info.radicalMeaning ? ' (' + escHtml(info.radicalMeaning) + ')' : '') + '</b></span>');
+          if (info.strokes) metaItems.push('<span class="du-wm-meta-chip">笔画 Strokes: <b>' + escHtml(info.strokes) + '</b></span>');
+          if (info.rank) metaItems.push('<span class="du-wm-meta-chip">字频 Rank: <b>#' + escHtml(info.rank) + '</b></span>');
+          breakdownHtml = '<div class="du-wm-meta-chips">' + metaItems.join("") + '</div>';
         }
+
+        const badgeLabel = info.level || (word.length === 1 ? "Character" : "Vocabulary");
+        const currentStatus = (word.length === 1) ? getStatus(word) : getWordStatus(word);
+        const statusDisplay = currentStatus === "known" ? "Known" : (currentStatus === "learning" ? "Learning" : "New");
+
+        const statusRowHtml =
+          '<div class="du-wm-status-row">' +
+            '<div class="du-wm-status-info">' +
+              '<span class="du-wm-status-label">Status:</span>' +
+              '<span class="du-wm-status-badge status-' + currentStatus + '">' + statusDisplay + '</span>' +
+            '</div>' +
+            '<div class="du-wm-status-actions" role="group" aria-label="Set learning status">' +
+              '<button type="button" class="du-status-btn status-btn-new' + (currentStatus === 'new' ? ' active' : '') + '" data-status="new" title="Reset to New">New</button>' +
+              '<button type="button" class="du-status-btn status-btn-learning' + (currentStatus === 'learning' ? ' active' : '') + '" data-status="learning" title="Mark as Learning">Learning</button>' +
+              '<button type="button" class="du-status-btn status-btn-known' + (currentStatus === 'known' ? ' active' : '') + '" data-status="known" title="Mark as Known">Known ✓</button>' +
+            '</div>' +
+          '</div>';
 
         content.innerHTML =
           '<div class="du-wm-headline">' +
             '<span class="du-wm-word">' + escHtml(toDisplayWord(word)) + '</span>' +
             '<span class="du-wm-pinyin">' + escHtml(info.pinyin) + '</span>' +
-            '<span class="du-wm-badge">' + escHtml(info.level) + '</span>' +
+            '<span class="du-wm-badge">' + escHtml(badgeLabel) + '</span>' +
           '</div>' +
           '<div class="du-wm-meaning">' + escHtml(info.meaning) + '</div>' +
+          statusRowHtml +
           breakdownHtml;
+
+        content.querySelectorAll(".du-status-btn").forEach(btn => {
+          btn.addEventListener("click", e => {
+            e.stopPropagation();
+            const newStatus = btn.dataset.status;
+            if (newStatus === currentStatus) return;
+
+            if (word.length === 1) {
+              const wasKnown = getStatus(word) === "known";
+              setStatusManual(word, newStatus);
+              if (newStatus === "known" && !wasKnown) {
+                const targetEl = document.querySelector('.du-word[data-word="' + CSS.escape(word) + '"]') || btn;
+                triggerStampFX(targetEl);
+                spawnConfetti(targetEl);
+              }
+            } else {
+              const wasKnown = getWordStatus(word) === "known";
+              setWordStatusManual(word, newStatus);
+              if (newStatus === "known" && !wasKnown) {
+                const targetEl = document.querySelector('.du-word[data-word="' + CSS.escape(word) + '"]') || btn;
+                triggerStampFX(targetEl);
+                spawnConfetti(targetEl);
+              }
+            }
+
+            updateReaderWordStatus(word, newStatus);
+            syncUI();
+            if (el("tab-progress")?.classList.contains("active")) renderProgress();
+            inspectWord(word, customDetails);
+            showToast((word.length === 1 ? 'Character "' : 'Word "') + word + '" marked as ' + (newStatus.charAt(0).toUpperCase() + newStatus.slice(1)));
+          });
+        });
 
         if (audioBtn) {
           audioBtn.style.display = "inline-flex";
@@ -3615,6 +4092,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       duPlaying = true;
       updatePlayBtnVisual();
+      el("du-article-canvas")?.classList.add("du-audio-playing");
 
       let currentIdx = (startIndex >= 0 && startIndex < story.sentences.length) ? startIndex : 0;
 
@@ -3624,6 +4102,8 @@ document.addEventListener("DOMContentLoaded", () => {
           // Finished story!
           duPlaying = false;
           updatePlayBtnVisual();
+          el("du-article-canvas")?.classList.remove("du-audio-playing");
+          document.querySelectorAll(".du-sentence.du-active-sentence").forEach(s => s.classList.remove("du-active-sentence"));
           markCurrentStoryRead();
           showToast("🎉 Completed reading " + (story.titleEn || story.titleZh) + "!");
           return;
@@ -3651,6 +4131,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function pauseDuAudio() {
       duPlaying = false;
       updatePlayBtnVisual();
+      el("du-article-canvas")?.classList.remove("du-audio-playing");
+      document.querySelectorAll(".du-sentence.du-active-sentence").forEach(s => s.classList.remove("du-active-sentence"));
       if (typeof currentActiveAudio !== "undefined" && currentActiveAudio) {
         try { currentActiveAudio.pause(); } catch(e){}
       }
@@ -3827,43 +4309,140 @@ document.addEventListener("DOMContentLoaded", () => {
     // Event Wiring
     // ==========================================
 
-    // Canvas click delegation (Sentence & Word)
+    // Helper to clear near-character word hover highlights
+    function clearCharHoverHighlights() {
+      if (!canvas) return;
+      canvas.querySelectorAll(".du-word-hover, .du-word-hover-char, .du-char-hover-active").forEach(el => {
+        el.classList.remove("du-word-hover", "du-word-hover-char", "du-char-hover-active");
+      });
+    }
+
+    // Canvas click delegation (Sentence, Character & Word)
     const canvas = el("du-article-canvas");
     if (canvas) {
       canvas.addEventListener("click", e => {
+        const charEl = e.target.closest(".du-char:not(.du-punct-char)");
+        const sentEl = e.target.closest(".du-sentence");
+
+        if (charEl && sentEl && charEl.dataset.charIdx !== undefined) {
+          e.stopPropagation();
+          const sentIdx = Number(sentEl.dataset.sentenceIndex);
+          const sentZh = sentEl.dataset.sentenceZh || "";
+          const charIdx = Number(charEl.dataset.charIdx);
+          const result = findNearbyWordAtChar(sentZh, charIdx);
+
+          selectSentence(sentIdx, false);
+          if (result) {
+            inspectWord(result.word, result.details, true);
+            playChineseAudio(result.word, { rate: duSpeed });
+          }
+          return;
+        }
+
         const wordEl = e.target.closest(".du-word");
         if (wordEl) {
           e.stopPropagation();
           const word = wordEl.dataset.word;
           const sentIdx = Number(wordEl.dataset.sentenceIndex);
           selectSentence(sentIdx, false);
-          inspectWord(word);
+          inspectWord(word, null, true);
           playChineseAudio(word, { rate: duSpeed });
           return;
         }
 
-        const sentEl = e.target.closest(".du-sentence");
         if (sentEl) {
           const sentIdx = Number(sentEl.dataset.sentenceIndex);
-          selectSentence(sentIdx, false);
+          selectSentence(sentIdx);
         }
       });
 
-      // Canvas hover delegation
-      canvas.addEventListener("mouseover", e => {
+      // Canvas hover delegation: find if near characters make words, otherwise show character meaning
+      let hoverDebounceTimer = null;
+      let lastHoverCharEl = null;
+
+      canvas.addEventListener("mousemove", e => {
+        const charEl = e.target.closest(".du-char:not(.du-punct-char)");
+        const sentEl = e.target.closest(".du-sentence");
+
+        if (charEl && sentEl && charEl.dataset.charIdx !== undefined) {
+          if (charEl === lastHoverCharEl) return;
+          lastHoverCharEl = charEl;
+          const sentIdx = Number(sentEl.dataset.sentenceIndex);
+          const sentZh = sentEl.dataset.sentenceZh || "";
+          const charIdx = Number(charEl.dataset.charIdx);
+
+          clearTimeout(hoverDebounceTimer);
+          hoverDebounceTimer = setTimeout(() => {
+            showSentenceMeaning(sentIdx);
+
+            if (!duPlaying) {
+              document.querySelectorAll(".du-sentence.du-active-sentence").forEach(s => {
+                s.classList.remove("du-active-sentence");
+              });
+            }
+
+            const result = findNearbyWordAtChar(sentZh, charIdx);
+            if (!result) return;
+
+            clearCharHoverHighlights();
+
+            if (result.type === "word") {
+              // Highlight all characters that compose the detected word (big word highlight only)
+              const allChars = sentEl.querySelectorAll(".du-char[data-char-idx]");
+              allChars.forEach(c => {
+                const idx = Number(c.dataset.charIdx);
+                if (idx >= result.startIndex && idx < result.endIndex) {
+                  c.closest(".du-word")?.classList.add("du-word-hover");
+                }
+              });
+              inspectWord(result.word, result.details, false);
+            } else {
+              // Fallback to single character: highlight full word container only (big highlight)
+              charEl.closest(".du-word")?.classList.add("du-word-hover");
+              inspectWord(result.word, result.details, false);
+            }
+          }, 25);
+          return;
+        }
+
         const wordEl = e.target.closest(".du-word");
         if (wordEl) {
           const word = wordEl.dataset.word;
           const sentIdx = Number(wordEl.dataset.sentenceIndex);
-          selectSentence(sentIdx, true);
-          inspectWord(word);
+          clearTimeout(hoverDebounceTimer);
+          hoverDebounceTimer = setTimeout(() => {
+            showSentenceMeaning(sentIdx);
+            if (!duPlaying) {
+              document.querySelectorAll(".du-sentence.du-active-sentence").forEach(s => {
+                s.classList.remove("du-active-sentence");
+              });
+            }
+            inspectWord(word, null, false);
+          }, 30);
           return;
         }
 
-        const sentEl = e.target.closest(".du-sentence");
-        if (sentEl) {
-          const sentIdx = Number(sentEl.dataset.sentenceIndex);
-          selectSentence(sentIdx, true);
+        const outerSent = e.target.closest(".du-sentence");
+        if (outerSent) {
+          const sentIdx = Number(outerSent.dataset.sentenceIndex);
+          clearTimeout(hoverDebounceTimer);
+          hoverDebounceTimer = setTimeout(() => {
+            showSentenceMeaning(sentIdx);
+            if (!duPlaying) {
+              document.querySelectorAll(".du-sentence.du-active-sentence").forEach(s => {
+                s.classList.remove("du-active-sentence");
+              });
+            }
+          }, 30);
+        }
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        clearTimeout(hoverDebounceTimer);
+        clearCharHoverHighlights();
+        lastHoverCharEl = null;
+        if (duActiveSentenceIndex >= 0) {
+          showSentenceMeaning(duActiveSentenceIndex);
         }
       });
     }
@@ -4288,6 +4867,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function lookupDetails(word) {
       if (!word) return null;
+      if (typeof getWordOrCharDetails === "function") {
+        const d = getWordOrCharDetails(word);
+        if (d) return d;
+      }
       let match = null;
       if (typeof WORD_DATA !== "undefined" && Array.isArray(WORD_DATA)) {
         match = WORD_DATA.find(w => w.word === word);
@@ -4303,10 +4886,10 @@ document.addEventListener("DOMContentLoaded", () => {
           word,
           pinyin: h.p || (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : ""),
           meaning: h.m || match?.meaning || "",
-          level: h.l ? ("HSK " + h.l) : (match?.level ? ("HSK " + match.level) : "HSK 1"),
+          level: h.h ? ("HSK " + h.h) : (h.l ? ("HSK " + h.l) : "Character"),
           radical: h.r || "",
           strokes: h.s || null,
-          rank: h.rn || null,
+          rank: h.f || h.rn || null,
           chars: [{ char: word, pinyin: h.p, meaning: h.m }]
         };
       }
@@ -4326,7 +4909,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!level) {
         const charLvls = charBreakdowns.map(c => {
           const h = (typeof HANZI_BY_CHAR !== "undefined") ? HANZI_BY_CHAR[c.char] : null;
-          return h?.l ? Number(h.l) : null;
+          return h?.h ? Number(h.h) : (h?.l ? Number(h.l) : null);
         }).filter(Boolean);
         level = charLvls.length > 0 ? ("HSK " + Math.max(...charLvls)) : "Vocabulary";
       }
@@ -4344,21 +4927,36 @@ document.addEventListener("DOMContentLoaded", () => {
       const target = document.elementFromPoint(x, y);
       if (!target || tooltip.contains(target) || sidebarToggleBtn?.contains(target) || settingsToggleBtn?.contains(target) || settingsPanel?.contains(target)) return null;
 
-      // 1. Priority: Elements with data-char attribute (.tile, .radical-card, .seal-chip, etc.)
+      // 1. Reading canvas with dynamic nearby-character word detection
+      const duCanvas = target.closest("#du-article-canvas");
+      if (duCanvas) {
+        const duChar = target.closest(".du-char:not(.du-punct-char)");
+        const sentEl = target.closest(".du-sentence");
+        if (duChar && sentEl && duChar.dataset.charIdx !== undefined) {
+          const charIdx = Number(duChar.dataset.charIdx);
+          const sentZh = sentEl.dataset.sentenceZh;
+          if (sentZh && !isNaN(charIdx) && typeof findNearbyWordAtChar === "function") {
+            const found = findNearbyWordAtChar(sentZh, charIdx);
+            if (found && found.word) return found.word;
+          }
+        }
+      }
+
+      // 2. Priority: Elements with data-char attribute (.tile, .radical-card, .seal-chip, etc.)
       const charEl = target.closest("[data-char]");
       if (charEl && charEl.dataset.char) {
         const c = charEl.dataset.char.trim();
         if (c && isChineseChar(c[0])) return c.slice(0, 1);
       }
 
-      // 2. Priority: Elements with data-word attribute (.du-word, .word-card, etc.)
+      // 3. Priority: Elements with data-word attribute (.du-word, .word-card, etc.)
       const wordEl = target.closest("[data-word]");
       if (wordEl && wordEl.dataset.word) {
         const w = wordEl.dataset.word.trim();
         if (w && isChineseChar(w[0])) return w;
       }
 
-      // 3. Du Chinese ruby character or word
+      // 4. Du Chinese ruby character or word fallback
       const duWord = target.closest(".du-word");
       if (duWord && duWord.dataset.word) return duWord.dataset.word.trim();
 
@@ -4451,9 +5049,14 @@ document.addEventListener("DOMContentLoaded", () => {
       currentLookupWord = word;
       const info = lookupDetails(word);
 
+      const status = (word.length === 1) ? getStatus(word) : getWordStatus(word);
+      const statusLabel = status === "known" ? "Known ✓" : (status === "learning" ? "Learning" : "New");
+      const baseLevel = info?.level || (word.length === 1 ? "Character" : "Word");
+
       wordEl.textContent = word;
       pinyinEl.textContent = info?.pinyin || (window.pinyinPro ? window.pinyinPro.pinyin(word, { type: "string" }) : "");
-      hskEl.textContent = info?.level || (word.length === 1 ? "Character" : "Word");
+      hskEl.textContent = `${baseLevel} · ${statusLabel}`;
+      hskEl.className = `hover-dict-hsk status-${status}`;
 
       let meaning = info?.meaning || "";
       meaningEl.textContent = meaning || "Chinese vocabulary";
@@ -4760,11 +5363,21 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => applyBulkBrowseStatus(btn.dataset.bulkStatus));
     });
     el("clear-selection").addEventListener("click", () => {
-      selectedBrowseChars.clear(); updateBrowseSelectionUI(); renderBrowse();
+      selectedBrowseChars.clear();
+      document.querySelectorAll(".tile.selected").forEach(t => {
+        t.classList.remove("selected");
+        t.setAttribute("aria-pressed", "false");
+      });
+      updateBrowseSelectionUI();
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && browseSelectionMode !== "off") {
-        selectedBrowseChars.clear(); updateBrowseSelectionUI(); renderBrowse();
+        selectedBrowseChars.clear();
+        document.querySelectorAll(".tile.selected").forEach(t => {
+          t.classList.remove("selected");
+          t.setAttribute("aria-pressed", "false");
+        });
+        updateBrowseSelectionUI();
       }
     });
   }
@@ -4799,11 +5412,7 @@ document.addEventListener("DOMContentLoaded", () => {
           setWordStatusManual(currentDetailWord, s);
           if (s === "known" && !wasKnown) { triggerStampFX(el("drawer-hanzi")); spawnConfetti(el("detail-drawer")); }
           openWordDetail(currentDetailWord);
-          const libView = el("readings-library-view");
-          if (libView && libView.classList.contains("hidden")) {
-            const parseBtn = el('readings-parse-btn');
-            if (parseBtn) parseBtn.click();
-          }
+          syncUI();
         }
       });
     });
@@ -5190,7 +5799,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el("sentence-quick-zh").textContent = item.z;
     el("sentence-quick-pinyin").textContent = sentencePinyin(item);
     el("sentence-quick-pinyin").hidden = true;
-    el("sentence-quick-en").textContent = item.t;
+    el("sentence-quick-en").textContent = cleanSentenceEnglish(item.t);
     el("sentence-quick-en").hidden = true;
     el("sentence-quick-show-pinyin").textContent = "Show Pinyin";
     el("sentence-quick-show-en").textContent = "Show English";
@@ -5666,6 +6275,30 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       openContextMenu(e.clientX, e.clientY, "word", card.dataset.word, card);
     });
+    el("du-article-canvas")?.addEventListener("contextmenu", (e) => {
+      const charEl = e.target.closest(".du-char:not(.du-punct-char)");
+      const sentEl = e.target.closest(".du-sentence");
+      if (charEl && sentEl && charEl.dataset.charIdx !== undefined) {
+        e.preventDefault();
+        const sentZh = sentEl.dataset.sentenceZh || "";
+        const charIdx = Number(charEl.dataset.charIdx);
+        const result = findNearbyWordAtChar(sentZh, charIdx);
+        if (result && result.type === "word") {
+          openContextMenu(e.clientX, e.clientY, "word", result.word, charEl.closest(".du-word") || charEl);
+        } else {
+          const ch = charEl.dataset.char || (result ? result.word : charEl.textContent.trim());
+          openContextMenu(e.clientX, e.clientY, "char", ch, charEl);
+        }
+        return;
+      }
+      const wordEl = e.target.closest(".du-word");
+      if (wordEl) {
+        e.preventDefault();
+        const word = wordEl.dataset.word;
+        const type = (word && word.length > 1) ? "word" : "char";
+        openContextMenu(e.clientX, e.clientY, type, word, wordEl);
+      }
+    });
     el("context-menu").addEventListener("click", (e) => {
       const btn = e.target.closest(".context-menu-item");
       if (!btn || !contextMenuChar) return;
@@ -5688,7 +6321,15 @@ document.addEventListener("DOMContentLoaded", () => {
           spawnConfetti(contextMenuTarget || el("app"));
         }
         closeContextMenu();
-        renderWords();
+        updateReaderWordStatus(id, action);
+        if (inspectDuWord && duActiveWord === id) {
+          inspectDuWord(id);
+        }
+        syncUI();
+        if (wordFilters.status !== "all" && el("tab-words")?.classList.contains("active")) {
+          renderWords();
+        }
+        if (el("tab-progress").classList.contains("active")) renderProgress();
         return;
       } else if (contextMenuType === "sentence") {
         const wasKnown = getSentenceStatus(id) === "known";
@@ -5708,6 +6349,10 @@ document.addEventListener("DOMContentLoaded", () => {
           triggerStampFX(tileEl || contextMenuTarget || el("app"));
           spawnConfetti(tileEl || contextMenuTarget || el("app"));
         }
+        updateReaderWordStatus(statusChar, action);
+        if (inspectDuWord && duActiveWord === statusChar) {
+          inspectDuWord(statusChar);
+        }
       }
       closeContextMenu();
       syncUI();
@@ -5717,7 +6362,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!el("context-menu").classList.contains("hidden") && !e.target.closest("#context-menu")) closeContextMenu();
     });
     document.addEventListener("contextmenu", (e) => {
-      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip") && !e.target.closest(".sentence-card") && !e.target.closest(".radical-card") && !e.target.closest(".word-card")) closeContextMenu();
+      if (!e.target.closest(".tile") && !e.target.closest(".seal-chip") && !e.target.closest(".sentence-card") && !e.target.closest(".radical-card") && !e.target.closest(".word-card") && !e.target.closest("#du-article-canvas")) closeContextMenu();
     });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeContextMenu(); });
     window.addEventListener("scroll", closeContextMenu, true);
@@ -8899,7 +9544,7 @@ document.addEventListener("DOMContentLoaded", () => {
           
           <div class="picto-card-info">
             <div class="picto-card-pinyin" ${pictoShowPinyin ? "" : "hidden"}>${escHtml(item.p)}</div>
-            <div class="picto-card-meaning" ${pictoShowMeaning ? "" : "hidden"} title="${escHtml(item.m)}">${escHtml(item.m)}</div>
+            <div class="picto-card-meaning" ${pictoShowMeaning ? "" : "hidden"} title="${escHtml(item.m)}">${escHtml(formatDefinition(item.m, item.c, 2))}</div>
           </div>
 
           <div class="picto-card-footer">
